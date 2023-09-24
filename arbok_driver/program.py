@@ -2,9 +2,7 @@ import copy
 from typing import Union
 
 from qm.QuantumMachinesManager import QuantumMachinesManager
-from qm.qua import (
-    program, infinite_loop_, pause, stream_processing, declare, for_, assign
-)
+from qm.qua import program, infinite_loop_, pause, stream_processing
 from qm import SimulationConfig
 
 from qcodes.parameters import Parameter

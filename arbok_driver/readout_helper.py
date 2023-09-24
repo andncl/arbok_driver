@@ -1,6 +1,3 @@
-#\\ COMMERCIAL-IN-CONFIDENCE
-#\\ DO NOT DISTRIBUTE WITHOUT PRIOR CONSENT FROM PROF ANDREW DZURAK.
-#\\ Copyright Dzurak Research Group, UNSW.
 """
 General readout class to manage measurements
 
@@ -10,11 +7,20 @@ SSR
 
 from qm.qua import *
 import matplotlib.pyplot as plt
-from arbok.core.sequence import Sequence
+from arbok_driver.read_sequence import ReadSequence
 
 class Readout():
-    def __init__(self, name, sequence, read_label = None,
-                 threshold = 0):
+    def __init__(self, name: str, sequence: ReadSequence, read_label: str,
+                 threshold: float = 0):
+        """ 
+        Constructor Method for readout helper class
+        
+        Args:
+            name (str): Name of the Readout helper
+            sequence (ReadSequence): ReadSequence that uses this helper
+            read_label (str): name of the label
+            threshold (float): Current threshold for spin state readout
+        """
         self.name = name
         self.sequence =  sequence
         self.read_label = read_label
