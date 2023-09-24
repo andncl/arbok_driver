@@ -10,6 +10,11 @@ import matplotlib.pyplot as plt
 from arbok_driver.read_sequence import ReadSequence
 
 class Readout():
+    """
+    Helper class to summarize and handlemultiple streaming results.
+    TODO: Can probably be removed and be replaced by more specic helpers
+        e.g: Set spin readout
+    """
     def __init__(self, name: str, sequence: ReadSequence, read_label: str,
                  threshold: float = 0):
         """ 
