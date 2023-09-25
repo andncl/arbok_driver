@@ -124,6 +124,7 @@ class Sequence(Instrument):
         """ Declares all sweep variables """
         print("DECLARED")
         for i, sweep in enumerate(self.settables):
+            print(sweep)
             if not isinstance(sweep, list):
                 self.settables[i] = [sweep]
                 self.setpoints_grid[i] = [self.setpoints_grid[i]]
@@ -135,8 +136,10 @@ class Sequence(Instrument):
                 par.set(self.setpoints_grid[i][j])      
                 if par.get().dtype == float:
                     par.qua_var = declare(fixed)
+                    par.qua_sweep_arr = declare(fixed, value = self.setpoints_grid[i][j])
                 elif par.get().dtype == int:
                     par.qua_var = declare(int)
+                    par.qua_sweep_arr = declare(int, value = self.setpoints_grid[i][j])
                 else:
                     raise TypeError(
                         "Type not supported. Must be float or int")
@@ -160,16 +163,14 @@ class Sequence(Instrument):
             return
         elif len(settables) == len(setpoints_grid) and len(settables) > 0:
             print(f"Adding qua loop for {par.name for par in settables[-1]}")
-            print('sweepLen', len(setpoints_grid[-1][0]))
+            
             new_settables = settables[:-1]
             new_setpoints_grid = setpoints_grid[:-1]
-            for idx in range(len(setpoints_grid[-1][0])):
+            idx = declare(int)
+            with for_(idx, 0, idx < len(setpoints_grid[-1][0]), idx + 1):
                 print('Fuck', settables[-1])
-                for i, par in enumerate(settables[-1]):
-                    print(par.qua_var)
-                    print(self.setpoints_grid[-1][i][idx])
-                    assign(par.qua_var, self.setpoints_grid[-1][i][idx])
-
+                for par in settables[-1]:
+                    assign(par.qua_var, par.qua_sweep_arr[idx])
                 self.recursive_sweep_generation(new_settables, new_setpoints_grid)
             return
         else:
