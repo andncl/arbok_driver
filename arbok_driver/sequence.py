@@ -27,7 +27,7 @@ class Sequence(Instrument):
     """
     Class describing a subsequence of a QUA programm (e.g Init, Control, Read). 
     """
-    def __init__(self, name: str, sample: Sample,  *args,
+    def __init__(self, name: str, sample: Sample,
                  param_config: Union[dict, None] = None, **kwargs):
         """
         Constructor class for `Program` class
@@ -39,7 +39,7 @@ class Sequence(Instrument):
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
         """
-        super().__init__(name, *args, **kwargs)
+        super().__init__(name, **kwargs)
         self.sample = sample
         self.elements = self.sample.elements
         self._parent = None
@@ -52,7 +52,7 @@ class Sequence(Instrument):
         self.add_qc_params_from_config(self.param_config)
 
     def qua_declare(self):
-        """Contains raw QUA code to declare variable"""
+        """Contains raw QUA code to initialize the qua variables"""
         return
 
     def qua_sequence(self):
@@ -67,7 +67,7 @@ class Sequence(Instrument):
         """ Returns the sweep size from the settables via the setpoints_grid"""
         sweep_size = 1
         for sweep_list in self.setpoints_grid:
-            sweep_size *= len(sweep_list)
+            sweep_size *= len(sweep_list[0])
         return sweep_size
 
     @property
@@ -120,6 +120,27 @@ class Sequence(Instrument):
                 self.recursive_qua_generation(seq_type = 'stream')
         return prog
 
+    def qua_declare_sweep_vars(self):
+        """ Declares all sweep variables """
+        print("DECLARED")
+        for i, sweep in enumerate(self.settables):
+            if not isinstance(sweep, list):
+                self.settables[i] = [sweep]
+                self.setpoints_grid[i] = [self.setpoints_grid[i]]
+            self.sweep_len *= len(self.setpoints_grid[i][0])
+            for j, par in enumerate(sweep):
+                print(f"Adding qua {type(par.get())} variable for {par.name}")
+                par.qua_sweeped = True
+                par.vals= Arrays()
+                par.set(self.setpoints_grid[i][j])      
+                if par.get().dtype == float:
+                    par.qua_var = declare(fixed)
+                elif par.get().dtype == int:
+                    par.qua_var = declare(int)
+                else:
+                    raise TypeError(
+                        "Type not supported. Must be float or int")
+
     def recursive_sweep_generation(self, settables, setpoints_grid):
         """
         Recursively generates QUA parameter sweeps by introducing one nested QUA
@@ -127,38 +148,30 @@ class Sequence(Instrument):
         setpoints list is in the innermost loop.
 
         Args:
-]           settables (list): List of QCodes parameter names to sweep
+            settables (list): List of QCodes parameter names to sweep
             setpoints_grid (list): List of QCodes parameter set values
             simulate (bool): Flag whether program is simulated
         """
+        print("start with ", settables)
         if len(settables) == 0:
             # this condition gets triggered if we arrive at the innermost loop
             self.recursive_qua_generation('sequence')
+            print('happens')
             return
-        if len(settables) == len(self.settables):
-            for i, par in enumerate(settables):
-                print(f"Adding qua {type(par.get())} variable for {par.name}")
-                par.qua_sweeped = True
-                par.vals= Arrays()
-                par.set(self.setpoints_grid[i])
-                self.sweep_len *= len(self.setpoints_grid[i])
-                if par.get().dtype == float:
-                    par.qua_var = declare(fixed)
-                    globals()[par.name+'_sweep_val'] = declare(fixed)
-                elif par.get().dtype == int:
-                    par.qua_var = declare(int)
-                    globals()[par.name+'_sweep_val'] = declare(int)
-                else:
-                    raise TypeError("Type not supported. Must be float or int")
-        if len(settables) == len(setpoints_grid):
-            print(f"Adding qua sweep loop for {settables[-1].name}")
-            parameter = settables[-1]
-            sweep_value = globals()[parameter.name+'_sweep_val']
-            with for_(*from_array(sweep_value, setpoints_grid[-1])):
-                assign(parameter.qua_var, sweep_value)
-                settables.pop()
-                setpoints_grid.pop()
-                self.recursive_sweep_generation(settables, setpoints_grid)
+        elif len(settables) == len(setpoints_grid) and len(settables) > 0:
+            print(f"Adding qua loop for {par.name for par in settables[-1]}")
+            print('sweepLen', len(setpoints_grid[-1][0]))
+            new_settables = settables[:-1]
+            new_setpoints_grid = setpoints_grid[:-1]
+            for idx in range(len(setpoints_grid[-1][0])):
+                print('Fuck', settables[-1])
+                for i, par in enumerate(settables[-1]):
+                    print(par.qua_var)
+                    print(self.setpoints_grid[-1][i][idx])
+                    assign(par.qua_var, self.setpoints_grid[-1][i][idx])
+
+                self.recursive_sweep_generation(new_settables, new_setpoints_grid)
+            return
         else:
             raise ValueError(
                 "settables and setpoints_grid must have same dimensions")
@@ -170,6 +183,8 @@ class Sequence(Instrument):
         Args:
             seq_type (str): Type of qua code containing method to look for
         """
+        if seq_type == 'declare' and len(self.settables) != 0:
+            self.qua_declare_sweep_vars()
         if not self.submodules:
             getattr(self, 'qua_' + str(seq_type))()
             return
@@ -185,6 +200,9 @@ class Sequence(Instrument):
         Args:
             config (dict): Configuration containing all sequence parameters
         """
+        if config is None:
+            print(f"No params addded to {self.name}")
+            return
         for param_name, param_dict in config.items():
             if 'elements' in param_dict:
                 for element, value in param_dict['elements'].items():
@@ -206,7 +224,7 @@ class Sequence(Instrument):
                     initial_value = param_dict["value"],
                     parameter_class = SequenceParameter,
                     element = None,
-                    set_cmd=None,
+                    set_cmd = None,
                 )
             else:
                 warnings.warn("Parameter " + str(param_name) +

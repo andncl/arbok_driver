@@ -5,14 +5,14 @@ from qcodes.validators import Arrays
 
 class ReadSequence(Sequence):
     """ Baseclass for sequences containing readouts """
-    def __init__(self, name, sample):
+    def __init__(self, name, sample, seq_config):
         """
         Constructor class for ReadSequence class
         Args:
             name (dict): name of the ReadSequence
             smaple (Sample): sample for which sequence is configured
         """
-        super().__init__(name, sample)
+        super().__init__(name, sample, seq_config)
         self.readouts = []
         self.gettables = {}
 
@@ -20,7 +20,6 @@ class ReadSequence(Sequence):
         """Creates gettables from readouts list"""
         for readout in self.readouts:
             for stream_name in readout.stream_list:
-                print(f"Adding {stream_name}")
                 gettable_name = readout.name + '_' + stream_name
                 gettable = GettableParameter(
                     name = gettable_name,

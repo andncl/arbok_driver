@@ -61,7 +61,7 @@ class GettableParameter(ParameterWithSetpoints):
             warnings.warn("NO VALUE STREAMED!")
         if self.program.stream_mode == "pause_each" and self.can_resume:
             self.qm_job.resume()
-        return self.buffer_val.reshape(tuple((self.shape)))
+        return self.buffer_val.reshape(tuple((reversed(self.shape))))
 
     def set_up_gettable_from_program(self):
         """ Set up Gettable attributes from running OPX """
@@ -71,7 +71,7 @@ class GettableParameter(ParameterWithSetpoints):
         self.qm_job = self.program.qm_job
         self.result = getattr( self.qm_job.result_handles, self.name )
         self.buffer = getattr( self.qm_job.result_handles, self.name + '_buffer')
-        self.shape = tuple([len(x) for x in self.program.setpoints_grid])
+        self.shape = tuple([len(x) for x in [par[0] for par in self.program.setpoints_grid]])
         self.batch_size = self.program.sweep_size()
 
     def _fetch_from_opx(self):
