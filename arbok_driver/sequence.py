@@ -3,6 +3,7 @@
 import warnings
 import copy
 from typing import List, Union, Optional
+import logging as lg
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -93,6 +94,25 @@ class Sequence(Instrument):
         new_sequence._parent = self
         self.add_submodule(new_sequence.name, new_sequence)
 
+    def set_settables(self, *args):
+        """ Prepares and sets the settables """
+        for arg in args:
+            if isinstance(arg, SequenceParameter):
+                self.settables.append([arg])
+            elif isinstance(arg, list):
+                self.settables.append(arg)
+        return
+
+    def set_setpoints_grid(self, *args):
+        """ Prepares and sets the setpoints grid """
+        for arg in args:
+            if isinstance(arg[0], (list, np.ndarray)):
+                self.setpoints_grid.append(arg)
+            else:
+                self.setpoints_grid.append([arg])
+
+
+
     def get_program(self, simulate = False):
         """
         Runs the entire sequence by searching recursively through init, 
@@ -122,18 +142,17 @@ class Sequence(Instrument):
 
     def qua_declare_sweep_vars(self):
         """ Declares all sweep variables """
-        print("DECLARED")
+        lg.info("Start declaring")
         for i, sweep in enumerate(self.settables):
-            print(sweep)
             if not isinstance(sweep, list):
                 self.settables[i] = [sweep]
                 self.setpoints_grid[i] = [self.setpoints_grid[i]]
             self.sweep_len *= len(self.setpoints_grid[i][0])
             for j, par in enumerate(sweep):
-                print(f"Adding qua {type(par.get())} variable for {par.name}")
+                lg.info("Adding qua %s variable for %s", type(par.get()), par.name)
                 par.qua_sweeped = True
                 par.vals= Arrays()
-                par.set(self.setpoints_grid[i][j])      
+                par.set(self.setpoints_grid[i][j])
                 if par.get().dtype == float:
                     par.qua_var = declare(fixed)
                     par.qua_sweep_arr = declare(fixed, value = self.setpoints_grid[i][j])
@@ -149,26 +168,23 @@ class Sequence(Instrument):
         Recursively generates QUA parameter sweeps by introducing one nested QUA
         loops per swept parameter. The last given settables and its corresponding
         setpoints list is in the innermost loop.
-
+        TODO: Reimplement a fast version of this for non-paired parameter 
+            sweeps
         Args:
             settables (list): List of QCodes parameter names to sweep
             setpoints_grid (list): List of QCodes parameter set values
             simulate (bool): Flag whether program is simulated
         """
-        print("start with ", settables)
         if len(settables) == 0:
             # this condition gets triggered if we arrive at the innermost loop
             self.recursive_qua_generation('sequence')
-            print('happens')
             return
         elif len(settables) == len(setpoints_grid) and len(settables) > 0:
-            print(f"Adding qua loop for {par.name for par in settables[-1]}")
-            
+            lg.info("Adding qua loop for %s", [par.name for par in settables[-1]])
             new_settables = settables[:-1]
             new_setpoints_grid = setpoints_grid[:-1]
             idx = declare(int)
             with for_(idx, 0, idx < len(setpoints_grid[-1][0]), idx + 1):
-                print('Fuck', settables[-1])
                 for par in settables[-1]:
                     assign(par.qua_var, par.qua_sweep_arr[idx])
                 self.recursive_sweep_generation(new_settables, new_setpoints_grid)

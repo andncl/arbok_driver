@@ -1,6 +1,7 @@
 """ Module containing GettableParameter class """
 
 import warnings
+import logging as lg
 import numpy as np
 from qcodes.parameters import ParameterWithSetpoints
 
@@ -86,6 +87,8 @@ class GettableParameter(ParameterWithSetpoints):
     def _wait_until_buffer_full(self):
         """ This function is running until a batch with self.batch_size is ready """
         while self.count_so_far < (self.count + 1)*self.batch_size:
+            lg.info("Waiting: %s/%s results are in", 
+                self.count_so_far, (self.count + 1)*self.batch_size)
             self.count_so_far = self.result.count_so_far()
 
     def _fetch_opx_buffer(self):
