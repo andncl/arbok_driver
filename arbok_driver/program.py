@@ -90,7 +90,7 @@ class Program(Sequence):
         self.settables.reverse()
         self.setpoints_grid.reverse()
 
-    def _prepare_qc_measurement(self, measurement: Measurement):
+    def _register_qc_params_in_measurement(self, measurement: Measurement):
         """
         Configures QCoDeS measurement object from the arbok program
         
@@ -118,7 +118,7 @@ class Program(Sequence):
         Returns:
             dataset: QCoDeS dataset
         """
-        self._prepare_qc_measurement(measurement)
+        self._register_qc_params_in_measurement(measurement)
         with measurement.run() as datasaver:
             for shot in range(shots):
                 self.iteration.set(shot)
@@ -128,30 +128,6 @@ class Program(Sequence):
                 datasaver.add_result(*add_result_args)
             dataset = datasaver.dataset
         return dataset
-
-    # def get_program(self, simulate = False):
-    #     """
-    #     Runs the entire sequence by searching recursively through init, 
-    #     sequence and stream methods of all subsequences and their subsequences
-
-    #     Args:
-    #         simulate (bool): Flag whether program is simulated
-        
-    #     Returns:
-    #         program: Program compiled into QUA language
-    #     """
-    #     with program() as prog:
-    #         self.recursive_qua_generation(seq_type = 'declare')
-    #         with infinite_loop_():
-    #             if not simulate:
-    #                 pause()
-    #             self.recursive_sweep_generation(
-    #                 copy.copy(self.settables),
-    #                 copy.copy(self.setpoints_grid)
-    #                 )
-    #         with stream_processing():
-    #             self.recursive_qua_generation(seq_type = 'stream')
-    #     return prog
     
     def run_local_simulation(self, duration: int):
         """
