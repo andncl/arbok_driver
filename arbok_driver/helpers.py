@@ -86,12 +86,12 @@ def run_qdac_sweep_with_opx_program(
     measurement.register_parameter(program.iteration)
     gettable_setpoints = [program.iteration]
     for ext_settable, values in ext_settables.items():
-        logging.info("Registering parameter: %s with value %s",
+        logging.debug("Registering parameter: %s with value %s",
                       ext_settable.name, values)
         measurement.register_parameter(ext_settable)
         gettable_setpoints.append(ext_settable)
     for gettable in program.gettables:
-        logging.info("Registering gettable: %s",
+        logging.debug("Registering gettable: %s",
                       gettable.name)
         measurement.register_parameter(gettable, setpoints = gettable_setpoints)
 
@@ -114,8 +114,7 @@ def run_qdac_sweep_with_opx_program(
 def run_qdac_measurement_from_opx_program(
     program: Program,
     measurement: Measurement,
-    ext_settables: dict(),
-    shots: int
+    ext_settables: list[dict],
     ):
     """ 
     Runs QCoDeS `measurement` based on specified settables and gettables on
@@ -147,37 +146,26 @@ def run_qdac_measurement_from_opx_program(
             param, sweep_list = sweep_data
             result_args_temp.append(None)
             for value in sweep_list:
-                logging.info('Setting %s to %s', param.instrument.name, value)
+                logging.debug('Setting %s to %s', param.instrument.name, value)
                 param.set(value)
                 result_args_temp[-1] = (param, value)
                 create_recursive_measurement_loop(settables, result_args_temp)
 
-    # if not hasattr(program, 'iteration'):
-    #     program.add_parameter(
-    #         'iteration', initial_value = 0, get_cmd = None, set_cmd = None)
-    #measurement.register_parameter(program.iteration)
-    gettable_setpoints = []#program.iteration]
+    gettable_setpoints = []
+    steps = []
     for ext_settable, values in ext_settables.items():
         print(ext_settable.name, values)
         measurement.register_parameter(ext_settable)
         print("register settable ", ext_settable)
         gettable_setpoints.append(ext_settable)
+        steps.append(len(values))
     for gettable in program.gettables:
         print("SETPOINTS ", gettable_setpoints)
         measurement.register_parameter(gettable, setpoints = gettable_setpoints)
+    print('STEPS! ', steps)
 
     with measurement.run() as datasaver:
         result_args = []#(program.iteration, program.iteration.get())]
         create_recursive_measurement_loop(ext_settables, result_args)
         dataset = datasaver.dataset
     return dataset
-
-    #for shot in range(shots):
-    #program.iteration.set(shot)
-    #add_result_args = ((program.iteration, program.iteration.get()),)
-    # measurement.set_shapes(
-    #     detect_shape_of_measurement( 
-    #         parameters= program.gettables,
-    #         steps = (x_range, y_range)
-    #         ) #steps = ( x_range*len(program.settables[1][0].get()), y_range*len(program.settables[0][0].get()))
-    #     )
