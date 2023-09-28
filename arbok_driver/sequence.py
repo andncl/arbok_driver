@@ -247,9 +247,9 @@ class Sequence(Instrument):
                 warnings.warn("Parameter " + str(param_name) +
                               " is not of type float int or list")
 
-    def run_remote_simulation(self, duration: int):
+    def run_remote_simulation(self, host, duration: int):
         """
-        Simulates the MW sequence on a remote FPGA provided by Quantum Machines
+        Simulates the MW sequence on a remote simulator on the host
 
         Args:
             duration (int): Amount of cycles (4ns/cycle) to simulate
@@ -258,8 +258,8 @@ class Sequence(Instrument):
             SimulatedJob: QM job containing simulation results
         """
         qmm = QuantumMachinesManager(
-            host='dzurak-6d066ea0.quantum-machines.co',
-            port=443,
+            host = host,
+            port = 443,
             credentials=create_credentials()
         )
         simulated_job = qmm.simulate(self.sample.config, 
