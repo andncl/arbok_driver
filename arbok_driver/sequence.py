@@ -179,16 +179,19 @@ class Sequence(Instrument):
             # this condition gets triggered if we arrive at the innermost loop
             self.recursive_qua_generation('sequence')
             return
-        elif len(settables) == len(setpoints_grid) and len(settables) > 0:
-            lg.info("Adding qua loop for %s", [par.name for par in settables[-1]])
-            new_settables = settables[:-1]
-            new_setpoints_grid = setpoints_grid[:-1]
-            idx = declare(int)
-            with for_(idx, 0, idx < len(setpoints_grid[-1][0]), idx + 1):
-                for par in settables[-1]:
-                    assign(par.qua_var, par.qua_sweep_arr[idx])
-                self.recursive_sweep_generation(new_settables, new_setpoints_grid)
-            return
+        if len(settables) != len(setpoints_grid):
+            raise ValueError(
+                "settables and setpoints_grid must have same dimensions")
+        logging.debug(
+        "Adding qua loop for %s", [par.name for par in settables[-1]])
+        new_settables = settables[:-1]
+        new_setpoints_grid = setpoints_grid[:-1]
+        idx = declare(int)
+        with for_(idx, 0, idx < len(setpoints_grid[-1][0]), idx + 1):
+            for par in settables[-1]:
+                assign(par.qua_var, par.qua_sweep_arr[idx])
+            self.recursive_sweep_generation(new_settables, new_setpoints_grid)
+        return
         else:
             raise ValueError(
                 "settables and setpoints_grid must have same dimensions")
