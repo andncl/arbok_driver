@@ -278,7 +278,7 @@ class Sequence(Instrument):
         """ 
         Helper function that `play`s a qua operation on the respective elements 
         specified in the sequence config.
-        
+
         Args:
             seq (Sequence): Sequence
             from_volt (str, List): voltage point to come from
@@ -293,7 +293,8 @@ class Sequence(Instrument):
 
         if from_volt is None:
             from_volt = ['vHome']
-
+        if callable(duration):
+            duration = int(duration())
         origin_param_sets = self._find_parameters_from_keywords(from_volt)
         target_param_sets = self._find_parameters_from_keywords(to_volt)
 
@@ -301,10 +302,9 @@ class Sequence(Instrument):
             
             target_v = sum([par() for par in target_list])
             origin_v = sum([par() for par in origin_list])
-            play(
-                operation*amp( target_v - origin_v ),
-                target_list[0].element,
-                duration = duration()
+            logging.debug(
+                "Moving %s from %s to %s", 
+                target_list[0].element, origin_v, target_v
                 )
 
     def _find_parameters_from_keywords(self, keys: Union[str, List]):
