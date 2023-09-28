@@ -192,9 +192,6 @@ class Sequence(Instrument):
                 assign(par.qua_var, par.qua_sweep_arr[idx])
             self.recursive_sweep_generation(new_settables, new_setpoints_grid)
         return
-        else:
-            raise ValueError(
-                "settables and setpoints_grid must have same dimensions")
 
     def recursive_qua_generation(self, seq_type):
         """
@@ -216,7 +213,10 @@ class Sequence(Instrument):
     def add_qc_params_from_config(self, config):
         """ 
         Creates QCoDeS parameters for all entries of the config 
-        
+        TODO: Use custom Parameter types for times -> setting in ns ! (cycles)
+                use validator to check if ns are a multiple of 4 (1 cycle)
+        TODO: if voltage add scale = 0.5 and validate if |v| <= 0.5
+
         Args:
             config (dict): Configuration containing all sequence parameters
         """
@@ -255,6 +255,7 @@ class Sequence(Instrument):
         Simulates the MW sequence on a remote simulator on the host
 
         Args:
+            host (str): Host address
             duration (int): Amount of cycles (4ns/cycle) to simulate
 
         Returns:
@@ -281,6 +282,11 @@ class Sequence(Instrument):
         """ 
         Helper function that `play`s a qua operation on the respective elements 
         specified in the sequence config.
+        TODO:   - [ ] raise error if no params were found
+                - [ ] raise error when target and origin dims dont match
+                - [ ] only pass duration kwarg if given
+                - [ ] raise error if duration is too short
+                - [ ] remove from sequence -> independent helper 
 
         Args:
             seq (Sequence): Sequence
@@ -289,11 +295,6 @@ class Sequence(Instrument):
             duration (str): duration of the operation 
             operation (str): Operation to be played -> find in OPX config
         """
-        # if duration is None:
-        #     duration = lambda: 0 # minimum of 20 ns (5 cycles)
-        # elif duration < 5:
-        #     raise ValueError("Cant be shorter than 5 cycles (20 ns)")
-
         if from_volt is None:
             from_volt = ['vHome']
         if callable(duration):
@@ -302,13 +303,19 @@ class Sequence(Instrument):
         target_param_sets = self._find_parameters_from_keywords(to_volt)
 
         for target_list, origin_list in zip(target_param_sets, origin_param_sets):
-            
             target_v = sum([par() for par in target_list])
             origin_v = sum([par() for par in origin_list])
             logging.debug(
                 "Moving %s from %s to %s", 
                 target_list[0].element, origin_v, target_v
                 )
+            kwargs = {
+                'pulse': operation*amp( target_v - origin_v ),
+                'element': target_list[0].element
+                }
+            if duration is not None:
+                kwargs['duration'] = int(duration)
+            play(**kwargs)
 
     def _find_parameters_from_keywords(self, keys: Union[str, List]):
         """
