@@ -3,7 +3,7 @@
 import warnings
 import copy
 from typing import List, Union, Optional
-import logging as lg
+import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -142,14 +142,14 @@ class Sequence(Instrument):
 
     def qua_declare_sweep_vars(self):
         """ Declares all sweep variables """
-        lg.info("Start declaring")
+        logging.debug("Start declaring")
         for i, sweep in enumerate(self.settables):
             if not isinstance(sweep, list):
                 self.settables[i] = [sweep]
                 self.setpoints_grid[i] = [self.setpoints_grid[i]]
             self.sweep_len *= len(self.setpoints_grid[i][0])
             for j, par in enumerate(sweep):
-                lg.info("Adding qua %s variable for %s", type(par.get()), par.name)
+                logging.debug("Adding qua %s variable for %s", type(par.get()), par.name)
                 par.qua_sweeped = True
                 par.vals= Arrays()
                 par.set(self.setpoints_grid[i][j])
