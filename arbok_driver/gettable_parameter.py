@@ -1,6 +1,7 @@
 """ Module containing GettableParameter class """
 
 import warnings
+import logging as lg
 import numpy as np
 from qcodes.parameters import ParameterWithSetpoints
 
@@ -61,7 +62,7 @@ class GettableParameter(ParameterWithSetpoints):
             warnings.warn("NO VALUE STREAMED!")
         if self.program.stream_mode == "pause_each" and self.can_resume:
             self.qm_job.resume()
-        return self.buffer_val.reshape(tuple((self.shape)))
+        return self.buffer_val.reshape(tuple((reversed(self.shape))))
 
     def set_up_gettable_from_program(self):
         """ Set up Gettable attributes from running OPX """
@@ -71,7 +72,7 @@ class GettableParameter(ParameterWithSetpoints):
         self.qm_job = self.program.qm_job
         self.result = getattr( self.qm_job.result_handles, self.name )
         self.buffer = getattr( self.qm_job.result_handles, self.name + '_buffer')
-        self.shape = tuple([len(x) for x in self.program.setpoints_grid])
+        self.shape = tuple([len(x) for x in [par[0] for par in self.program.setpoints_grid]])
         self.batch_size = self.program.sweep_size()
 
     def _fetch_from_opx(self):
@@ -86,6 +87,8 @@ class GettableParameter(ParameterWithSetpoints):
     def _wait_until_buffer_full(self):
         """ This function is running until a batch with self.batch_size is ready """
         while self.count_so_far < (self.count + 1)*self.batch_size:
+            lg.info("Waiting: %s/%s results are in", 
+                self.count_so_far, (self.count + 1)*self.batch_size)
             self.count_so_far = self.result.count_so_far()
 
     def _fetch_opx_buffer(self):

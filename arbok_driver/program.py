@@ -78,21 +78,19 @@ class Program(Sequence):
         defined with setpoints whose validators have to align with their 
         setpoints.
         """
-        self.settables.reverse()
-        self.setpoints_grid.reverse()
-
         for i, settable in enumerate(self.settables):
-            settable.vals = Arrays(shape=(len(self.setpoints_grid[i]),))
-            print(settable.vals)
+            settable[0].vals = Arrays(shape=(len(self.setpoints_grid[i][0]),))
 
         for i, gettable in enumerate(self.gettables):
             gettable.batch_size = self.sweep_size()
             gettable.can_resume = True if i==(len(self.gettables) -1) else False
-            gettable.setpoints = tuple(self.settables)
+            gettable.setpoints = tuple([par[0] for par in self.settables])
             gettable.vals = Arrays(
-                shape = tuple(len(x) for x in list(self.setpoints_grid)))
+                shape = tuple(len(x) for x in list([par[0] for par in self.setpoints_grid])))
+        self.settables.reverse()
+        self.setpoints_grid.reverse()
 
-    def _prepare_qc_measurement(self, measurement: Measurement):
+    def _register_qc_params_in_measurement(self, measurement: Measurement):
         """
         Configures QCoDeS measurement object from the arbok program
         
@@ -100,8 +98,9 @@ class Program(Sequence):
             measurement (Object): QCoDeS measurement object
             shots (int): Amount of repetitions to average
         """
-        iteration = ShotNumber(name='iteration', instrument=self)
-        self.add_parameter(iteration)
+        if not hasattr(self, 'iteration'):
+            iteration = ShotNumber(name='iteration', instrument=self)
+            self.add_parameter(iteration)
 
         measurement.register_parameter(self.iteration)
         for gettable in self.gettables:
@@ -119,7 +118,7 @@ class Program(Sequence):
         Returns:
             dataset: QCoDeS dataset
         """
-        self._prepare_qc_measurement(measurement)
+        self._register_qc_params_in_measurement(measurement)
         with measurement.run() as datasaver:
             for shot in range(shots):
                 self.iteration.set(shot)
@@ -129,30 +128,6 @@ class Program(Sequence):
                 datasaver.add_result(*add_result_args)
             dataset = datasaver.dataset
         return dataset
-
-    def get_program(self, simulate = False):
-        """
-        Runs the entire sequence by searching recursively through init, 
-        sequence and stream methods of all subsequences and their subsequences
-
-        Args:
-            simulate (bool): Flag whether program is simulated
-        
-        Returns:
-            program: Program compiled into QUA language
-        """
-        with program() as prog:
-            self.recursive_qua_generation(seq_type = 'declare')
-            with infinite_loop_():
-                if not simulate:
-                    pause()
-                self.recursive_sweep_generation(
-                    copy.copy(self.settables),
-                    copy.copy(self.setpoints_grid)
-                    )
-            with stream_processing():
-                self.recursive_qua_generation(seq_type = 'stream')
-        return prog
     
     def run_local_simulation(self, duration: int):
         """

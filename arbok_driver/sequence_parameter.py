@@ -20,6 +20,7 @@ class SequenceParameter(Parameter):
         self.element = element
         self.config_name = config_name
         self.qua_sweeped = False
+        self.qua_sweep_arr = None
         self.qua_var = None
         self.value = None
 

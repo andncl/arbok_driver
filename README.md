@@ -36,3 +36,11 @@ the jupyter lab application, add it to the ipython kernel
 ```bash
 python -m ipykernel install --name <your_env_name>
 ```
+
+## Todos:
+- [ ] validators in custom parameter classes for times (4ns -> 1 qm-cycle)
+- [ ] change the way to create sweeps!
+    - [ ] sset list of dicts -> list entry per axis, dict entry per param
+    - [ ] sweeps should be properties with setters for save measurement management
+- [ ] TESTS!
+    - [ ] issue: stubbing OPX/ errors raised by instrument

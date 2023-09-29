@@ -3,6 +3,7 @@
 import warnings
 import copy
 from typing import List, Union, Optional
+import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,13 +21,14 @@ from qm.qua import (
 
 from qualang_tools.loops import from_array
 
-from arbok_driver import Sample, SequenceParameter
+from arbok_driver.sample import Sample
+from arbok_driver.sequence_parameter import SequenceParameter
 
 class Sequence(Instrument):
     """
     Class describing a subsequence of a QUA programm (e.g Init, Control, Read). 
     """
-    def __init__(self, name: str, sample: Sample,  *args,
+    def __init__(self, name: str, sample: Sample,
                  param_config: Union[dict, None] = None, **kwargs):
         """
         Constructor class for `Program` class
@@ -38,7 +40,7 @@ class Sequence(Instrument):
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
         """
-        super().__init__(name, *args, **kwargs)
+        super().__init__(name, **kwargs)
         self.sample = sample
         self.elements = self.sample.elements
         self._parent = None
@@ -51,7 +53,7 @@ class Sequence(Instrument):
         self.add_qc_params_from_config(self.param_config)
 
     def qua_declare(self):
-        """Contains raw QUA code to declare variable"""
+        """Contains raw QUA code to initialize the qua variables"""
         return
 
     def qua_sequence(self):
@@ -66,7 +68,7 @@ class Sequence(Instrument):
         """ Returns the sweep size from the settables via the setpoints_grid"""
         sweep_size = 1
         for sweep_list in self.setpoints_grid:
-            sweep_size *= len(sweep_list)
+            sweep_size *= len(sweep_list[0])
         return sweep_size
 
     @property
@@ -91,6 +93,25 @@ class Sequence(Instrument):
         """
         new_sequence._parent = self
         self.add_submodule(new_sequence.name, new_sequence)
+
+    def set_settables(self, *args):
+        """ Prepares and sets the settables """
+        for arg in args:
+            if isinstance(arg, SequenceParameter):
+                self.settables.append([arg])
+            elif isinstance(arg, list):
+                self.settables.append(arg)
+        return
+
+    def set_setpoints_grid(self, *args):
+        """ Prepares and sets the setpoints grid """
+        for arg in args:
+            if isinstance(arg[0], (list, np.ndarray)):
+                self.setpoints_grid.append(arg)
+            else:
+                self.setpoints_grid.append([arg])
+
+
 
     def get_program(self, simulate = False):
         """
@@ -119,14 +140,38 @@ class Sequence(Instrument):
                 self.recursive_qua_generation(seq_type = 'stream')
         return prog
 
+    def qua_declare_sweep_vars(self):
+        """ Declares all sweep variables """
+        logging.debug("Start declaring")
+        for i, sweep in enumerate(self.settables):
+            if not isinstance(sweep, list):
+                self.settables[i] = [sweep]
+                self.setpoints_grid[i] = [self.setpoints_grid[i]]
+            self.sweep_len *= len(self.setpoints_grid[i][0])
+            for j, par in enumerate(sweep):
+                logging.debug("Adding qua %s variable for %s", type(par.get()), par.name)
+                par.qua_sweeped = True
+                par.vals= Arrays()
+                par.set(self.setpoints_grid[i][j])
+                if par.get().dtype == float:
+                    par.qua_var = declare(fixed)
+                    par.qua_sweep_arr = declare(fixed, value = self.setpoints_grid[i][j])
+                elif par.get().dtype == int:
+                    par.qua_var = declare(int)
+                    par.qua_sweep_arr = declare(int, value = self.setpoints_grid[i][j])
+                else:
+                    raise TypeError(
+                        "Type not supported. Must be float or int")
+
     def recursive_sweep_generation(self, settables, setpoints_grid):
         """
         Recursively generates QUA parameter sweeps by introducing one nested QUA
         loops per swept parameter. The last given settables and its corresponding
         setpoints list is in the innermost loop.
-
+        TODO: Reimplement a fast version of this for non-paired parameter 
+            sweeps
         Args:
-]           settables (list): List of QCodes parameter names to sweep
+            settables (list): List of QCodes parameter names to sweep
             setpoints_grid (list): List of QCodes parameter set values
             simulate (bool): Flag whether program is simulated
         """
@@ -134,33 +179,19 @@ class Sequence(Instrument):
             # this condition gets triggered if we arrive at the innermost loop
             self.recursive_qua_generation('sequence')
             return
-        if len(settables) == len(self.settables):
-            for i, par in enumerate(settables):
-                print(f"Adding qua {type(par.get())} variable for {par.name}")
-                par.qua_sweeped = True
-                par.vals= Arrays()
-                par.set(self.setpoints_grid[i])
-                self.sweep_len *= len(self.setpoints_grid[i])
-                if par.get().dtype == float:
-                    par.qua_var = declare(fixed)
-                    globals()[par.name+'_sweep_val'] = declare(fixed)
-                elif par.get().dtype == int:
-                    par.qua_var = declare(int)
-                    globals()[par.name+'_sweep_val'] = declare(int)
-                else:
-                    raise TypeError("Type not supported. Must be float or int")
-        if len(settables) == len(setpoints_grid):
-            print(f"Adding qua sweep loop for {settables[-1].name}")
-            parameter = settables[-1]
-            sweep_value = globals()[parameter.name+'_sweep_val']
-            with for_(*from_array(sweep_value, setpoints_grid[-1])):
-                assign(parameter.qua_var, sweep_value)
-                settables.pop()
-                setpoints_grid.pop()
-                self.recursive_sweep_generation(settables, setpoints_grid)
-        else:
+        if len(settables) != len(setpoints_grid):
             raise ValueError(
                 "settables and setpoints_grid must have same dimensions")
+        logging.debug(
+        "Adding qua loop for %s", [par.name for par in settables[-1]])
+        new_settables = settables[:-1]
+        new_setpoints_grid = setpoints_grid[:-1]
+        idx = declare(int)
+        with for_(idx, 0, idx < len(setpoints_grid[-1][0]), idx + 1):
+            for par in settables[-1]:
+                assign(par.qua_var, par.qua_sweep_arr[idx])
+            self.recursive_sweep_generation(new_settables, new_setpoints_grid)
+        return
 
     def recursive_qua_generation(self, seq_type):
         """
@@ -169,6 +200,8 @@ class Sequence(Instrument):
         Args:
             seq_type (str): Type of qua code containing method to look for
         """
+        if seq_type == 'declare' and len(self.settables) != 0:
+            self.qua_declare_sweep_vars()
         if not self.submodules:
             getattr(self, 'qua_' + str(seq_type))()
             return
@@ -180,12 +213,17 @@ class Sequence(Instrument):
     def add_qc_params_from_config(self, config):
         """ 
         Creates QCoDeS parameters for all entries of the config 
-        
+        TODO: Use custom Parameter types for times -> setting in ns ! (cycles)
+                use validator to check if ns are a multiple of 4 (1 cycle)
+        TODO: if voltage add scale = 0.5 and validate if |v| <= 0.5
+
         Args:
             config (dict): Configuration containing all sequence parameters
         """
+        if config is None:
+            print(f"No params addded to {self.name}")
+            return
         for param_name, param_dict in config.items():
-            print(param_name, param_dict)
             if 'elements' in param_dict:
                 for element, value in param_dict['elements'].items():
                     self.add_parameter(
@@ -209,22 +247,23 @@ class Sequence(Instrument):
                     set_cmd = None,
                 )
             else:
-                warnings.warn(f""" Parameter {param_name} does neither have sub-
-                elements nor a value to set""")
+                warnings.warn("Parameter " + str(param_name) +
+                              " is not of type float int or list")
 
-    def run_remote_simulation(self, duration: int):
+    def run_remote_simulation(self, host, duration: int):
         """
-        Simulates the MW sequence on a remote FPGA provided by Quantum Machines
+        Simulates the MW sequence on a remote simulator on the host
 
         Args:
+            host (str): Host address
             duration (int): Amount of cycles (4ns/cycle) to simulate
 
         Returns:
             SimulatedJob: QM job containing simulation results
         """
         qmm = QuantumMachinesManager(
-            host='dzurak-6d066ea0.quantum-machines.co',
-            port=443,
+            host = host,
+            port = 443,
             credentials=create_credentials()
         )
         simulated_job = qmm.simulate(self.sample.config, 
@@ -243,7 +282,12 @@ class Sequence(Instrument):
         """ 
         Helper function that `play`s a qua operation on the respective elements 
         specified in the sequence config.
-        
+        TODO:   - [ ] raise error if no params were found
+                - [ ] raise error when target and origin dims dont match
+                - [ ] only pass duration kwarg if given
+                - [ ] raise error if duration is too short
+                - [ ] remove from sequence -> independent helper 
+
         Args:
             seq (Sequence): Sequence
             from_volt (str, List): voltage point to come from
@@ -251,26 +295,27 @@ class Sequence(Instrument):
             duration (str): duration of the operation 
             operation (str): Operation to be played -> find in OPX config
         """
-        # if duration is None:
-        #     duration = lambda: 0 # minimum of 20 ns (5 cycles)
-        # elif duration < 5:
-        #     raise ValueError("Cant be shorter than 5 cycles (20 ns)")
-
         if from_volt is None:
             from_volt = ['vHome']
-
+        if callable(duration):
+            duration = int(duration())
         origin_param_sets = self._find_parameters_from_keywords(from_volt)
         target_param_sets = self._find_parameters_from_keywords(to_volt)
 
         for target_list, origin_list in zip(target_param_sets, origin_param_sets):
-            
             target_v = sum([par() for par in target_list])
             origin_v = sum([par() for par in origin_list])
-            play(
-                operation*amp( target_v - origin_v ),
-                target_list[0].element,
-                duration = duration()
+            logging.debug(
+                "Moving %s from %s to %s", 
+                target_list[0].element, origin_v, target_v
                 )
+            kwargs = {
+                'pulse': operation*amp( target_v - origin_v ),
+                'element': target_list[0].element
+                }
+            if duration is not None:
+                kwargs['duration'] = int(duration)
+            play(**kwargs)
 
     def _find_parameters_from_keywords(self, keys: Union[str, List]):
         """
