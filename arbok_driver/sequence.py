@@ -20,8 +20,7 @@ from qm.qua import (
 
 from qualang_tools.loops import from_array
 
-from arbok_driver.sample import Sample
-from arbok_driver.sequence_parameter import SequenceParameter
+from arbok_driver import Sample, SequenceParameter
 
 class Sequence(Instrument):
     """
@@ -186,6 +185,7 @@ class Sequence(Instrument):
             config (dict): Configuration containing all sequence parameters
         """
         for param_name, param_dict in config.items():
+            print(param_name, param_dict)
             if 'elements' in param_dict:
                 for element, value in param_dict['elements'].items():
                     self.add_parameter(
@@ -206,11 +206,11 @@ class Sequence(Instrument):
                     initial_value = param_dict["value"],
                     parameter_class = SequenceParameter,
                     element = None,
-                    set_cmd=None,
+                    set_cmd = None,
                 )
             else:
-                warnings.warn("Parameter " + str(param_name) +
-                              " is not of type float int or list")
+                warnings.warn(f""" Parameter {param_name} does neither have sub-
+                elements nor a value to set""")
 
     def run_remote_simulation(self, duration: int):
         """
