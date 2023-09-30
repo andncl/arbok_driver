@@ -117,16 +117,16 @@ def run_qdac_measurement_from_opx_program(
                 measurement.register_parameter(param)
                 gettable_setpoints.append(param)
             logging.debug("Register settable %s on axis %s", param.name, i)
-            
 
     for gettable in program.gettables:
         logging.debug("Register gettable %s", gettable_setpoints)
         measurement.register_parameter(gettable, setpoints = gettable_setpoints)
 
-    # add_after_run (RESET QDAC VOLTS)
     print(measurement.parameters)
     with measurement.run() as datasaver:
         result_args = []
         create_recursive_measurement_loop(sweep_list, result_args)
+        if program.stream_mode == 'pause_each':
+                program.qm_job.resume()
         dataset = datasaver.dataset
     return dataset
