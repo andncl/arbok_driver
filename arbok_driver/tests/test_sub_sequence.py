@@ -58,5 +58,6 @@ def test_set_sweeps() -> None:
 def test_qua_program_compilation() -> None:
     parent_sequence.set_sweeps(*set_sweeps_args)
     qua_program = parent_sequence.get_qua_program()
-    qua_prog_str = generate_qua_script(qua_program, dummy_qua_config)
+    qua_prog_str = generate_qua_script(qua_program)
     print(qua_prog_str)
+    
