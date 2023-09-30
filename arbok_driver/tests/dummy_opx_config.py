@@ -91,11 +91,11 @@ dummy_qua_config = {
     },
     'mixers': {
         'mixer_qubit': [
-            {'intermediate_frequency': 1e6, 'lo_frequency': 1e6,
+            {'intermediate_frequency': 50e6, 'lo_frequency': 5e9,
             'correction': [1.0, 0.0, 0.0, 1.0]}
         ],
         'mixer_RR': [
-            {'intermediate_frequency': 1e6, 'lo_frequency': 1e6,
+            {'intermediate_frequency': 50e6, 'lo_frequency': 5e9,
             'correction': [1.0, 0.0, 0.0, 1.0]}
         ],
     }

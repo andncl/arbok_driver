@@ -1,7 +1,8 @@
-import pytest
 import copy
+import pytest
 import numpy as np
 from qm import generate_qua_script
+
 from arbok_driver import SubSequence, Sample
 
 from arbok_driver.tests.dummy_opx_config import dummy_qua_config
