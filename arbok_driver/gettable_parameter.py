@@ -46,7 +46,7 @@ class GettableParameter(ParameterWithSetpoints):
         self.shape = None
         self.count_so_far = 0
         self.batch_size = 0
-        self.count = 0
+        self.batch_count = 0
 
     def set_raw(self, *args, **kwargs):
         """ Empty abstract `set_raw` method. Parameter not meant to be set """
@@ -70,9 +70,9 @@ class GettableParameter(ParameterWithSetpoints):
         if not self.readout.sequence.root_instrument.opx:
             raise LookupError("Results cant be retreived without OPX connected")
         self.qm_job = self.program.qm_job
-        self.result = getattr( self.qm_job.result_handles, self.name )
-        self.buffer = getattr( self.qm_job.result_handles, self.name + '_buffer')
-        self.shape = tuple([len(x) for x in [par[0] for par in self.program.setpoints_grid]])
+        self.result = getattr(self.qm_job.result_handles, self.name)
+        self.buffer = getattr(self.qm_job.result_handles, f"{self.name}_buffer")
+        self.shape = (sweep.length for sweep in self.program.sweeps)
         self.batch_size = self.program.sweep_size()
 
     def _fetch_from_opx(self):
@@ -86,9 +86,9 @@ class GettableParameter(ParameterWithSetpoints):
 
     def _wait_until_buffer_full(self):
         """ This function is running until a batch with self.batch_size is ready """
-        while self.count_so_far < (self.count + 1)*self.batch_size:
+        while self.count_so_far < (self.batch_count + 1)*self.batch_size:
             lg.info("Waiting: %s/%s results are in", 
-                self.count_so_far, (self.count + 1)*self.batch_size)
+                self.count_so_far, (self.batch_count + 1)*self.batch_size)
             self.count_so_far = self.result.count_so_far()
 
     def _fetch_opx_buffer(self):
@@ -99,7 +99,7 @@ class GettableParameter(ParameterWithSetpoints):
         self.buffer_val = np.array(self.buffer.fetch(-1), dtype = float)
         if self.buffer_val is None:
             raise ValueError("NO VALUE STREAMED")
-        self.count += 1
+        self.batch_count += 1
 
     def get_all(self):
         """ Fetches ALL (not buffered) data """
