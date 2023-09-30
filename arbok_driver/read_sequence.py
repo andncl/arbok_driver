@@ -3,7 +3,7 @@ from .gettable_parameter import GettableParameter
 
 from qcodes.validators import Arrays
 
-class ReadSequence(Sequence):
+class ReadSequence(SubSequence):
     """ Baseclass for sequences containing readouts """
     def __init__(self, name, sample, seq_config):
         """

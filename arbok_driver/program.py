@@ -12,7 +12,7 @@ from qcodes.dataset import Measurement
 from .sub_sequence import SubSequence
 from .sample import Sample
 
-class Program(Sequence):
+class Program(SubSequence):
     """
     Class containing all functionality to manage and run modular sequences on a 
     physical OPX instrument

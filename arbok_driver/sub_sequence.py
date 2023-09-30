@@ -4,6 +4,7 @@ import warnings
 import copy
 from typing import List, Union, Optional
 import logging
+import math
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,10 +22,13 @@ from qm.qua import (
 
 from qualang_tools.loops import from_array
 
-from arbok_driver.sample import Sample
-from arbok_driver.sequence_parameter import SequenceParameter
+from .gettable_parameter import GettableParameter
+from .sample import Sample 
+from .sequence_parameter import SequenceParameter
+from .sweep import Sweep
+from . import utils
 
-class Sequence(Instrument):
+class SubSequence(Instrument):
     """
     Class describing a subsequence of a QUA programm (e.g Init, Control, Read). 
     """
@@ -43,12 +47,12 @@ class Sequence(Instrument):
         super().__init__(name, **kwargs)
         self.sample = sample
         self.elements = self.sample.elements
-        self._parent = None
-        self.settables = []
-        self.setpoints_grid = []
-        self.gettables = []
-        self.sweep_len = 1
         self.param_config = param_config
+
+        self._parent = None
+        self._sweeps = []
+        self._gettables = []
+        self._sweep_size = 1
 
         self.add_qc_params_from_config(self.param_config)
 
@@ -64,13 +68,6 @@ class Sequence(Instrument):
         """Contains raw QUA code to define streams"""
         return
 
-    def sweep_size(self) -> int:
-        """ Returns the sweep size from the settables via the setpoints_grid"""
-        sweep_size = 1
-        for sweep_list in self.setpoints_grid:
-            sweep_size *= len(sweep_list[0])
-        return sweep_size
-
     @property
     def parent(self) -> InstrumentBase:
         return self._parent
@@ -81,7 +78,52 @@ class Sequence(Instrument):
             return self
         return self._parent.root_instrument
 
-    def add_subsequence(self, new_sequence):
+    @property
+    def sweeps(self) -> list:
+        """ List of Sweep objects for `SubSequence` """
+        return self._sweeps
+    
+    @property
+    def gettables(self) -> list:
+        """List of `GettableParameter`s for data acquisition"""
+        return self._gettables
+
+    @property
+    def sweep_size(self) -> int:
+        """ Dimensionality of sweep axes """
+        self._sweep_size = int(
+            math.prod([sweep.length for sweep in self.sweeps]))
+        return self._sweep_size
+    
+    def set_sweeps(self, *args) -> None:
+        """ 
+        Sets the given sweeps from its dict type arguments. Each argument 
+        creates one sweep axis. Each dict key, value pair is sweept concurrently
+        along this axis.
+
+        Args:
+            *args (dict): Arguments of type dict with SequenceParameters as keys 
+                and np arrays as setpoints. All values (arrays) must have same 
+                length!
+        """
+        if not all([isinstance(sweep_dict, dict) for sweep_dict in args]):
+            raise TypeError("All arguments need to be of type dict")
+        self._sweeps = []
+        for sweep_dict in args:
+            self._sweeps.append(Sweep(sweep_dict))
+
+    def set_gettables(self, *args) -> None:
+        """
+        Sets GettableParameters that will be retreived during measurement
+        
+        Args:
+            *args (GettableParameter): Parameters to be measured
+        """
+        if not all( isinstance(param, GettableParameter) for param in args):
+            raise TypeError("All arguments need to be of type dict")
+        self._gettables = args
+
+    def add_subsequence(self, new_sequence) -> None:
         """
         Adds a subsequence to the entire programm. Subsequences are added as 
         QCoDeS 'Submodules'. Sequences are executed in order of them being added.
@@ -89,31 +131,11 @@ class Sequence(Instrument):
         Args:
             new_sequence (Sequence): Subsequence to be added
             verbose (bool): Flag to trigger debug printouts
-            
         """
         new_sequence._parent = self
         self.add_submodule(new_sequence.name, new_sequence)
 
-    def set_settables(self, *args):
-        """ Prepares and sets the settables """
-        for arg in args:
-            if isinstance(arg, SequenceParameter):
-                self.settables.append([arg])
-            elif isinstance(arg, list):
-                self.settables.append(arg)
-        return
-
-    def set_setpoints_grid(self, *args):
-        """ Prepares and sets the setpoints grid """
-        for arg in args:
-            if isinstance(arg[0], (list, np.ndarray)):
-                self.setpoints_grid.append(arg)
-            else:
-                self.setpoints_grid.append([arg])
-
-
-
-    def get_program(self, simulate = False):
+    def get_qua_program(self, simulate = False):
         """
         Runs the entire sequence by searching recursively through init, 
         sequence and stream methods of all subsequences and their subsequences.
@@ -129,78 +151,69 @@ class Sequence(Instrument):
         with program() as prog:
             self.recursive_qua_generation(seq_type = 'declare')
             with infinite_loop_():
-                if not simulate: #not simulate: #not simulate:
+                if not simulate:
                     pause()
-                self.recursive_sweep_generation(
-                    copy.copy(self.settables),
-                    copy.copy(self.setpoints_grid)
-                    )
-
+                self.recursive_sweep_generation(copy.copy(self.sweeps))
             with stream_processing():
                 self.recursive_qua_generation(seq_type = 'stream')
         return prog
 
-    def qua_declare_sweep_vars(self):
-        """ Declares all sweep variables """
-        logging.debug("Start declaring")
-        for i, sweep in enumerate(self.settables):
-            if not isinstance(sweep, list):
-                self.settables[i] = [sweep]
-                self.setpoints_grid[i] = [self.setpoints_grid[i]]
-            self.sweep_len *= len(self.setpoints_grid[i][0])
-            for j, par in enumerate(sweep):
-                logging.debug("Adding qua %s variable for %s", type(par.get()), par.name)
-                par.qua_sweeped = True
-                par.vals= Arrays()
-                par.set(self.setpoints_grid[i][j])
-                if par.get().dtype == float:
-                    par.qua_var = declare(fixed)
-                    par.qua_sweep_arr = declare(fixed, value = self.setpoints_grid[i][j])
-                elif par.get().dtype == int:
-                    par.qua_var = declare(int)
-                    par.qua_sweep_arr = declare(int, value = self.setpoints_grid[i][j])
+    def qua_declare_sweep_vars(self) -> None:
+        """ Declares all sweep variables as QUA with their correct type """
+        logging.debug("Start declaring QUA variables in %s", self.name)
+        for sweep in self.sweeps:
+            for param, setpoints in sweep.config.items():
+                logging.debug(
+                    "Adding qua %s variable for %s on subsequence %s",
+                    type(param.get()), param.name, self.name
+                )
+                param.qua_sweeped = True
+                param.vals= Arrays()
+                param.set(setpoints)
+                if param.get().dtype == float:
+                    param.qua_var = declare(fixed)
+                    param.qua_sweep_arr = declare(fixed, value = setpoints)
+                elif param.get().dtype == int:
+                    param.qua_var = declare(int)
+                    param.qua_sweep_arr = declare(int, value = setpoints)
                 else:
-                    raise TypeError(
-                        "Type not supported. Must be float or int")
+                    raise TypeError("Type not supported. Must be float or int")
 
-    def recursive_sweep_generation(self, settables, setpoints_grid):
+    def recursive_sweep_generation(self, sweeps):
         """
         Recursively generates QUA parameter sweeps by introducing one nested QUA
-        loops per swept parameter. The last given settables and its corresponding
-        setpoints list is in the innermost loop.
+        loop per swept axis. The last given sweep and its corresponding
+        setpoints are in the innermost loop.
         TODO: Reimplement a fast version of this for non-paired parameter 
             sweeps
         Args:
-            settables (list): List of QCodes parameter names to sweep
-            setpoints_grid (list): List of QCodes parameter set values
-            simulate (bool): Flag whether program is simulated
+            sweeps (list): list of Sweep objects
         """
-        if len(settables) == 0:
+        if len(sweeps) == 0:
             # this condition gets triggered if we arrive at the innermost loop
             self.recursive_qua_generation('sequence')
             return
-        if len(settables) != len(setpoints_grid):
-            raise ValueError(
-                "settables and setpoints_grid must have same dimensions")
-        logging.debug(
-        "Adding qua loop for %s", [par.name for par in settables[-1]])
-        new_settables = settables[:-1]
-        new_setpoints_grid = setpoints_grid[:-1]
+        new_sweeps = sweeps[:-1]
+        current_sweep = sweeps[-1]
         idx = declare(int)
-        with for_(idx, 0, idx < len(setpoints_grid[-1][0]), idx + 1):
-            for par in settables[-1]:
-                assign(par.qua_var, par.qua_sweep_arr[idx])
-            self.recursive_sweep_generation(new_settables, new_setpoints_grid)
+        logging.debug( "Adding qua loop for %s",
+            [par.name for par in current_sweep.parameters])
+        with for_(idx, 0, idx < current_sweep.length, idx + 1):
+            for param in current_sweep.parameters:
+                assign(param.qua_var, param.qua_sweep_arr[idx])
+            self.recursive_sweep_generation(new_sweeps)
         return
 
-    def recursive_qua_generation(self, seq_type):
+    def recursive_qua_generation(self, seq_type: str):
         """
         Recursively runs all QUA code stored in submodules of the given sequence
+        Differentiates between 'declare', 'stream' and `sequence`.
 
         Args:
             seq_type (str): Type of qua code containing method to look for
         """
-        if seq_type == 'declare' and len(self.settables) != 0:
+        if seq_type == 'declare' and len(self.sweeps) != 0:
+            # TODO: When is this supposed to happen?
             self.qua_declare_sweep_vars()
         if not self.submodules:
             getattr(self, 'qua_' + str(seq_type))()
@@ -210,6 +223,7 @@ class Sequence(Instrument):
                 getattr(subsequence, 'qua_' + str(seq_type))()
             else:
                 subsequence.recursive_qua_generation(seq_type)
+
     def add_qc_params_from_config(self, config):
         """ 
         Creates QCoDeS parameters for all entries of the config 
@@ -221,7 +235,7 @@ class Sequence(Instrument):
             config (dict): Configuration containing all sequence parameters
         """
         if config is None:
-            print(f"No params addded to {self.name}")
+            logging.debug("No params addded to %s", self.name)
             return
         for param_name, param_dict in config.items():
             if 'elements' in param_dict:
@@ -247,8 +261,8 @@ class Sequence(Instrument):
                     set_cmd = None,
                 )
             else:
-                warnings.warn("Parameter " + str(param_name) +
-                              " is not of type float int or list")
+                raise KeyError(f"""The config of parameter {param_name} does not 
+                              have elements or value""")
 
     def run_remote_simulation(self, host, duration: int):
         """
@@ -267,11 +281,11 @@ class Sequence(Instrument):
             credentials=create_credentials()
         )
         simulated_job = qmm.simulate(self.sample.config, 
-                           self.get_program(simulate = True),
+                           self.get_qua_program(simulate = True),
                            SimulationConfig(duration=duration))
 
         samples = simulated_job.get_simulated_samples()
-        self._plot_simulation_results(samples)
+        utils.plot_opx_simulation_results(samples)
         return simulated_job
 
     def arbok_go(
@@ -339,67 +353,4 @@ class Sequence(Instrument):
                 [p for p_name, p in self.parameters.items() if item in p_name])
         return np.swapaxes(np.array(param_list), 0, 1).tolist()
 
-    def _plot_simulation_results(self, simulated_samples):
-        """ Visualizes analog and digital channel simulation results """
-        fig, [a, b] = plt.subplots(2, sharex= True)
-        for channel, data in simulated_samples.con1.analog.items():
-            a.plot(data, label = channel)
-        for channel, data in simulated_samples.con1.digital.items():
-            b.plot(data, label = channel)
 
-        ncols_a = int((len(a.lines)-1)/10) + 1
-        a.legend(bbox_to_anchor=(1.0, 1.0), loc='upper left', fontsize = 8,
-                 title = 'analog', ncols = ncols_a)
-        a.grid()
-        a.set_ylabel("Voltage in V")
-        a.set_title("simulated analog/digital outputs", loc = 'right')
-
-        ncols_b = int((len(b.lines)-1)/10) + 1
-        b.legend(bbox_to_anchor=(1.0, 1.0), loc='upper left', fontsize = 8,
-                 title = 'digital', ncols = ncols_b)
-        b.grid()
-        b.set_xlabel("Time in ns")
-        b.set_ylabel("Digital Signal")
-        fig.subplots_adjust(wspace=0, hspace=0)
-
-class Sweep:
-    """ Class characterizing a parameter sweep along one axis in the OPX """
-    def __inti__(self, param_dict: dict):
-        """ Constructor class of Sweep class
-        
-        Args: 
-            param_dict (dict): Dict with parameters as keys and arrays as
-                setpoints for sweep
-        """
-        self.param_dict = param_dict
-        self._parameters = None
-        self._length = None
-        self.configure_sweep()
-
-    @property
-    def parameters(self):
-        """ List containing all varied parameters """
-        return self._parameters
-
-    @property
-    def length(self):
-        """ Number of samples for parameters on the given axis """
-        return self._length
-
-    def get(self):
-        """ Returns parameter dict defining sweep """
-        return self.param_dict
-
-    def configure_sweep(self):
-        """ Configures the sweep from the given dictionairy """
-        self.check_input_sizes()
-        self._parameters = []
-        for parameter, sweep_list in self.param_dict.items():
-            self._parameters.append(parameter)
-
-    def check_input_sizes(self):
-        """ Validates equal sizes of input arrays """
-        list_iter = iter(self.param_dict.values())
-        len = len(next(list_iter))
-        if not all(len(l) == len for l in list_iter):
-            raise ValueError('not all lists have same length!')

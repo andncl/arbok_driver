@@ -4,4 +4,6 @@ from .read_sequence import ReadSequence
 from .readout_helper import Readout
 from .sample import Sample
 from .sequence_parameter import SequenceParameter
-from .sequence import Sequence
+from .sub_sequence import SubSequence
+from .sweep import Sweep
+from . import utils
