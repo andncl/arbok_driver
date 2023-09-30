@@ -361,3 +361,45 @@ class Sequence(Instrument):
         b.set_xlabel("Time in ns")
         b.set_ylabel("Digital Signal")
         fig.subplots_adjust(wspace=0, hspace=0)
+
+class Sweep:
+    """ Class characterizing a parameter sweep along one axis in the OPX """
+    def __inti__(self, param_dict: dict):
+        """ Constructor class of Sweep class
+        
+        Args: 
+            param_dict (dict): Dict with parameters as keys and arrays as
+                setpoints for sweep
+        """
+        self.param_dict = param_dict
+        self._parameters = None
+        self._length = None
+        self.configure_sweep()
+
+    @property
+    def parameters(self):
+        """ List containing all varied parameters """
+        return self._parameters
+
+    @property
+    def length(self):
+        """ Number of samples for parameters on the given axis """
+        return self._length
+
+    def get(self):
+        """ Returns parameter dict defining sweep """
+        return self.param_dict
+
+    def configure_sweep(self):
+        """ Configures the sweep from the given dictionairy """
+        self.check_input_sizes()
+        self._parameters = []
+        for parameter, sweep_list in self.param_dict.items():
+            self._parameters.append(parameter)
+
+    def check_input_sizes(self):
+        """ Validates equal sizes of input arrays """
+        list_iter = iter(self.param_dict.values())
+        len = len(next(list_iter))
+        if not all(len(l) == len for l in list_iter):
+            raise ValueError('not all lists have same length!')
