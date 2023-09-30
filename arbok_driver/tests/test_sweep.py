@@ -35,11 +35,11 @@ def test_sweep_instanciation() -> None:
     sweep = Sweep(sweep_dict)
     assert sweep.length == 10
     assert len(sweep.parameters) == 2
-    assert len(sweep.parameters_to_register) == 1
+    assert len(sweep.config_to_register) == 1
     sweep = Sweep(sweep_dict, register_all = True)
-    assert len(sweep.parameters_to_register) == 2
-    sweep.parameters_to_register = [dummy_instrument.Par1]
-    assert len(sweep.parameters_to_register) == 1
+    assert len(sweep.config_to_register) == 2
+    sweep.config_to_register = [dummy_instrument.Par1]
+    assert len(sweep.config_to_register) == 1
     with pytest.raises(KeyError):
         sweep.parameters_to_register = ['no_param']
     with pytest.raises(AttributeError):

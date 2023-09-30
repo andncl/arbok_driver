@@ -54,7 +54,7 @@ class Sweep:
         for i, parameter in enumerate(self._param_dict.keys()):
             self._parameters.append(parameter)
             if self.register_all:
-                self._config_to_register.append(parameter)
+                self._config_to_register[parameter] = self.config[parameter]
             elif i == 0:
                 self._config_to_register[parameter] = self.config[parameter]
 
