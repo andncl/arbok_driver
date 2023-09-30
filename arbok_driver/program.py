@@ -9,8 +9,8 @@ from qcodes.parameters import Parameter
 from qcodes.validators import Arrays
 from qcodes.dataset import Measurement
 
-from arbok_driver.sequence import Sequence
-from arbok_driver.sample import Sample
+from .sub_sequence import SubSequence
+from .sample import Sample
 
 class Program(Sequence):
     """

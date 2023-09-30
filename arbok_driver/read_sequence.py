@@ -1,5 +1,5 @@
-from arbok_driver.sequence import Sequence
-from arbok_driver.gettable_parameter import GettableParameter
+from .sub_sequence import SubSequence
+from .gettable_parameter import GettableParameter
 
 from qcodes.validators import Arrays
 
