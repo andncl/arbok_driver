@@ -78,17 +78,17 @@ class Program(SubSequence):
         defined with setpoints whose validators have to align with their 
         setpoints.
         """
-        setpoints = ()
+        setpoints_for_gettables = ()
         for sweep in self.sweeps:
             for param, setpoints in sweep.config_to_register.items():
                 param.vals = Arrays(shape=(len(setpoints),))
-                setpoints += param
+                setpoints_for_gettables += (param,)
         for i, gettable in enumerate(self.gettables):
-            gettable.batch_size = self.sweep_size()
+            gettable.batch_size = self.sweep_size
             gettable.can_resume = True if i==(len(self.gettables)-1) else False
-            gettable.setpoints = setpoints
+            gettable.setpoints = setpoints_for_gettables
             gettable.vals = Arrays(
-                shape = (sweep.length for sweep in self.sweeps))
+                shape = tuple(sweep.length for sweep in self.sweeps))
         self.sweeps.reverse()
 
     def _register_qc_params_in_measurement(self, measurement: Measurement):

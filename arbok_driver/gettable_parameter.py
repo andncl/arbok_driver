@@ -72,13 +72,13 @@ class GettableParameter(ParameterWithSetpoints):
         self.qm_job = self.program.qm_job
         self.result = getattr(self.qm_job.result_handles, self.name)
         self.buffer = getattr(self.qm_job.result_handles, f"{self.name}_buffer")
-        self.shape = (sweep.length for sweep in self.program.sweeps)
-        self.batch_size = self.program.sweep_size()
+        self.shape = tuple(sweep.length for sweep in self.program.sweeps)
+        self.batch_size = self.program.sweep_size
 
     def _fetch_from_opx(self):
         """ Fetches and returns data from OPX after results came in """
         self.count_so_far = self.result.count_so_far()
-        if self.count_so_far > (self.count + 2)*self.batch_size:
+        if self.count_so_far > (self.batch_count + 2)*self.batch_size:
             warnings.warn("OVERHEAD of data on OPX! Try larger batches or other sweep type!")
 
         self._wait_until_buffer_full()

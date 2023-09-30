@@ -121,7 +121,7 @@ class SubSequence(Instrument):
         """
         if not all( isinstance(param, GettableParameter) for param in args):
             raise TypeError("All arguments need to be of type dict")
-        self._gettables = args
+        self._gettables = list(args)
 
     def add_subsequence(self, new_sequence) -> None:
         """
