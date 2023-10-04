@@ -6,7 +6,6 @@ from typing import List, Union, Optional
 import logging
 import math
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 from qcodes.instrument import Instrument, InstrumentBase
@@ -22,10 +21,8 @@ from qm.qua import (
 
 from qualang_tools.loops import from_array
 
-from .gettable_parameter import GettableParameter
 from .sample import Sample 
 from .sequence_parameter import SequenceParameter
-from .sweep import Sweep
 from . import utils
 
 class SubSequence(Instrument):
@@ -50,10 +47,7 @@ class SubSequence(Instrument):
         self.param_config = param_config
 
         self._parent = None
-        self._sweeps = []
         self._gettables = []
-        self._sweep_size = 1
-
         self.add_qc_params_from_config(self.param_config)
 
     def qua_declare(self):
@@ -79,50 +73,13 @@ class SubSequence(Instrument):
         return self._parent.root_instrument
 
     @property
-    def sweeps(self) -> list:
-        """ List of Sweep objects for `SubSequence` """
-        return self._sweeps
-    
-    @property
     def gettables(self) -> list:
-        """List of `GettableParameter`s for data acquisition"""
+        """
+        List of `GettableParameter`s that can be registered for acquisition
+        in a `program`
+        """
         return self._gettables
-
-    @property
-    def sweep_size(self) -> int:
-        """ Dimensionality of sweep axes """
-        self._sweep_size = int(
-            math.prod([sweep.length for sweep in self.sweeps]))
-        return self._sweep_size
     
-    def set_sweeps(self, *args) -> None:
-        """ 
-        Sets the given sweeps from its dict type arguments. Each argument 
-        creates one sweep axis. Each dict key, value pair is sweept concurrently
-        along this axis.
-
-        Args:
-            *args (dict): Arguments of type dict with SequenceParameters as keys 
-                and np arrays as setpoints. All values (arrays) must have same 
-                length!
-        """
-        if not all([isinstance(sweep_dict, dict) for sweep_dict in args]):
-            raise TypeError("All arguments need to be of type dict")
-        self._sweeps = []
-        for sweep_dict in args:
-            self._sweeps.append(Sweep(sweep_dict))
-
-    def set_gettables(self, *args) -> None:
-        """
-        Sets GettableParameters that will be retreived during measurement
-        
-        Args:
-            *args (GettableParameter): Parameters to be measured
-        """
-        if not all( isinstance(param, GettableParameter) for param in args):
-            raise TypeError("All arguments need to be of type dict")
-        self._gettables = list(args)
-
     def add_subsequence(self, new_sequence) -> None:
         """
         Adds a subsequence to the entire programm. Subsequences are added as 
@@ -153,7 +110,8 @@ class SubSequence(Instrument):
             with infinite_loop_():
                 if not simulate:
                     pause()
-                self.recursive_sweep_generation(copy.copy(self.sweeps))
+                self.recursive_sweep_generation(
+                    copy.copy(self.root_instrument.sweeps))
             with stream_processing():
                 self.recursive_qua_generation(seq_type = 'stream')
         return prog
@@ -161,7 +119,7 @@ class SubSequence(Instrument):
     def qua_declare_sweep_vars(self) -> None:
         """ Declares all sweep variables as QUA with their correct type """
         logging.debug("Start declaring QUA variables in %s", self.name)
-        for sweep in self.sweeps:
+        for sweep in self.root_instrument.sweeps:
             for param, setpoints in sweep.config.items():
                 logging.debug(
                     "Adding qua %s variable for %s on subsequence %s",
@@ -212,7 +170,7 @@ class SubSequence(Instrument):
         Args:
             seq_type (str): Type of qua code containing method to look for
         """
-        if seq_type == 'declare' and len(self.sweeps) != 0:
+        if seq_type == 'declare' and len(self.root_instrument.sweeps) != 0:
             # TODO: When is this supposed to happen?
             self.qua_declare_sweep_vars()
         if not self.submodules:

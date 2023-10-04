@@ -35,9 +35,57 @@ class Program(SubSequence):
         self.opx = None
         self.qm_job = None
         self.result_handles = None
-
         self.stream_mode = "pause_each"
+
+        self._sweeps = []
+        self._gettables = []
+        self._sweep_size = 1
+
+    @property
+    def sweeps(self) -> list:
+        """ List of Sweep objects for `SubSequence` """
+        return self._sweeps
     
+    @property
+    def gettables(self) -> list:
+        """List of `GettableParameter`s for data acquisition"""
+        return self._gettables
+
+    @property
+    def sweep_size(self) -> int:
+        """ Dimensionality of sweep axes """
+        self._sweep_size = int(
+            math.prod([sweep.length for sweep in self.sweeps]))
+        return self._sweep_size
+    
+    def set_sweeps(self, *args) -> None:
+        """ 
+        Sets the given sweeps from its dict type arguments. Each argument 
+        creates one sweep axis. Each dict key, value pair is sweept concurrently
+        along this axis.
+
+        Args:
+            *args (dict): Arguments of type dict with SequenceParameters as keys 
+                and np arrays as setpoints. All values (arrays) must have same 
+                length!
+        """
+        if not all([isinstance(sweep_dict, dict) for sweep_dict in args]):
+            raise TypeError("All arguments need to be of type dict")
+        self._sweeps = []
+        for sweep_dict in args:
+            self._sweeps.append(Sweep(sweep_dict))
+
+    def set_gettables(self, *args) -> None:
+        """
+        Sets GettableParameters that will be retreived during measurement
+        
+        Args:
+            *args (GettableParameter): Parameters to be measured
+        """
+        if not all( isinstance(param, GettableParameter) for param in args):
+            raise TypeError("All arguments need to be of type dict")
+        self._gettables = list(args)
+
     def connect_opx(self, host_ip: str):
         """
         Creates QuantumMachinesManager and opens a quantum machine on it with
