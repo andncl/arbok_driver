@@ -1,5 +1,6 @@
 """ Module containing SequenceParameter class """
-
+from typing import Optional
+from numpy import ndarray
 from qcodes.parameters import Parameter
 
 class SequenceParameter(Parameter):
@@ -15,6 +16,8 @@ class SequenceParameter(Parameter):
         Args:
             elements (list): Elements that should be influenced by parameter
             batched (bool): Is the variab
+            config_name (str): Name of the parameter in the sequence config dict
+                essentially name without the element
         """
         super().__init__(*args, **kwargs)
         self.element = element
@@ -24,17 +27,27 @@ class SequenceParameter(Parameter):
         self.qua_var = None
         self.value = None
 
-    def __call__(self, *args, **kwargs):
-        if len(args) == 1:
-            self.set_raw(*args)
-        elif self.qua_sweeped:
-            return self.qua_var
-        else:
+    def __call__(self, 
+                 value: Optional[float | int | ndarray] = None
+                 ) -> Optional[float | int | ndarray]:
+        """
+        Method being executed when SequenceParameter is called.
+        
+        Args:
+            value (Optional[float | int]): Value if given sets
+
+        Returns:
+            float|int|np.ndarray: Parameter value if no input value is given
+        """
+        if self.qua_sweeped:
+            if value is None:
+                return self.qua_var
+            else:
+                raise ValueError(
+                    "Parameter holds a QUA variable, you cant set it") 
+        if value is None:
             return self.get()
-
-    def set_raw(self, value):
-        self.value = value
-
-    def set_on_program(self, *args):
-        """ Adds parameter as settable on OPX program """
-        self.root_instrument.settables.append(*args[0])
+        if isinstance(value, (int, float, ndarray)):
+            self.set(value)
+        else:
+            raise ValueError("Value to be set must be int, float or np.ndarray")
