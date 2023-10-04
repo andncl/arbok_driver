@@ -78,15 +78,18 @@ class Program(SubSequence):
         for sweep_dict in args:
             self._sweeps.append(Sweep(sweep_dict))
 
-    def set_gettables(self, *args) -> None:
+    def register_gettables(self, *args) -> None:
         """
-        Sets GettableParameters that will be retreived during measurement
+        Registers GettableParameters that will be retreived during measurement
         
         Args:
             *args (GettableParameter): Parameters to be measured
         """
-        if not all( isinstance(param, GettableParameter) for param in args):
+        if not all(isinstance(param, GettableParameter) for param in args):
             raise TypeError("All arguments need to be of type dict")
+        if not all(param.root_instrument == self for param in args):
+            raise AttributeError(
+                f"Not all GettableParameters belong to {self.name}")
         self._gettables = list(args)
 
     def connect_opx(self, host_ip: str):
@@ -196,7 +199,7 @@ class Program(SubSequence):
                 "No QMM found! Connect an OPX via `connect_OPX`")
         simulated_job = self.qmm.simulate(
             self.sample.config,
-            self.get_program(simulate = True),
+            self.get_qua_program(simulate = True),
             SimulationConfig(duration=duration))
      
         samples = simulated_job.get_simulated_samples()
