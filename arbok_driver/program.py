@@ -157,7 +157,7 @@ class Program(SubSequence):
                 gettable, setpoints = (self.iteration,) )
         return measurement
 
-    def run_qc_measurement(self, measurement: Measurement, shots: int):
+    def run_infinite_average(self, measurement: Measurement, shots: int):
         """ 
         Runs QCoDeS measurement and returns the resulting dataset
         
