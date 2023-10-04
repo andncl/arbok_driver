@@ -165,11 +165,11 @@ class SubSequence(Instrument):
             for param, setpoints in sweep.config.items():
                 logging.debug(
                     "Adding qua %s variable for %s on subsequence %s",
-                    type(param.get()), param.name, self.name
+                    type(param.get()), param.name, param.instrument.name
                 )
                 param.qua_sweeped = True
                 param.vals= Arrays()
-                param.set(setpoints)
+                param.set(np.array(setpoints))
                 if param.get().dtype == float:
                     param.qua_var = declare(fixed)
                     param.qua_sweep_arr = declare(fixed, value = setpoints)
@@ -288,53 +288,11 @@ class SubSequence(Instrument):
         utils.plot_opx_simulation_results(samples)
         return simulated_job
 
-    def arbok_go(
-            self, to_volt: Union[str, List], operation: str,
-            from_volt: Optional[Union[str, List]] = None,
-            duration = None
-        ):
-        """ 
-        Helper function that `play`s a qua operation on the respective elements 
-        specified in the sequence config.
-        TODO:   - [ ] raise error if no params were found
-                - [ ] raise error when target and origin dims dont match
-                - [ ] only pass duration kwarg if given
-                - [ ] raise error if duration is too short
-                - [ ] remove from sequence -> independent helper 
-
-        Args:
-            seq (Sequence): Sequence
-            from_volt (str, List): voltage point to come from
-            to_volt (str, List): voltage point to move to
-            duration (str): duration of the operation 
-            operation (str): Operation to be played -> find in OPX config
-        """
-        if from_volt is None:
-            from_volt = ['vHome']
-        if callable(duration):
-            duration = int(duration())
-        origin_param_sets = self._find_parameters_from_keywords(from_volt)
-        target_param_sets = self._find_parameters_from_keywords(to_volt)
-
-        for target_list, origin_list in zip(target_param_sets, origin_param_sets):
-            target_v = sum([par() for par in target_list])
-            origin_v = sum([par() for par in origin_list])
-            logging.debug(
-                "Moving %s from %s to %s", 
-                target_list[0].element, origin_v, target_v
-                )
-            kwargs = {
-                'pulse': operation*amp( target_v - origin_v ),
-                'element': target_list[0].element
-                }
-            if duration is not None:
-                kwargs['duration'] = int(duration)
-            play(**kwargs)
-
-    def _find_parameters_from_keywords(self, keys: Union[str, List]):
+    def find_parameters_from_keywords(self, keys: Union[str, List]):
         """
         Returns a list containing all parameters of the seqeunce with names that
         contain one of names in the 'keys' list.
+        TODO:   - raise error if no params were found
 
         Args:
             keys (str, list): string with parameter name sub-string or list of those
