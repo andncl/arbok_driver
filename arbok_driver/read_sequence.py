@@ -14,10 +14,10 @@ class ReadSequence(SubSequence):
         """
         super().__init__(name, sample, seq_config)
         self.readouts = []
-        self._gettables = []
 
     def add_gettables_from_readouts(self):
         """Creates gettables from readouts list"""
+        self._gettables = []
         for readout in self.readouts:
             for stream_name in readout.stream_list:
                 gettable_name = readout.name + '_' + stream_name
@@ -26,7 +26,7 @@ class ReadSequence(SubSequence):
                     readout = readout,
                     vals = Arrays(shape = (1,))
                 )
-                self.gettables.append(gettable)
+                self._gettables.append(gettable)
                 setattr(self, gettable_name, gettable)
 
     def qua_stream(self):
