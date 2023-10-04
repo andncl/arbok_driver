@@ -11,7 +11,7 @@ import numpy as np
 from qcodes.instrument import Instrument, InstrumentBase
 from qcodes.validators import Arrays
 
-from qm import SimulationConfig
+from qm import SimulationConfig, generate_qua_script
 from qm.QuantumMachinesManager import QuantumMachinesManager
 from qm.simulate.credentials import create_credentials
 from qm.qua import (
@@ -48,6 +48,7 @@ class SubSequence(Instrument):
 
         self._parent = None
         self._gettables = []
+        self._qua_program_as_str = None
         self.add_qc_params_from_config(self.param_config)
 
     def qua_declare(self):
@@ -80,6 +81,14 @@ class SubSequence(Instrument):
         """
         return self._gettables
     
+    @property
+    def qua_program_as_str(self) -> str:
+        if self._qua_program_as_str is None:
+            self.get_qua_program()
+        else:
+            print()
+        return self._qua_program_as_str
+    
     def add_subsequence(self, new_sequence) -> None:
         """
         Adds a subsequence to the entire programm. Subsequences are added as 
@@ -94,7 +103,7 @@ class SubSequence(Instrument):
 
     def get_qua_program(self, simulate = False):
         """
-        Runs the entire sequence by searching recursively through init, 
+        Composes the entire sequence by searching recursively through init, 
         sequence and stream methods of all subsequences and their subsequences.
         The respective qua sequence will only be added once the recursive
         scans have reached the lowest level of sequences (e.g sequences have no
@@ -106,15 +115,31 @@ class SubSequence(Instrument):
             program: Program compiled into QUA language
         """
         with program() as prog:
-            self.recursive_qua_generation(seq_type = 'declare')
-            with infinite_loop_():
-                if not simulate:
-                    pause()
-                self.recursive_sweep_generation(
-                    copy.copy(self.root_instrument.sweeps))
-            with stream_processing():
-                self.recursive_qua_generation(seq_type = 'stream')
+            self.get_qua_code(simulate)
+        self._qua_program_as_str = generate_qua_script(prog)
         return prog
+    
+    def get_qua_code(self, simulate = False):
+        """
+        Composes the entire qua sequence in qua code. Only execurte with
+        qm.qua.program() environment
+        
+        Args:
+            simulate (bool): True if program is generated for simulation
+        """
+        self.recursive_qua_generation(seq_type = 'declare')
+        with infinite_loop_():
+            if not simulate:
+                pause()
+            self.recursive_sweep_generation(
+                copy.copy(self.root_instrument.sweeps))
+        with stream_processing():
+            self.recursive_qua_generation(seq_type = 'stream')
+
+    def print_qua_program_to_file(self, file_name: str):
+        """Creates file with 'filename' and prints the QUA code to this file"""
+        with open(file_name, 'w') as file:
+            file.write(self.qua_program_as_str)
 
     def qua_declare_sweep_vars(self) -> None:
         """ Declares all sweep variables as QUA with their correct type """
