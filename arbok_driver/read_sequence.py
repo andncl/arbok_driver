@@ -21,13 +21,14 @@ class ReadSequence(SubSequence):
         for readout in self.readouts:
             for stream_name in readout.stream_list:
                 gettable_name = readout.name + '_' + stream_name
-                gettable = GettableParameter(
+                self.add_parameter(
+                    parameter_class = GettableParameter,
                     name = gettable_name,
                     readout = readout,
                     vals = Arrays(shape = (1,))
                 )
-                self._gettables.append(gettable)
-                setattr(self, gettable_name, gettable)
+                self._gettables.append(getattr(self, gettable_name))
+                #setattr(self, gettable_name, gettable)
 
     def qua_stream(self):
         for readout in self.readouts:
