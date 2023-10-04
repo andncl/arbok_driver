@@ -6,16 +6,17 @@ from qm.QuantumMachinesManager import QuantumMachinesManager
 from qm.qua import program, infinite_loop_, pause, stream_processing
 from qm import SimulationConfig
 
+from qcodes.instrument import Instrument
 from qcodes.parameters import Parameter
 from qcodes.validators import Arrays
 from qcodes.dataset import Measurement
 
-from .sub_sequence import SubSequence
+from .sequence_base import SequenceBase
 from .sample import Sample
 from .sweep import Sweep
 from .gettable_parameter import GettableParameter
 
-class Program(SubSequence):
+class Program(Instrument, SequenceBase):
     """
     Class containing all functionality to manage and run modular sequences on a 
     physical OPX instrument
@@ -32,8 +33,8 @@ class Program(SubSequence):
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
         """
-        super().__init__(name, sample, param_config, *args, **kwargs)
-
+        #super(Instrument, self).__init__(name, *args, **kwargs)
+        super(SequenceBase, self).__init__(name, sample, param_config, *args, **kwargs)
         self.qmm = None
         self.opx = None
         self.qm_job = None
@@ -77,6 +78,9 @@ class Program(SubSequence):
         self._sweeps = []
         for sweep_dict in args:
             self._sweeps.append(Sweep(sweep_dict))
+        for sweep in self.sweeps:
+            for param, setpoints in sweep.config_to_register.items():
+                param.vals = Arrays(shape=(len(setpoints),))
 
     def register_gettables(self, *args) -> None:
         """
@@ -91,6 +95,17 @@ class Program(SubSequence):
             raise AttributeError(
                 f"Not all GettableParameters belong to {self.name}")
         self._gettables = list(args)
+
+        gettable_setpoints = ()
+        for sweep in self.sweeps:
+            gettable_setpoints += tuple(sweep.config_to_register.keys())
+        for i, gettable in enumerate(self.gettables):
+            gettable.batch_size = self.sweep_size
+            gettable.can_resume = True if i==(len(self.gettables)-1) else False
+            gettable.setpoints = gettable_setpoints
+            gettable.vals = Arrays(
+                shape = tuple(sweep.length for sweep in self.sweeps))
+        self.sweeps.reverse()
 
     def connect_opx(self, host_ip: str):
         """
@@ -124,26 +139,6 @@ class Program(SubSequence):
         self.qm_job = self.opx.get_running_job()
         self.result_handles = self.qm_job.result_handles
         return self.qm_job
-
-    def prepare_gettables(self):
-        """
-        Sets validators of the `SequenceParameter`s and `GettableParameters`.
-        `GettableParameters` are QCoDeS ParameterWithSetpoints. Those are
-        defined with setpoints whose validators have to align with their 
-        setpoints.
-        """
-        setpoints_for_gettables = ()
-        for sweep in self.sweeps:
-            for param, setpoints in sweep.config_to_register.items():
-                param.vals = Arrays(shape=(len(setpoints),))
-                setpoints_for_gettables += (param,)
-        for i, gettable in enumerate(self.gettables):
-            gettable.batch_size = self.sweep_size
-            gettable.can_resume = True if i==(len(self.gettables)-1) else False
-            gettable.setpoints = setpoints_for_gettables
-            gettable.vals = Arrays(
-                shape = tuple(sweep.length for sweep in self.sweeps))
-        self.sweeps.reverse()
 
     def _register_qc_params_in_measurement(self, measurement: Measurement):
         """

@@ -1,9 +1,11 @@
+from abc import ABC, abstractmethod
+
 from .sub_sequence import SubSequence
 from .gettable_parameter import GettableParameter
 
 from qcodes.validators import Arrays
 
-class ReadSequence(SubSequence):
+class ReadSequence(SubSequence, ABC):
     """ Baseclass for sequences containing readouts """
     def __init__(self, name, sample, seq_config):
         """
@@ -13,7 +15,7 @@ class ReadSequence(SubSequence):
             smaple (Sample): sample for which sequence is configured
         """
         super().__init__(name, sample, seq_config)
-        self.readouts = []
+        self._readouts = []
 
     def add_gettables_from_readouts(self):
         """Creates gettables from readouts list"""
