@@ -24,8 +24,7 @@ def test_parent_child_sequence_behaviour(parent_sequence, sub_sequence_1) -> Non
 def test_qua_program_compilation_wo_sweeps(
         program_sequence) -> None:
     program_sequence.set_sweeps(*set_sweeps_args(program_sequence))
-    qua_program = program_sequence.seq1.get_qua_program()
-    qua_prog_str = generate_qua_script(qua_program)
+    qua_prog_str = program_sequence.qua_program_as_str
     print(qua_prog_str)
     # we expect 8 declares: 2x3(2 per parameter -> sweep_arr + qua_var) 
     # + 2 as iterators for for loops (per sweep axis)
