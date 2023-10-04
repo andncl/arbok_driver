@@ -1,5 +1,6 @@
 import copy
 from typing import Union
+import math
 
 from qm.QuantumMachinesManager import QuantumMachinesManager
 from qm.qua import program, infinite_loop_, pause, stream_processing
@@ -11,6 +12,8 @@ from qcodes.dataset import Measurement
 
 from .sub_sequence import SubSequence
 from .sample import Sample
+from .sweep import Sweep
+from .gettable_parameter import GettableParameter
 
 class Program(SubSequence):
     """
