@@ -77,8 +77,6 @@ class SequenceBase(Instrument):
         """Returns the qua program as str. Will be compiled if it wasnt yet"""
         if self._qua_program_as_str is None:
             self.get_qua_program()
-        else:
-            print()
         return self._qua_program_as_str
 
     def add_subsequence(self, new_sequence) -> None:

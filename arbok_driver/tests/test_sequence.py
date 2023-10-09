@@ -19,7 +19,7 @@ def test_qua_program_compilation_w_sweeps(
     print(dummy_sequence.submodules)
     dummy_sequence.set_sweeps(*set_sweeps_args(dummy_sequence))
     qua_prog_str = dummy_sequence.qua_program_as_str
-    # we expect 8 declares: 2x3(2 per parameter -> sweep_arr + qua_var) 
+    # we expect 8 declares: 2x3(2 per parameter -> sweep_arr + qua_var)
     # + 2 as iterators for for loops (per sweep axis)
     assert len([m.start() for m in re.finditer('declare', qua_prog_str)]) == 8
     # we expect 3, one per parameter in total
