@@ -28,7 +28,7 @@ class Sequence(SequenceBase):
             **kwargs: Key word arguments for InstrumentModule 
         """
         super().__init__(name, sample, param_config, **kwargs)
-
+        self.parent_sequence = self
         self._sweeps = []
         self._gettables = []
         self._sweep_size = 1

@@ -109,7 +109,7 @@ class Readout():
         save(self.state, self.state_stream)
     
     def save_streams(self):
-        sweep_size = self.sequence.root_instrument.sweep_size
+        sweep_size = self.sequence.parent_sequence.sweep_size
 
         self.read_I_stream.buffer(sweep_size).save(self.name+"_read_I_buffer")
         self.read_Q_stream.buffer(sweep_size).save(self.name+"_read_Q_buffer")

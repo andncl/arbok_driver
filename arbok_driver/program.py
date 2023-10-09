@@ -57,7 +57,6 @@ class Program(Instrument):
             new_sequence (Sequence): Sequence to be added
         """
         self._sequences.append(new_sequence)
-        new_sequence.parent_sequence = self
         self.add_submodule(new_sequence.name, new_sequence)
 
     def get_qua_code(self) -> program:
