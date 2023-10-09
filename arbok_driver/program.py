@@ -16,7 +16,7 @@ from .sample import Sample
 from .sweep import Sweep
 from .gettable_parameter import GettableParameter
 
-class Program(Instrument, SequenceBase):
+class Program(SequenceBase, Instrument):
     """
     Class containing all functionality to manage and run modular sequences on a 
     physical OPX instrument
@@ -34,7 +34,7 @@ class Program(Instrument, SequenceBase):
             **kwargs: Arbitrary keyword arguments.
         """
         #super(Instrument, self).__init__(name, *args, **kwargs)
-        super(SequenceBase, self).__init__(name, sample, param_config, *args, **kwargs)
+        super().__init__(name, sample, param_config, *args, **kwargs)
         self.qmm = None
         self.opx = None
         self.qm_job = None

@@ -26,7 +26,7 @@ from .sequence_base import SequenceBase
 from .sequence_parameter import SequenceParameter
 from . import utils
 
-class SubSequence(InstrumentModule, SequenceBase):
+class SubSequence(SequenceBase, InstrumentModule):
     """
     Class describing a subsequence of a QUA programm (e.g Init, Control, Read).
     TODO: should inherit from InstrumentModule!
@@ -43,8 +43,8 @@ class SubSequence(InstrumentModule, SequenceBase):
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
         """
-        # super(InstrumentModule, self).__init__(name, **kwargs)
-        super(SequenceBase, self).__init__(name, sample, param_config, **kwargs)
+        super().__init__(name = name, sample = sample, param_config = param_config, **kwargs)
+        super(SequenceBase, self).__init__(name)
         self.elements = self.sample.elements
         self._gettables = []
 

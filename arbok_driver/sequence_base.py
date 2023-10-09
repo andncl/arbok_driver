@@ -33,7 +33,7 @@ class SequenceBase(ABC, InstrumentBase):
     def __init__(
             self, name: str, sample: Sample, param_config: dict = None, **kwargs):
         """Constructor for SequenceBase class"""
-        super(InstrumentBase, self).__init__(name, **kwargs)
+        super().__init__(name, **kwargs)
         self.sample = sample
         self.param_config = param_config
         if param_config is None:
