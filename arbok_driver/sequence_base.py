@@ -47,7 +47,7 @@ class SequenceBase(Instrument):
         self.elements = self.sample.elements
         self.param_config = param_config
 
-        self.parent_sequence = None
+        self._parent_sequence = None
         self._gettables = []
         self._qua_program_as_str = None
         self.add_qc_params_from_config(self.param_config)
@@ -72,8 +72,7 @@ class SequenceBase(Instrument):
         """
         return self._gettables
 
-    @property
-    def qua_program_as_str(self) -> str:
+    def get_qua_program_as_str(self) -> str:
         """Returns the qua program as str. Will be compiled if it wasnt yet"""
         if self._qua_program_as_str is None:
             self.get_qua_program()
@@ -117,6 +116,10 @@ class SequenceBase(Instrument):
         Args:
             simulate (bool): True if program is generated for simulation
         """
+        if self.parent_sequence is None:
+            raise ReferenceError(
+                "The sub sequence {self.name} is not linked to a sequence")
+        self.qua_declare_sweep_vars()
         self.recursive_qua_generation(seq_type = 'declare')
         with infinite_loop_():
             if not simulate:
@@ -129,7 +132,7 @@ class SequenceBase(Instrument):
     def print_qua_program_to_file(self, file_name: str):
         """Creates file with 'filename' and prints the QUA code to this file"""
         with open(file_name, 'w', encoding="utf-8") as file:
-            file.write(self.qua_program_as_str)
+            file.write(self.get_qua_program_as_str())
 
     def qua_declare_sweep_vars(self) -> None:
         """ Declares all sweep variables as QUA with their correct type """
