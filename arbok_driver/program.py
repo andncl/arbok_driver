@@ -85,6 +85,19 @@ class Program(Instrument):
                 sequence.recursive_qua_generation(seq_type = 'stream')
         return qua_program
 
+    def run(self, qua_program):
+        """
+        Sends the qua program for execution to the OPX and sets the programs 
+        result handles 
+        
+        Args:
+            qua_program (program): QUA program to be executed
+        """
+        self.qm_job = self.opx.execute(qua_program)
+        self.result_handles = self.qm_job.result_handles
+        if self.stream_mode == "pause_each":
+            self.qm_job.resume()
+
     def _register_qc_params_in_measurement(self, measurement: Measurement):
         """
         Configures QCoDeS measurement object from the arbok program
