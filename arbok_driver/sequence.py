@@ -30,9 +30,12 @@ class Sequence(SequenceBase):
         super().__init__(name, sample, param_config, **kwargs)
         self.program = None
         self.parent_sequence = self
+        self.stream_mode = "pause_each"
         self._sweeps = []
         self._gettables = []
         self._sweep_size = 1
+        self._setpoints_for_gettables = ()
+
 
     @property
     def sweeps(self) -> list:
@@ -67,6 +70,11 @@ class Sequence(SequenceBase):
         self._sweeps = []
         for sweep_dict in args:
             self._sweeps.append(Sweep(sweep_dict))
+        self._setpoints_for_gettables = ()
+        for sweep in self.sweeps:
+            for param, setpoints in sweep.config_to_register.items():
+                param.vals = Arrays(shape=(len(setpoints),))
+                self._setpoints_for_gettables += (param,)
 
     def register_gettables(self, *args) -> None:
         """
@@ -77,27 +85,14 @@ class Sequence(SequenceBase):
         """
         if not all(isinstance(param, GettableParameter) for param in args):
             raise TypeError("All arguments need to be of type dict")
-        if not all(param.root_instrument == self for param in args):
+        if not all(param.sequence.parent_sequence == self for param in args):
             raise AttributeError(
                 f"Not all GettableParameters belong to {self.name}")
         self._gettables = list(args)
-
-    def prepare_gettables(self):
-        """
-        Sets validators of the `SequenceParameter`s and `GettableParameters`.
-        `GettableParameters` are QCoDeS ParameterWithSetpoints. Those are
-        defined with setpoints whose validators have to align with their 
-        setpoints.
-        """
-        setpoints_for_gettables = ()
-        for sweep in self.sweeps:
-            for param, setpoints in sweep.config_to_register.items():
-                param.vals = Arrays(shape=(len(setpoints),))
-                setpoints_for_gettables += (param,)
         for i, gettable in enumerate(self.gettables):
             gettable.batch_size = self.sweep_size
             gettable.can_resume = True if i==(len(self.gettables)-1) else False
-            gettable.setpoints = setpoints_for_gettables
+            gettable.setpoints = self._setpoints_for_gettables
             gettable.vals = Arrays(
                 shape = tuple(sweep.length for sweep in self.sweeps))
         self.sweeps.reverse()
