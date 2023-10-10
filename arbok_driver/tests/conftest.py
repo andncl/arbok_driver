@@ -37,7 +37,7 @@ def sub_sequence_2(dummy_sample):
 @pytest.fixture
 def parent_sub_sequence(dummy_sample, sub_sequence_1, sub_sequence_2):
     """Returns parent sub sequence with child sub sequences"""
-    parent_sequence = SubSequence('dummy_seq', dummy_sample)
+    parent_sequence = SubSequence('dummy_parent_sub', dummy_sample)
     parent_sequence.add_subsequence(sub_sequence_1)
     parent_sequence.add_subsequence(sub_sequence_2)
     yield parent_sequence
@@ -52,9 +52,8 @@ def dummy_sequence(dummy_sample, parent_sub_sequence):
     parent_sequence.__del__()
 
 @pytest.fixture
-def program_sequence(dummy_sample, dummy_sequence):
+def mock_program(dummy_sample):
     """Yields Program with sequence that has sub sequences"""
-    program_sequence = Program('program', dummy_sample)
-    program_sequence.add_sequence(dummy_sequence)
-    yield program_sequence
-    program_sequence.__del__()
+    program_seq = Program('mock_program', dummy_sample)
+    yield program_seq
+    program_seq.__del__()
