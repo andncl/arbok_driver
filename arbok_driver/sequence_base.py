@@ -188,9 +188,6 @@ class SequenceBase(Instrument):
         Args:
             seq_type (str): Type of qua code containing method to look for
         """
-        if seq_type == 'declare' and len(self.parent_sequence.sweeps) != 0:
-            # TODO: When is this supposed to happen?
-            self.qua_declare_sweep_vars()
         if not self.submodules:
             getattr(self, 'qua_' + str(seq_type))()
             return
@@ -211,7 +208,7 @@ class SequenceBase(Instrument):
             config (dict): Configuration containing all sequence parameters
         """
         if config is None:
-            logging.debug("No params addded to %s", self.name)
+            logging.debug("No params added to %s (no param_config)", self.name)
             return
         for param_name, param_dict in config.items():
             if 'elements' in param_dict:
