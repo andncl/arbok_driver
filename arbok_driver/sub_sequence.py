@@ -35,7 +35,6 @@ class SubSequence(SequenceBase):
 
     @parent_sequence.setter
     def parent_sequence(self, parent):
-        logging.debug("Set %s as parent of %s", parent.name, self.name)
         self._parent_sequence = parent
 
     def find_parent_sequence(self):
