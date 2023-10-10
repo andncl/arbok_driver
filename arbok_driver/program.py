@@ -2,7 +2,7 @@ import copy
 from typing import Union
 
 from qm.qua import program, infinite_loop_, pause, stream_processing
-from qm import SimulationConfig
+from qm import SimulationConfig, generate_qua_script
 
 from qcodes.instrument import Instrument
 from qcodes.parameters import Parameter
@@ -57,9 +57,10 @@ class Program(Instrument):
             new_sequence (Sequence): Sequence to be added
         """
         self._sequences.append(new_sequence)
+        new_sequence.program = self
         self.add_submodule(new_sequence.name, new_sequence)
 
-    def get_qua_code(self) -> program:
+    def get_qua_program(self) -> program:
         """Compiles all qua code from its sequences and writes their loops"""
         with program() as qua_program:
             for sequence in self._sequences:
@@ -90,6 +91,11 @@ class Program(Instrument):
             measurement.register_parameter(
                 gettable, setpoints = (self.iteration,) )
         return measurement
+
+    def print_qua_program_to_file(self, file_name: str):
+        """Creates file with 'filename' and prints the QUA code to this file"""
+        with open(file_name, 'w', encoding="utf-8") as file:
+            file.write(generate_qua_script(self.get_qua_program()))
 
     def run_infinite_average(self, measurement: Measurement, shots: int):
         """ 
