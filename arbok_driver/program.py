@@ -3,6 +3,7 @@ from typing import Union
 
 from qm.qua import program, infinite_loop_, pause, stream_processing
 from qm import SimulationConfig, generate_qua_script
+from qm import QuantumMachinesManager
 
 from qcodes.instrument import Instrument
 from qcodes.parameters import Parameter
@@ -35,7 +36,7 @@ class Program(Instrument):
             **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(name, **kwargs)
-
+        self.sample = sample
         self.qmm = None
         self.opx = None
         self.qm_job = None
@@ -71,14 +72,16 @@ class Program(Instrument):
         new_sequence.program = self
         self.add_submodule(new_sequence.name, new_sequence)
 
-    def get_qua_program(self) -> program:
+    def get_qua_program(self, simulate = False) -> program:
         """Compiles all qua code from its sequences and writes their loops"""
         with program() as qua_program:
             for sequence in self._sequences:
+                sequence.qua_declare_sweep_vars()
                 sequence.recursive_qua_generation(seq_type = 'declare')
             for sequence in self._sequences:
                 with infinite_loop_():
-                    pause()
+                    if not simulate:
+                        pause()
                     sequence.recursive_sweep_generation(
                         copy.copy(sequence.sweeps))
             with stream_processing():
@@ -159,11 +162,11 @@ class Program(Instrument):
             self.sample.config,
             self.get_qua_program(simulate = True),
             SimulationConfig(duration=duration))
-     
+
         samples = simulated_job.get_simulated_samples()
         self._plot_simulation_results(samples)
         return simulated_job
-    
+
     def ask_raw(self, cmd: str) -> str:
         """Abstract method from qcodes Instrument"""
         raise NotImplementedError
