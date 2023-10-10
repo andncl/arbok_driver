@@ -40,7 +40,7 @@ class GettableParameter(ParameterWithSetpoints):
         self.can_resume = False
 
         self.readout = readout
-        self.sequence = None
+        self.sequence = self.readout.sequence
         self.qm_job = None
         self.result = None
         self.buffer = None
