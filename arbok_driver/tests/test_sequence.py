@@ -18,7 +18,7 @@ def test_qua_program_compilation_w_sweeps(
     """Tests whether the qua code is compiled correctly"""
     print(dummy_sequence.submodules)
     dummy_sequence.set_sweeps(*set_sweeps_args(dummy_sequence))
-    qua_prog_str = dummy_sequence.qua_program_as_str
+    qua_prog_str = dummy_sequence.get_qua_program_as_str()
     dummy_sequence.print_qua_program_to_file('test_output.txt')
     # we expect 8 declares: 2x3(2 per parameter -> sweep_arr + qua_var)
     # + 2 as iterators for for loops (per sweep axis)
