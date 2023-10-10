@@ -49,6 +49,17 @@ class Program(Instrument):
         """Sequences to be run within program uploaded to the OPX"""
         return self._sequences
 
+    def connect_opx(self, host_ip: str):
+        """
+        Creates QuantumMachinesManager and opens a quantum machine on it with
+        the given IP address
+        
+        Args:
+            host_ip (str): Ip address of the OPX
+        """
+        self.qmm = QuantumMachinesManager(host = host_ip)
+        self.opx = self.qmm.open_qm(self.sample.config)
+
     def add_sequence(self, new_sequence: Sequence):
         """
         Adds `Sequence` to the program and adds it as a QCoDeS sub-module
