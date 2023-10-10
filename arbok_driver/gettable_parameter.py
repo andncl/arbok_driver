@@ -9,13 +9,15 @@ class GettableParameter(ParameterWithSetpoints):
     """
     This is a valid Gettable not because of inheritance, but because it has the
     expected attributes and methods.
+    TODO: zip all streams together, stream at once and unpack while opx resume
+    TODO: interleaved measurements
 
     Attributes:
         unit (str): Unit of the parameter
         label (label): Label for parameter (printed on axis)
         can_resume (bool): Whether the instance resumes the program after read
         readout (Readout): `Readout` instance that created this parameter
-        program (Program): `Program` managing the QUA program
+        sequence (Sequence): `Sequence` managing the sequence of QUA program
         qm_job (RunningQmJob): Running job on the opx to interact with
         result (obj): QM object managing OPX streams 
         buffer (obj): QM buffer to get results from
@@ -38,7 +40,7 @@ class GettableParameter(ParameterWithSetpoints):
         self.can_resume = False
 
         self.readout = readout
-        self.program = None
+        self.sequence = None
         self.qm_job = None
         self.result = None
         self.buffer = None
@@ -50,30 +52,31 @@ class GettableParameter(ParameterWithSetpoints):
 
     def set_raw(self, *args, **kwargs):
         """ Empty abstract `set_raw` method. Parameter not meant to be set """
-        pass
 
-    def get_raw(self):
-        """ Get method to retrieve a single batch of data from a running measurement"""
+    def get_raw(self) -> np.ndarray:
+        """ 
+        Get method to retrieve a single batch of data from a running measurement
+        """
         if self.result is None:
             # Will be executed on the first call of get()
-            self.set_up_gettable_from_program()
+            self._set_up_gettable_from_program()
         self._fetch_from_opx()
         if self.buffer_val is None:
             warnings.warn("NO VALUE STREAMED!")
-        if self.program.stream_mode == "pause_each" and self.can_resume:
+        if self.sequence.stream_mode == "pause_each" and self.can_resume:
             self.qm_job.resume()
         return self.buffer_val.reshape(tuple((reversed(self.shape))))
 
-    def set_up_gettable_from_program(self):
+    def _set_up_gettable_from_program(self):
         """ Set up Gettable attributes from running OPX """
-        self.program = self.readout.sequence.root_instrument
-        if not self.readout.sequence.root_instrument.opx:
+        self.sequence = self.readout.sequence.parent_sequence
+        if not self.readout.sequence.parent_sequence.program.opx:
             raise LookupError("Results cant be retreived without OPX connected")
-        self.qm_job = self.program.qm_job
+        self.qm_job = self.sequence.program.qm_job
         self.result = getattr(self.qm_job.result_handles, self.name)
         self.buffer = getattr(self.qm_job.result_handles, f"{self.name}_buffer")
-        self.shape = tuple(sweep.length for sweep in self.program.sweeps)
-        self.batch_size = self.program.sweep_size
+        self.shape = tuple(sweep.length for sweep in self.sequence.sweeps)
+        self.batch_size = self.sequence.sweep_size
 
     def _fetch_from_opx(self):
         """ Fetches and returns data from OPX after results came in """
