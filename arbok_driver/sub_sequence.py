@@ -1,6 +1,8 @@
 """ Module containing Sequence class """
+import logging
 
 from .sample import Sample
+from .sequence import Sequence
 from .sequence_base import SequenceBase
 
 class SubSequence(SequenceBase):
