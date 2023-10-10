@@ -25,3 +25,22 @@ class SubSequence(SequenceBase):
             **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(name, sample, param_config, **kwargs)
+
+    @property
+    def parent_sequence(self):
+        """Returns parent (sub) sequence"""
+        return self.find_parent_sequence()
+
+    @parent_sequence.setter
+    def parent_sequence(self, parent):
+        logging.debug("Set %s as parent of %s", parent.name, self.name)
+        self._parent_sequence = parent
+
+    def find_parent_sequence(self):
+        """Recursively searches the parent sequence"""
+        if isinstance(self._parent_sequence, Sequence):
+            return self._parent_sequence
+        elif self._parent_sequence is None:
+            return self
+        else:
+            return self._parent_sequence.find_parent_sequence()
