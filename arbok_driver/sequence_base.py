@@ -211,6 +211,7 @@ class SequenceBase(Instrument):
             logging.debug("No params added to %s (no param_config)", self.name)
             return
         for param_name, param_dict in config.items():
+            logging.debug("Adding %s to %s", param_name, self.name)
             if 'elements' in param_dict:
                 for element, value in param_dict['elements'].items():
                     self.add_parameter(
