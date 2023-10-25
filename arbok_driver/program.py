@@ -11,6 +11,7 @@ from qcodes.dataset import Measurement
 
 from .sequence import Sequence
 from .sample import Sample
+from . import utils
 
 class Program(Instrument):
     """
@@ -145,7 +146,7 @@ class Program(Instrument):
             dataset = datasaver.dataset
         return dataset
 
-    def run_local_simulation(self, duration: int):
+    def run_local_simulation(self, duration: int, nr_controllers: int = 1):
         """
         Simulates the given program of the sequence for `duration` cycles
         TODO: Move to SequenceBase and add checks if OPX is connected
@@ -154,6 +155,7 @@ class Program(Instrument):
 
         Returns:
             simulated_job (SimulatedJob): QM job with waveform simulation result
+            nr_controllers (int): Nr of controllers to fetch simulation results
         """
         if not self.qmm:
             raise ConnectionError(
@@ -164,7 +166,9 @@ class Program(Instrument):
             SimulationConfig(duration=duration))
 
         samples = simulated_job.get_simulated_samples()
-        self._plot_simulation_results(samples)
+        for i in range(nr_controllers):
+            con_samples = getattr(samples, f'con{i+1}')
+            utils.plot_qmm_simulation_results(con_samples)
         return simulated_job
 
     def ask_raw(self, cmd: str) -> str:
