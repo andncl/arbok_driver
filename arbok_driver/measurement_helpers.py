@@ -102,7 +102,8 @@ def run_qdac_measurement_from_opx_program(
                     _ = res_args_dict[f"{param.instrument}.{param.name}"]
                     res_args_dict[f"{param.instrument}.{param.name}"] = (param, value)
                 except KeyError:
-                    logging.debug("Not registered")
+                    logging.debug( "Param %s on %s not registered",
+                        param.instrument, param.name)
             create_recursive_measurement_loop(
                     sweeps_list_temp, result_args_temp)
 
@@ -126,7 +127,5 @@ def run_qdac_measurement_from_opx_program(
     with measurement.run() as datasaver:
         result_args = []
         create_recursive_measurement_loop(sweep_list, result_args)
-        if program.stream_mode == 'pause_each':
-                program.qm_job.resume()
         dataset = datasaver.dataset
     return dataset
