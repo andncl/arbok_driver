@@ -3,6 +3,7 @@
 import warnings
 import logging as lg
 import numpy as np
+import matplotlib.pyplot as plt
 from qcodes.parameters import ParameterWithSetpoints
 
 class GettableParameter(ParameterWithSetpoints):
@@ -103,7 +104,13 @@ class GettableParameter(ParameterWithSetpoints):
 
     def get_all(self):
         """ Fetches ALL (not buffered) data """
+        if self.result is None:
+            self._set_up_gettable_from_program()
         if self.result:
             return self.result.fetch_all()
         else:
             raise LookupError("Results cant be retreived without OPX")
+
+    def plot_set_current_histogram(self, bins: int = 50) -> tuple:
+        set_current = np.array(self.get_all(), dtype = float)
+        return plt.hist(set_current, bins=50)
