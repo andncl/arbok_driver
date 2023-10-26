@@ -147,12 +147,16 @@ class SequenceBase(Instrument):
                 param.qua_sweeped = True
                 param.vals= Arrays()
                 param.set(np.array(setpoints))
-                if param.get().dtype == float:
+                if param.var_type == float:
                     param.qua_var = declare(fixed)
-                    param.qua_sweep_arr = declare(fixed, value = setpoints*param.scale)
-                elif param.get().dtype == int:
+                    param.qua_sweep_arr = declare(
+                        fixed, value = setpoints*param.scale
+                    )
+                elif param.var_type == int:
                     param.qua_var = declare(int)
-                    param.qua_sweep_arr = declare(int, value = int(setpoints*param.scale))
+                    param.qua_sweep_arr = declare(
+                        int, value = np.array(setpoints, dtype = int)
+                    )
                 else:
                     raise TypeError("Type not supported. Must be float or int")
 
@@ -228,7 +232,8 @@ class SequenceBase(Instrument):
                         element = element,
                         get_cmd = None,
                         set_cmd = None,
-                        scale = scale
+                        scale = scale,
+                        var_type = float
                     )
             elif 'value' in param_dict:
                 self.add_parameter(
@@ -239,6 +244,7 @@ class SequenceBase(Instrument):
                     parameter_class = SequenceParameter,
                     element = None,
                     set_cmd = None,
+                    var_type = int
                 )
             else:
                 raise KeyError(f"""The config of parameter {param_name} does not

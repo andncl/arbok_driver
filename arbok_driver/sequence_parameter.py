@@ -9,7 +9,7 @@ class SequenceParameter(Parameter):
 
     TODO: Write get_raw abstract method without crashing sequence compilation
     """
-    def __init__(self, element, config_name, *args, **kwargs):
+    def __init__(self, element, config_name, var_type, *args, **kwargs):
         """
         Constructor for 'SequenceParameter' class
 
@@ -26,6 +26,7 @@ class SequenceParameter(Parameter):
         self.qua_sweep_arr = None
         self.qua_var = None
         self.value = None
+        self.var_type = var_type
 
     def __call__(self, 
                  value: Optional[float | int | ndarray] = None
