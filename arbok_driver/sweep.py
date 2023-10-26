@@ -1,5 +1,5 @@
 """ Module with Sweep class """
-
+from qcodes.parameters import Parameter
 from .sequence_parameter import SequenceParameter
 
 class Sweep:
@@ -60,7 +60,13 @@ class Sweep:
 
     def check_input_dict(self):
         """ Validates equal sizes of input arrays """
-        if not all(isinstance(param, SequenceParameter) for param in self._param_dict.keys()):
+        param_types_valid = []
+        for param in self._param_dict.keys():
+            param_types_valid.append(
+             isinstance(param,(SequenceParameter, Parameter))
+            )
+        if not all(param_types_valid):
+            print([type(param) for param in self._param_dict.keys()])
             raise TypeError("All given parameter must be of SequenceParameter")
         list_iter = iter(self._param_dict.values())
         length = len(next(list_iter))
