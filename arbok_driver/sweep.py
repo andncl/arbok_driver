@@ -66,7 +66,6 @@ class Sweep:
              isinstance(param,(SequenceParameter, Parameter))
             )
         if not all(param_types_valid):
-            print([type(param) for param in self._param_dict.keys()])
             raise TypeError("All given parameter must be of SequenceParameter")
         list_iter = iter(self._param_dict.values())
         length = len(next(list_iter))
