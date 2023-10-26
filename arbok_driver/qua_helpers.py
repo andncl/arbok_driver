@@ -3,7 +3,7 @@ import logging
 
 from qm.qua import play, amp, ramp_to_zero, align
 
-from arbok_driver import SubSequence
+from arbok_driver import SubSequence, SequenceParameter
 
 def arbok_go(
         sub_sequence: SubSequence, 
@@ -30,8 +30,11 @@ def arbok_go(
     """
     if from_volt is None:
         from_volt = ['vHome']
-    if callable(duration):
-        duration = int(duration())
+    if isinstance(duration, SequenceParameter):
+        if duration.qua_sweeped:
+            duration = duration.qua_var
+        else:
+            duration = int(duration())
     origin_param_sets = sub_sequence.find_parameters_from_keywords(from_volt)
     target_param_sets = sub_sequence.find_parameters_from_keywords(to_volt)
     if len(origin_param_sets) == 0:
