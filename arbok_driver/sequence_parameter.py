@@ -1,7 +1,12 @@
 """ Module containing SequenceParameter class """
 from typing import Optional
+import logging
+
 from numpy import ndarray
+import numpy as np
 from qcodes.parameters import Parameter
+from qcodes.validators import Arrays
+from qm import qua
 
 class SequenceParameter(Parameter):
     """
@@ -27,6 +32,7 @@ class SequenceParameter(Parameter):
         self.qua_var = None
         self.value = None
         self.var_type = var_type
+        self.input_stream = None
 
     def __call__(self, 
                  value: Optional[float | int | ndarray] = None
@@ -52,3 +58,34 @@ class SequenceParameter(Parameter):
             self.set(value)
         else:
             raise ValueError("Value to be set must be int, float or np.ndarray")
+
+    def qua_declare(self, setpoints):
+        """
+        Declares the parameter inside qua code as variable and sets its class
+        attributes accordingly. Note: This method can only be called inside the
+        qua.program() context manager
+        TODO: Fix doctring!
+
+        Args:
+            setpoints (list, numpy.array): Setpoints for parameter sweep
+        """
+        logging.debug(
+            "Adding qua %s variable for %s on subsequence %s",
+            type(self.get()), self.name, self.instrument.name
+        )
+        setpoints = np.array(setpoints)
+        self.qua_sweeped = True
+        self.vals= Arrays()
+
+        self.qua_var = qua.declare(self.var_type)
+        if self.input_stream is None:
+            self.set(np.array(setpoints))
+            self.qua_sweep_arr = qua.declare(
+                self.var_type, value = setpoints*self.scale
+            )
+        else:
+            self.input_stream = qua.declare_input_stream(
+                self.var_type,
+                self.name,
+                value = setpoints*self.scale # initial value should prob be gone
+            )

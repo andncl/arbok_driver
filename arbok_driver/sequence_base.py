@@ -9,7 +9,7 @@ import numpy as np
 from qcodes.instrument import InstrumentModule, Instrument
 from qcodes.validators import Arrays
 
-from qm import SimulationConfig, generate_qua_script
+from qm import SimulationConfig, generate_qua_script, qua
 from qm.QuantumMachinesManager import QuantumMachinesManager
 from qm.simulate.credentials import create_credentials
 from qm.qua import (
@@ -139,26 +139,7 @@ class SequenceBase(Instrument):
         logging.debug("Start declaring QUA variables in %s", self.name)
         for sweep in self.parent_sequence.sweeps:
             for param, setpoints in sweep.config.items():
-                setpoints = np.array(setpoints)
-                logging.debug(
-                    "Adding qua %s variable for %s on subsequence %s",
-                    type(param.get()), param.name, param.instrument.name
-                )
-                param.qua_sweeped = True
-                param.vals= Arrays()
-                param.set(np.array(setpoints))
-                if param.var_type == float:
-                    param.qua_var = declare(fixed)
-                    param.qua_sweep_arr = declare(
-                        fixed, value = setpoints*param.scale
-                    )
-                elif param.var_type == int:
-                    param.qua_var = declare(int)
-                    param.qua_sweep_arr = declare(
-                        int, value = np.array(setpoints, dtype = int)
-                    )
-                else:
-                    raise TypeError("Type not supported. Must be float or int")
+                param.qua_declare(setpoints)
 
     def recursive_sweep_generation(self, sweeps):
         """
@@ -233,7 +214,7 @@ class SequenceBase(Instrument):
                         get_cmd = None,
                         set_cmd = None,
                         scale = scale,
-                        var_type = float
+                        var_type = qua.fixed
                     )
             elif 'value' in param_dict:
                 self.add_parameter(
@@ -244,6 +225,7 @@ class SequenceBase(Instrument):
                     parameter_class = SequenceParameter,
                     element = None,
                     set_cmd = None,
+                    scale = 1,
                     var_type = int
                 )
             else:
@@ -273,7 +255,7 @@ class SequenceBase(Instrument):
             )
 
         samples = simulated_job.get_simulated_samples()
-        utils.plot_opx_simulation_results(samples)
+        utils.plot_qmm_simulation_results(samples)
         return simulated_job
 
     def find_parameters_from_keywords(self, keys: str | list):
