@@ -1,8 +1,7 @@
 import copy
 from typing import Union
 
-from qm.qua import program, infinite_loop_, pause, stream_processing
-from qm import SimulationConfig, generate_qua_script
+from qm import qua, SimulationConfig, generate_qua_script
 from qm import QuantumMachinesManager
 
 from qcodes.instrument import Instrument
@@ -73,19 +72,29 @@ class Program(Instrument):
         new_sequence.program = self
         self.add_submodule(new_sequence.name, new_sequence)
 
-    def get_qua_program(self, simulate = False) -> program:
-        """Compiles all qua code from its sequences and writes their loops"""
-        with program() as qua_program:
+    def get_qua_program(self, simulate = False) -> qua.program:
+        """
+        Compiles all qua code from its sequences and writes their loops
+        
+        Args:
+            simulate (bool): True if the program is meant to be simulated
+
+        Reterns:
+            qua_program: Program from qm context manager
+        """
+        with qua.program() as qua_program:
             for sequence in self._sequences:
                 sequence.qua_declare_sweep_vars()
                 sequence.recursive_qua_generation(seq_type = 'declare')
             for sequence in self._sequences:
-                with infinite_loop_():
+                with qua.infinite_loop_():
                     if not simulate:
-                        pause()
+                        #if sequence.input_streams is not None:
+                        #    sequence.advance_input_streams()
+                        qua.pause()
                     sequence.recursive_sweep_generation(
                         copy.copy(sequence.sweeps))
-            with stream_processing():
+            with qua.stream_processing():
                 sequence.recursive_qua_generation(seq_type = 'stream')
         return qua_program
 
