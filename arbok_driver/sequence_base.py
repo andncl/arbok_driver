@@ -139,7 +139,8 @@ class SequenceBase(Instrument):
         logging.debug("Start declaring QUA variables in %s", self.name)
         for sweep in self.parent_sequence.sweeps:
             for param, setpoints in sweep.config.items():
-                param.qua_declare(setpoints)
+                if isinstance(param, SequenceParameter):
+                    param.qua_declare(setpoints)
 
     def recursive_sweep_generation(self, sweeps):
         """
@@ -162,7 +163,8 @@ class SequenceBase(Instrument):
             [par.name for par in current_sweep.parameters])
         with for_(idx, 0, idx < current_sweep.length, idx + 1):
             for param in current_sweep.parameters:
-                assign(param.qua_var, param.qua_sweep_arr[idx])
+                if isinstance(param, SequenceParameter):
+                    assign(param.qua_var, param.qua_sweep_arr[idx])
             self.recursive_sweep_generation(new_sweeps)
         return
 
