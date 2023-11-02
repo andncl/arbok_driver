@@ -34,6 +34,11 @@ class SequenceParameter(Parameter):
         self.var_type = var_type
         self.input_stream = None
 
+    @property
+    def sequence_path(self):
+        """Returns the path through all parent sequences above"""
+        return f"{self.instrument.get_sequence_path()}{self.name}"
+
     def __call__(self, 
                  value: Optional[float | int | ndarray] = None
                  ) -> Optional[float | int | ndarray]:
@@ -70,8 +75,8 @@ class SequenceParameter(Parameter):
             setpoints (list, numpy.array): Setpoints for parameter sweep
         """
         logging.debug(
-            "Adding qua %s variable for %s on subsequence %s",
-            type(self.get()), self.name, self.instrument.name
+            "Adding qua %s variable for %s on subsequence %s (stream %s)",
+            type(self.get()), self.name, self.instrument.name, self.input_stream
         )
         setpoints = np.array(setpoints)
         self.qua_sweeped = True
@@ -85,7 +90,8 @@ class SequenceParameter(Parameter):
             )
         else:
             self.input_stream = qua.declare_input_stream(
-                self.var_type,
-                self.name,
-                value = setpoints*self.scale # initial value should prob be gone
+                t = self.var_type,
+                name = self.sequence_path,
+                size = int(setpoints)
             )
+    
