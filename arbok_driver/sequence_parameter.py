@@ -73,7 +73,10 @@ class SequenceParameter(Parameter):
             "Adding qua %s variable for %s on subsequence %s",
             type(self.get()), self.name, self.instrument.name
         )
-        setpoints = np.array(setpoints)
+        if self.var_type == int:
+            setpoints = np.array(setpoints, dtype = int)
+        else: 
+            setpoints = np.array(setpoints)
         self.qua_sweeped = True
         self.vals= Arrays()
 
