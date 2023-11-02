@@ -1,4 +1,6 @@
 """ Module with Sweep class """
+import numpy as np
+
 from qcodes.parameters import Parameter
 from .sequence_parameter import SequenceParameter
 
@@ -42,9 +44,9 @@ class Sweep:
     def config_to_register(self, param_list: list) -> None:
         if all(param in self.parameters for param in param_list):
             self._config_to_register = param_list
-        else: 
-            raise KeyError("""Some of the given parameters are not within the 
-                           swept parameters""")
+        else:
+            raise KeyError(
+                "Some of the given parameters are not within the swept params")
 
     def configure_sweep(self):
         """ Configures the sweep from the given dictionairy """
@@ -56,7 +58,16 @@ class Sweep:
             if self.register_all:
                 self._config_to_register[parameter] = self.config[parameter]
             elif i == 0:
-                self._config_to_register[parameter] = self.config[parameter]
+                value = self.config[parameter]
+                if isinstance(value, (list, np.ndarray)):
+                    self._config_to_register[parameter] = value
+                elif isinstance(value, int):
+                    self._config_to_register[parameter] = np.arange(value)
+                    parameter.input_stream = True
+                else:
+                    raise ValueError(
+                        "Keys in sweep dictionairies must be of type int, list"
+                        f"or numpy.ndarray, is:  {type(value)}")
 
     def check_input_dict(self):
         """ Validates equal sizes of input arrays """
@@ -66,9 +77,35 @@ class Sweep:
              isinstance(param,(SequenceParameter, Parameter))
             )
         if not all(param_types_valid):
-            raise TypeError("All given parameter must be of SequenceParameter")
-        list_iter = iter(self._param_dict.values())
-        length = len(next(list_iter))
-        if not all(len(l) == length for l in list_iter):
-            raise ValueError('not all lists have same length!')
-        self._length = length
+            raise TypeError(
+        "All given parameter must be of SequenceParameter or Parameter"
+        )
+        param_arrays = []
+        param_streams = []
+        for values in self._param_dict.values():
+            if isinstance(values, np.ndarray):
+                param_arrays.append(values)
+            elif isinstance(values, int):
+                param_streams.append(values)
+            else:
+                raise ValueError(
+                        "Keys in sweep dictionairies must be of type int, list"
+                        f"or numpy.ndarray, is:  {type(values)}")
+        if param_arrays:
+            list_iter = iter(param_arrays)
+            length = len(next(list_iter))
+            if not all(len(l) == length for l in list_iter):
+                raise ValueError('not all lists have same length!')
+            self._length = length
+        if param_streams:
+            if not all(size == param_streams[0] for size in param_streams):
+                raise ValueError(
+                    f"not all param streams have same size! {param_streams}")
+            if param_arrays:
+                if self._length != param_streams[0]:
+                    raise ValueError(
+                        "When mixing stream variable sweeps with static sweeps,"
+                        f" size of input stream ({param_streams[0]})  must be"
+                        f" same as static sweep array ({self._length})"
+                    )
+            self._length = param_streams[0]

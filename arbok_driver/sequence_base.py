@@ -14,7 +14,7 @@ from qm.QuantumMachinesManager import QuantumMachinesManager
 from qm.simulate.credentials import create_credentials
 from qm.qua import (
     program, infinite_loop_, pause, stream_processing,
-    declare, for_, assign, fixed
+    declare, for_, assign, fixed, advance_input_stream
 )
 
 from .sample import Sample
@@ -139,7 +139,8 @@ class SequenceBase(Instrument):
         logging.debug("Start declaring QUA variables in %s", self.name)
         for sweep in self.parent_sequence.sweeps:
             for param, setpoints in sweep.config.items():
-                param.qua_declare(setpoints)
+                if isinstance(param, SequenceParameter):
+                    param.qua_declare(setpoints)
 
     def recursive_sweep_generation(self, sweeps):
         """
@@ -160,9 +161,14 @@ class SequenceBase(Instrument):
         idx = declare(int)
         logging.debug( "Adding qua loop for %s",
             [par.name for par in current_sweep.parameters])
+        for param in current_sweep.parameters:
+            if param.input_stream is not None:
+                advance_input_stream(param.input_stream)
         with for_(idx, 0, idx < current_sweep.length, idx + 1):
             for param in current_sweep.parameters:
-                assign(param.qua_var, param.qua_sweep_arr[idx])
+                if isinstance(param, SequenceParameter):
+                    if param.input_stream is None:
+                        assign(param.qua_var, param.qua_sweep_arr[idx])
             self.recursive_sweep_generation(new_sweeps)
         return
 
