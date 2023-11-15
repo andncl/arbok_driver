@@ -132,7 +132,10 @@ class Program(Instrument):
     def print_qua_program_to_file(self, file_name: str):
         """Creates file with 'filename' and prints the QUA code to this file"""
         with open(file_name, 'w', encoding="utf-8") as file:
-            file.write(generate_qua_script(self.get_qua_program()))
+            if self.sample is not None:
+                file.write(generate_qua_script(self.get_qua_program(), self.sample.config))
+            else:
+                file.write(generate_qua_script(self.get_qua_program()))
 
     def run_infinite_average(self, measurement: Measurement, shots: int):
         """ 

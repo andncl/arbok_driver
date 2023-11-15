@@ -114,6 +114,17 @@ class GettableParameter(ParameterWithSetpoints):
         else:
             raise LookupError("Results cant be retreived without OPX")
 
+    def reset(self):
+        """Resets all job specific attributes"""
+        self.qm_job = None
+        self.result = None
+        self.buffer = None
+        self.buffer_val = None
+        self.shape = None
+        self.count_so_far = 0
+        self.batch_size = 0
+        self.batch_count = 0
+
     def plot_set_current_histogram(self, bins: int = 50) -> tuple:
         set_current = np.array(self.get_all(), dtype = float)
         return plt.hist(set_current, bins=50)
