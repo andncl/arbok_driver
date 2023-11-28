@@ -129,11 +129,20 @@ class Program(Instrument):
                 gettable, setpoints = (self.iteration,) )
         return measurement
 
-    def print_qua_program_to_file(self, file_name: str):
-        """Creates file with 'filename' and prints the QUA code to this file"""
+    def print_qua_program_to_file(
+            self, file_name: str, add_config: bool = False):
+        """
+        Creates file with 'filename' and prints the QUA code to this file
+        
+        Args:
+            file_name (str): File name of target file
+            add_config (bool): Whether config is added to output file
+        """
         with open(file_name, 'w', encoding="utf-8") as file:
-            if self.sample is not None:
-                file.write(generate_qua_script(self.get_qua_program(), self.sample.config))
+            if self.sample is not None and add_config:
+                file.write(generate_qua_script(
+                    self.get_qua_program(), self.sample.config
+                    ))
             else:
                 file.write(generate_qua_script(self.get_qua_program()))
 
