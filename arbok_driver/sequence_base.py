@@ -3,6 +3,7 @@
 import copy
 from typing import Optional
 import logging
+import warnings
 
 import numpy as np
 
@@ -48,6 +49,7 @@ class SequenceBase(Instrument):
         self.param_config = param_config
 
         self._parent_sequence = None
+        self._sub_sequences = []
         self._gettables = []
         self._qua_program_as_str = None
         self.add_qc_params_from_config(self.param_config)
@@ -64,6 +66,13 @@ class SequenceBase(Instrument):
         """Contains raw QUA code to define streams"""
         return
 
+    @property
+    def sub_sequences(self) -> list:
+        """
+        List of `SubSequences`s that build the given sequence
+        """
+        return self._sub_sequences
+    
     @property
     def gettables(self) -> list:
         """
@@ -88,7 +97,14 @@ class SequenceBase(Instrument):
             verbose (bool): Flag to trigger debug printouts
         """
         new_sequence.parent_sequence = self
-        self.add_submodule(new_sequence.name, new_sequence)
+        if new_sequence.name not in self.submodules.keys():
+            self.add_submodule(new_sequence.name, new_sequence)
+            self._sub_sequences.append(new_sequence)
+        else:
+            warnings.warn(
+                f"{new_sequence.name} already in subsequences, sequence added again"
+                )
+            self._sub_sequences.append(new_sequence)
 
     def get_qua_program(self, simulate = False):
         """
@@ -183,7 +199,8 @@ class SequenceBase(Instrument):
         if not self.submodules:
             getattr(self, 'qua_' + str(seq_type))()
             return
-        for subsequence in self.submodules.values():
+        #for subsequence in self.submodules.values():
+        for subsequence in self._sub_sequences:
             if not subsequence.submodules:
                 getattr(subsequence, 'qua_' + str(seq_type))()
             else:
@@ -238,7 +255,7 @@ class SequenceBase(Instrument):
                 raise KeyError(f"""The config of parameter {param_name} does not
                               have elements or value""")
 
-    def run_remote_simulation(self, host, duration: int):
+    def run_remote_simulation(self, host, port, duration: int):
         """
         Simulates the MW sequence on a remote simulator on the host
 
@@ -251,7 +268,7 @@ class SequenceBase(Instrument):
         """
         qmm = QuantumMachinesManager(
             host = host,
-            port = 443,
+            port = port,
             credentials=create_credentials()
         )
         simulated_job = qmm.simulate(
