@@ -118,27 +118,32 @@ class Sequence(SequenceBase):
                 f"""gettables must be of type GettableParameter or list with 
                 Gettable parameters is: {type(gettables)}"""
                 )
-        fig, ax = plt.subplots()
-        ax.set_xlabel("SET read current histogram")
-        ax.set_ylabel("counts")
-        ax.grid()
-        ALPHA = 0.6
-        for gettable in gettable_list:
+        fig, ax = plt.subplots(
+            len(self.gettables),
+            figsize = (5, 3*len(self.gettables))
+            )
+
+        ALPHA = 1
+        for i, gettable in enumerate(gettable_list):
             current_gettable = getattr(
                 gettable.instrument, f"{gettable.readout.name}_read")
             current_vals = np.array(current_gettable.get_all(), dtype = float)
-            ax.hist(
+            ax[i].hist(
                 current_vals,
                 bins = bins,
                 label = current_gettable.name,
                 alpha = ALPHA,
-                #color = next(ax._get_lines.prop_cycler)['color']
+                color = 'black'
                 )
-            ax.axvline(
+            ax[i].axvline(
                 gettable.readout.threshold,
-                label = f"{current_gettable.name}_th",
+                label = "threshold",
                 alpha = ALPHA,
-                #color = next(ax._get_lines.prop_cycler)['color']
+                color = 'red'
                 )
-        ax.legend()
+            ax[i].set_xlabel("SET read current histogram")
+            ax[i].set_ylabel("counts")
+            ax[i].grid()
+            ax[i].legend()
+        fig.tight_layout()
         return fig, ax
