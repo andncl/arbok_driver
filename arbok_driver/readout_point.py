@@ -30,7 +30,7 @@ class ReadoutPoint:
         self._observables = []
         self.valid_observables = ('I', 'Q')
         self._add_qua_variable_attributes(self.signal.readout_elements)
-        
+
     def qua_declare_variables(self):
         """Declares all neccessary qua variables"""
         qua_name_zip = zip(self._qua_variable_names, self._qua_stream_names)
@@ -70,7 +70,7 @@ class ReadoutPoint:
             raise ValueError(
                 f"Given observable {observable} not valid."
                 f"Must be in {self.valid_observables}")
- 
+
     def qua_measure_and_save(self):
         """Measures and saves qua variables"""
         qua.align()
@@ -82,13 +82,17 @@ class ReadoutPoint:
         """Measures I and Q at the given read point"""
         for name, qm_element in self.signal.readout_elements.items():
             self._check_IQ_qua_vars(name)
+            var_I = getattr(self, f"{name}_I")
+            var_Q = getattr(self, f"{name}_Q")
             qua.measure(
-                'measure',
-                qm_element,
-                None,
-                qua.demod.full('x', getattr(self, f"{name}_I")),
-                qua.demod.full('y', getattr(self, f"{name}_I"))
+                qua.demod.full('x', var_I),
+                qua.demod.full('y', var_Q),
+                pulse = 'measure',
+                element = qm_element,
+                stream = None,
                 )
+            if 'IQ' in self.config["observables"]:
+                qua.assign(getattr(self, f"{name}_IQ"), var_I + var_Q)
 
     def _qua_save_vars(self):
         """Saves streams after measurement"""
@@ -102,6 +106,11 @@ class ReadoutPoint:
                 getattr(self, f"{name}_Q"),
                 getattr(self, f"{name}_Q_stream")
                 )
+            if 'IQ' in self.config["observables"]:
+                qua.save(
+                    getattr(self, f"{name}_IQ"),
+                    getattr(self, f"{name}_IQ_stream")
+                    )
 
     def _check_IQ_qua_vars(self, name):
         """
@@ -127,81 +136,98 @@ class ReadoutPoint:
             getattr(self, f"{name}_I_stream").save_all(f"{full_name}_I")
             getattr(self, f"{name}_Q_stream").save_all(f"{full_name}_Q")
 
-        # hanswurscht = {
-        #     'signals':{
-        #         'p1p2':{
-        #             'element': {
-        #                 'set1': 'SDC1',
-        #             },
-        #             'readout_points': {
-        #                 'ref': {
-        #                     'desc':'point specification (voltages, I,Q, trace ..)',
-        #                     'observables': ['I', 'Q', 'ADC_trace']
-        #                 },
-        #                 'read': {
-        #                     'desc':'point specification (voltages, I,Q, trace ..)',
-        #                     'observables': ['I', 'Q', 'ADC_trace']
-        #                 }
-        #             }
-        #         },
-        #         'p3p4':{
-        #             'element': {
-        #                 'set1': 'SDC1',
-        #                 'set2': 'SDC2'
-        #             },
-        #             'readout_points': {
-        #                 'ref': {
-        #                     'desc':'point specification (voltages, I,Q, trace ..)',
-        #                     'observables': ['I', 'Q', 'ADC_trace']
-        #                 },
-        #                 'read': {
-        #                     'desc':'point specification (voltages, I,Q, trace ..)',
-        #                     'observables': ['I', 'Q', 'ADC_trace']
-        #                 }
-        #             }
-        #         },
-        #         'p5p6':{
-        #             'element': {
-        #                 'set2': 'SDC2'
-        #             },
-        #             'read_points': {
-        #                 'ref': {
-        #                     'desc':'point specification (voltages, I,Q, trace ..)',
-        #                     'observables': ['I', 'Q', 'ADC_trace']
-        #                 },
-        #                 'read': {
-        #                     'desc':'point specification (voltages, I,Q, trace ..)',
-        #                     'observables': ['I', 'Q', 'ADC_trace']
-        #                 }
-        #             }
-        #         },
-        #     },
-        #     'charge_readouts': {
-        #         'p1p2_charge': {
-        #             'method': 'take_diff',
-        #             'read_points': ['set1_ref', 'set1_read'],
-        #         },
-        #         'p5p6_chopped': {
-        #             'method': 'take_diff',
-        #             'args': {
-        #                 'read_points': ['set2_ref', 'set2_read'],
-        #                 'n_chop': 4
-        #             },
-        #         },
-        #         'p3p4_correlate': {
-        #             'method': 'correlate',
-        #             'args': {
-        #                 'charge_reads': ['p5p6_chopped', 'p1p2_charge'],
-        #             },
-        #         },
-        #     'spin_readouts': {
-        #         'p1p2_spin_parity': {
-        #             'method': 'threshold',
-        #             'args': {
-        #                 'charge_readouts': ['p1p2_charge'],
-        #                 'threshold': 0.1
-        #             }
-        #         }
-        #     }
-        # }
-        # }
+        hanswurscht = {
+            'signals':{
+                'p1p2':{
+                    'element': {
+                        'set1': 'SDC1',
+                    },
+                    'readout_points': {
+                        'ref': {
+                            'desc':'reference point in 3-1 region',
+                            'observables': ['I', 'Q', 'IQ']
+                        },
+                        'read': {
+                            'desc':'psb region of between 4-0 and 3-1 region',
+                            'observables': ['I', 'Q', 'IQ']
+                        }
+                    }
+                },
+                'p3p4':{
+                    'element': {
+                        'set1': 'SDC1',
+                        'set2': 'SDC2'
+                    },
+                    'readout_points': {
+                        'ref': {
+                            'desc':'point specification (voltages, I,Q, trace ..)',
+                            'observables': ['I', 'Q', 'IQ']
+                        },
+                        'read': {
+                            'desc':'point specification (voltages, I,Q, trace ..)',
+                            'observables': ['I', 'Q', 'IQ']
+                        }
+                    }
+                },
+                'p5p6':{
+                    'element': {
+                        'set2': 'SDC2'
+                    },
+                    'read_points': {
+                        'ref': {
+                            'desc':'point specification (voltages, I,Q, trace ..)',
+                            'observables': ['I', 'Q', 'ADC_trace'],
+                            'save': True
+                        },
+                        'read': {
+                            'desc':'point specification (voltages, I,Q, trace ..)',
+                            'observables': ['I', 'Q', 'ADC_trace'],
+                            'save': True
+                        }
+                    }
+                },
+            },
+            'charge_readouts': {
+                'diff': {
+                    'method': 'take_diff',
+                    'signals': {
+                        'p1p2': {
+                            'points': {
+                                'set1':{
+                                    'minuend': 'p1p2.set1.ref',
+                                    'subtrahend': 'p1p2.set1.read',
+                                    'observables': ['IQ']
+                                }
+                            },
+                            
+                        },
+                        'p5p6': {
+                            'points': ['p5p6.set2.ref', 'p1p2.set2.read'],
+                            'observables': ['IQ']
+                        }
+                    },
+                },
+                'p5p6_chopped': {
+                    'method': 'take_diff',
+                    'args': {
+                        'readout_points': ['set2.ref', 'set2.read'],
+                        'observables': ['I', 'Q'],
+                        'n_chop': 4
+                    },
+                },
+                'p3p4_correlate': {
+                    'method': 'correlate',
+                    'args': {
+                        'charge_reads': ['p5p6_chopped', 'p1p2_charge'],
+                    },
+                },
+            'spin_readouts': {
+                'p1p2_spin_parity': {
+                    'method': 'threshold',
+                    'args': {
+                        'charge_readouts': ['p1p2_charge'],
+                        'threshold': 0.1
+                    }
+                }
+            }
+        }
