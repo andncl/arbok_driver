@@ -51,6 +51,16 @@ class ReadSequence(SubSequence):
             setattr(self, name, new_signal)
             self._signals[new_signal.name] = new_signal
     
+    def add_readout_groups_from_config(self, groups_config: dict):
+        """Creates readout grops from config file"""
+        for group_name, group_conf in groups_config.items():
+            for readout_name, readout_conf in group_conf.items():
+                match readout_conf["method"]:
+                    case 'difference':
+                        ReadoutClass = Difference
+                    case 'threshold':
+                        ReadoutClass = Threshold
+
     def qua_stream(self):
         for readout in self.readouts:
             readout.save_streams()

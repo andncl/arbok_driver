@@ -136,116 +136,98 @@ class ReadoutPoint:
             getattr(self, f"{name}_I_stream").save_all(f"{full_name}_I")
             getattr(self, f"{name}_Q_stream").save_all(f"{full_name}_Q")
 
-        hanswurscht = {
-            'signals':{
-                'p1p2':{
-                    'element': {
-                        'set1': 'SDC1',
-                    },
-                    'readout_points': {
-                        'ref': {
-                            'desc':'reference point in 3-1 region',
-                            'observables': ['I', 'Q', 'IQ']
-                        },
-                        'read': {
-                            'desc':'psb region of between 4-0 and 3-1 region',
-                            'observables': ['I', 'Q', 'IQ']
-                        }
-                    }
-                },
-                'p3p4':{
-                    'element': {
-                        'set1': 'SDC1',
-                        'set2': 'SDC2'
-                    },
-                    'readout_points': {
-                        'ref': {
-                            'desc':'reference point in 3-1 region',
-                            'observables': ['I', 'Q', 'IQ']
-                        },
-                        'read': {
-                            'desc':'psb region of between 4-0 and 3-1 region',
-                            'observables': ['I', 'Q', 'IQ']
-                        }
-                    }
-                },
-                'p5p6':{
-                    'element': {
-                        'set2': 'SDC2'
-                    },
-                    'read_points': {
-                        'ref': {
-                            'desc':'reference point in 3-1 region',
-                            'observables': ['I', 'Q', 'IQ'],
-                            'save': True
-                        },
-                        'read': {
-                            'desc':'psb region of between 4-0 and 3-1 region',
-                            'observables': ['I', 'Q', 'IQ'],
-                            'save': True
-                        }
-                    }
-                },
+hanswurscht = {
+    'signals':{
+        'p1p2':{
+            'element': {
+                'set1': 'SDC1',
             },
-            'charge_readouts': {
-                'diff': {
-                    'method': 'take_diff',
-                    'signals': {
-                        'p1p2': {
-                            'points': {
-                                'set1':{
-                                    'minuend': 'p1p2.ref.set1',
-                                    'subtrahend': 'p1p2.read.set1',
-                                    'observables': ['IQ']
-                                }
-                            },
-                        },
-                        'p3p4': {
-                            'points': {
-                                'set1':{
-                                    'minuend': 'p1p2.ref.set1',
-                                    'subtrahend': 'p1p2.read.set1',
-                                    'observables': ['IQ']
-                                },
-                                'set2':{
-                                    'minuend': 'p1p2.ref.set2',
-                                    'subtrahend': 'p1p2.read.set2',
-                                    'observables': ['IQ']
-                                },
-                            },
-                        },
-                        'p5p6': {
-                            'points': {
-                                'set2':{
-                                    'minuend': 'p1p2.ref.set2',
-                                    'subtrahend': 'p1p2.read.set2',
-                                    'observables': ['IQ']
-                                },
-                            },
-                        },
-                    },
+            'readout_points': {
+                'ref': {
+                    'desc':'reference point in 3-1 region',
+                    'observables': ['I', 'Q', 'IQ']
                 },
-                'p5p6_chopped': {
-                    'method': 'take_diff',
-                    'args': {
-                        'readout_points': ['set2.ref', 'set2.read'],
-                        'observables': ['I', 'Q'],
-                        'n_chop': 4
-                    },
-                },
-                'p3p4_correlate': {
-                    'method': 'correlate',
-                    'args': {
-                        'charge_reads': ['p5p6_chopped', 'p1p2_charge'],
-                    },
-                },
-            'spin_readouts': {
-                'p1p2_spin_parity': {
-                    'method': 'threshold',
-                    'args': {
-                        'charge_readouts': ['p1p2_charge'],
-                        'threshold': 0.1
-                    }
+                'read': {
+                    'desc':'psb region of between 4-0 and 3-1 region',
+                    'observables': ['I', 'Q', 'IQ']
                 }
             }
+        },
+        'p3p4':{
+            'element': {
+                'set1': 'SDC1',
+                'set2': 'SDC2'
+            },
+            'readout_points': {
+                'ref': {
+                    'desc':'reference point in 3-1 region',
+                    'observables': ['I', 'Q', 'IQ']
+                },
+                'read': {
+                    'desc':'psb region of between 4-0 and 3-1 region',
+                    'observables': ['I', 'Q', 'IQ']
+                }
+            }
+        },
+        'p5p6':{
+            'element': {
+                'set2': 'SDC2'
+            },
+            'read_points': {
+                'ref': {
+                    'desc':'reference point in 3-1 region',
+                    'observables': ['I', 'Q', 'IQ'],
+                    'save': True
+                },
+                'read': {
+                    'desc':'psb region of between 4-0 and 3-1 region',
+                    'observables': ['I', 'Q', 'IQ'],
+                    'save': True
+                }
+            }
+        },
+    },
+    'readout_groups': {
+        'difference': {
+            'p1p2_diff': {
+                'method': 'difference',
+                'name': 'diff',
+                'signal': 'p1p2',
+                'args': {
+                    'minuend': 'p1p2.ref.set1',
+                    'subtrahend': 'p1p2.read.set1',
+                    'observables': ['IQ'] 
+                },
+            },
+            'p5p6_diff': {
+                'method': 'difference',
+                'name': 'diff',
+                'signal': 'p5p6',
+                'args': {
+                    'minuend': 'p5p6.ref.set2',
+                    'subtrahend': 'p5p6.read.set2',
+                    'observables': ['IQ'] 
+                }
+            },
+        },
+        'spin_readouts': {
+            'p1p2_spin_parity': {
+                'method': 'threshold',
+                'name': 'state',
+                'signal': 'p1p2',
+                'args': {
+                    'charge_readouts': ['p1p2.diff'],
+                    'threshold': 0.1
+                }
+            },
+            'p5p6_spin_parity': {
+                'method': 'threshold',
+                'name': 'state',
+                'signal': 'p5p6',
+                'args': {
+                    'charge_readouts': ['p5p6.diff'],
+                    'threshold': 0.1
+                }
+            },
         }
+}
