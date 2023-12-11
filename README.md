@@ -57,6 +57,17 @@ Again activate your conda environment and launch `jupyterlab`
 ```bash
 jupyter lab
 ```
+## Re-launching an existing arbok session
+If all running applications have been closed for example when the hosting PC is being restarted, a previously run arbok session can be easily restarted in a few steps.
+
+### 1) Launching the jupyter notebook
+Activate your conda install environment that you created initally. If you are unsure what the name of your environment is type `conda env list`. After that launch jupyter lab as shown below. To simplyfy navigation, launch jupyter in the directory where your notebooks are saved.
+```bash
+conda activate <your-env-name>
+jupyter lab
+```
+### 2) Launching plottr-inspectr
+Exactly as described above!
 
 ## Todos:
 - [ ] validators in custom parameter classes for times (4ns -> 1 qm-cycle)
