@@ -160,11 +160,11 @@ class ReadoutPoint:
                     },
                     'readout_points': {
                         'ref': {
-                            'desc':'point specification (voltages, I,Q, trace ..)',
+                            'desc':'reference point in 3-1 region',
                             'observables': ['I', 'Q', 'IQ']
                         },
                         'read': {
-                            'desc':'point specification (voltages, I,Q, trace ..)',
+                            'desc':'psb region of between 4-0 and 3-1 region',
                             'observables': ['I', 'Q', 'IQ']
                         }
                     }
@@ -175,13 +175,13 @@ class ReadoutPoint:
                     },
                     'read_points': {
                         'ref': {
-                            'desc':'point specification (voltages, I,Q, trace ..)',
-                            'observables': ['I', 'Q', 'ADC_trace'],
+                            'desc':'reference point in 3-1 region',
+                            'observables': ['I', 'Q', 'IQ'],
                             'save': True
                         },
                         'read': {
-                            'desc':'point specification (voltages, I,Q, trace ..)',
-                            'observables': ['I', 'Q', 'ADC_trace'],
+                            'desc':'psb region of between 4-0 and 3-1 region',
+                            'observables': ['I', 'Q', 'IQ'],
                             'save': True
                         }
                     }
@@ -194,17 +194,35 @@ class ReadoutPoint:
                         'p1p2': {
                             'points': {
                                 'set1':{
-                                    'minuend': 'p1p2.set1.ref',
-                                    'subtrahend': 'p1p2.set1.read',
+                                    'minuend': 'p1p2.ref.set1',
+                                    'subtrahend': 'p1p2.read.set1',
                                     'observables': ['IQ']
                                 }
                             },
-                            
+                        },
+                        'p3p4': {
+                            'points': {
+                                'set1':{
+                                    'minuend': 'p1p2.ref.set1',
+                                    'subtrahend': 'p1p2.read.set1',
+                                    'observables': ['IQ']
+                                },
+                                'set2':{
+                                    'minuend': 'p1p2.ref.set2',
+                                    'subtrahend': 'p1p2.read.set2',
+                                    'observables': ['IQ']
+                                },
+                            },
                         },
                         'p5p6': {
-                            'points': ['p5p6.set2.ref', 'p1p2.set2.read'],
-                            'observables': ['IQ']
-                        }
+                            'points': {
+                                'set2':{
+                                    'minuend': 'p1p2.ref.set2',
+                                    'subtrahend': 'p1p2.read.set2',
+                                    'observables': ['IQ']
+                                },
+                            },
+                        },
                     },
                 },
                 'p5p6_chopped': {
