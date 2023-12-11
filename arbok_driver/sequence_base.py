@@ -216,6 +216,10 @@ class SequenceBase(Instrument):
         Args:
             config (dict): Configuration containing all sequence parameters
         """
+        if isinstance(config, dict):
+            if 'parameters' in config:
+                config = config['parameters']
+                print("Set parameters subset as param config")
         if config is None:
             logging.debug("No params added to %s (no param_config)", self.name)
             return
@@ -252,8 +256,10 @@ class SequenceBase(Instrument):
                     var_type = int
                 )
             else:
-                raise KeyError(f"""The config of parameter {param_name} does not
-                              have elements or value""")
+                raise KeyError(
+                    f"The config of parameter {param_name} does not have "
+                     "elements or value"
+                     )
 
     def run_remote_simulation(self, host, port, duration: int):
         """
