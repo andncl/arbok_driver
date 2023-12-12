@@ -28,7 +28,7 @@ class ReadoutPoint:
         self._qua_variable_names = []
         self._qua_stream_names = []
         self._observables = []
-        self.valid_observables = ('I', 'Q')
+        self.valid_observables = ('I', 'Q', 'IQ')
         self._add_qua_variable_attributes(self.signal.readout_elements)
 
     def qua_declare_variables(self):
@@ -56,6 +56,8 @@ class ReadoutPoint:
                 self._check_observable_validity(observable)
                 var_name = f"{name}_{observable}"
                 stream_name = f"{var_name}_stream"
+                setattr(self, var_name, None)
+                setattr(self, stream_name, None)
                 self._observables.append(observable)
                 self._qua_variable_names.append(var_name)
                 self._qua_stream_names.append(stream_name)
@@ -85,11 +87,10 @@ class ReadoutPoint:
             var_I = getattr(self, f"{name}_I")
             var_Q = getattr(self, f"{name}_Q")
             qua.measure(
-                qua.demod.full('x', var_I),
-                qua.demod.full('y', var_Q),
-                pulse = 'measure',
-                element = qm_element,
-                stream = None,
+                'measure',
+                qm_element,
+                None,
+                qua.demod.full('x', var_I), qua.demod.full('y', var_Q),
                 )
             if 'IQ' in self.config["observables"]:
                 qua.assign(getattr(self, f"{name}_IQ"), var_I + var_Q)
@@ -196,7 +197,7 @@ hanswurscht = {
                 'args': {
                     'minuend': 'p1p2.ref.set1',
                     'subtrahend': 'p1p2.read.set1',
-                    'observables': ['IQ'] 
+                    'observable': 'IQ'
                 },
             },
             'p5p6_diff': {
@@ -206,7 +207,27 @@ hanswurscht = {
                 'args': {
                     'minuend': 'p5p6.ref.set2',
                     'subtrahend': 'p5p6.read.set2',
-                    'observables': ['IQ'] 
+                    'observable': 'IQ'
+                }
+            },
+            'p3p4_set_diff': {
+                'method': 'difference',
+                'name': 'diff',
+                'signal': 'p3p4',
+                'args': {
+                    'minuend': 'p3p4.ref.set1',
+                    'subtrahend': 'p3p4.read.set1',
+                    'observable': 'IQ'
+                }
+            },
+            'p3p4_set_diff': {
+                'method': 'difference',
+                'name': 'diff',
+                'signal': 'p3p4',
+                'args': {
+                    'minuend': 'p3p4.ref.set2',
+                    'subtrahend': 'p3p4.read.set2',
+                    'observable': 'IQ'
                 }
             },
         },
@@ -216,7 +237,7 @@ hanswurscht = {
                 'name': 'state',
                 'signal': 'p1p2',
                 'args': {
-                    'charge_readouts': ['p1p2.diff'],
+                    'charge_readouts': 'p1p2.diff',
                     'threshold': 0.1
                 }
             },
@@ -225,9 +246,10 @@ hanswurscht = {
                 'name': 'state',
                 'signal': 'p5p6',
                 'args': {
-                    'charge_readouts': ['p5p6.diff'],
+                    'charge_readouts': 'p5p6.diff',
                     'threshold': 0.1
                 }
             },
         }
+    }
 }
