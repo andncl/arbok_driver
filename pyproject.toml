@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arbok_driver"
+authors = [
+    {name = "Andreas Nickl", email = "a.nickl@unsw.edu.au"},
+]
+description = "QCoDeS compatible driver for the OPX+ from Quantum Machines"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "BSD-3-Clause"}
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "jupyterlab",
+    "numpy > 1.23",
+    "matplotlib",
+    "plottr",
+    "ipython",
+    "scipy",
+    "qm-qua >= 1.1.6",
+    "qcodes >= 0.42",
+    "qualang_tools >= 0.15.2",
+    "qcodes-contrib-drivers >= 0.18",
+]
+dynamic = ["version"]
