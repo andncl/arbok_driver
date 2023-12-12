@@ -25,17 +25,17 @@ class Signal:
         self.config = config
         self._readout_elements = self.config["elements"]
         self._readout_points = {}
-        for point_name, config in self.config["readout_points"].items():
+        for point_name, point_config in self.config["readout_points"].items():
             new_point = ReadoutPoint(
                 point_name=point_name,
                 signal=self,
-                config=config
+                config=point_config
                 )
             setattr(self, point_name, new_point)
             self._readout_points[new_point.name] = new_point
             self.sequence.readout_points[new_point.name] = new_point
             logging.debug(
-                "Added readout point %s to signal %s",
+                "Added readout point '%s' to signal '%s'",
                 point_name,
                 self.name
                 )
