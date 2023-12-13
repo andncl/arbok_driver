@@ -28,7 +28,7 @@ class GettableParameter(ParameterWithSetpoints):
         batch_size (tuple): Shape of one OPX batch
         count (int): Amount of successful `get` executions
     """
-    def __init__(self, name, readout, *args, **kwargs) -> None:
+    def __init__(self, name, sequence, *args, **kwargs) -> None:
         """
         Constructor class for ReadSequence class
         Args:
@@ -40,8 +40,7 @@ class GettableParameter(ParameterWithSetpoints):
         self.label = ""
         self.can_resume = False
 
-        self.readout = readout
-        self.sequence = self.readout.sequence
+        self.sequence = sequence
         self.qm_job = None
         self.result = None
         self.buffer = None
@@ -70,8 +69,8 @@ class GettableParameter(ParameterWithSetpoints):
 
     def _set_up_gettable_from_program(self):
         """ Set up Gettable attributes from running OPX """
-        self.sequence = self.readout.sequence.parent_sequence
-        if not self.readout.sequence.parent_sequence.program.opx:
+        self.sequence = self.sequence.parent_sequence
+        if not self.sequence.parent_sequence.program.opx:
             raise LookupError("Results cant be retreived without OPX connected")
         self.qm_job = self.sequence.program.qm_job
         self.result = getattr(self.qm_job.result_handles, self.name)
