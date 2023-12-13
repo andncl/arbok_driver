@@ -25,15 +25,15 @@ class ReadoutPoint:
         self.name = f"{self.signal.name}__{point_name}"
         self.config = config
         self.description = self.config["desc"]
-        self._qua_variable_names = []
-        self._qua_stream_names = []
+        self.qua_variable_names = []
+        self.qua_stream_names = []
         self._observables = []
         self.valid_observables = ('I', 'Q', 'IQ')
         self._add_qua_variable_attributes(self.signal.readout_elements)
 
     def qua_declare_variables(self):
         """Declares all neccessary qua variables"""
-        qua_name_zip = zip(self._qua_variable_names, self._qua_stream_names)
+        qua_name_zip = zip(self.qua_variable_names, self.qua_stream_names)
         for var_name, stream_name in qua_name_zip:
             setattr(self, var_name, qua.declare(qua.fixed))
             setattr(self, stream_name, qua.declare_stream())
@@ -59,8 +59,8 @@ class ReadoutPoint:
                 setattr(self, var_name, None)
                 setattr(self, stream_name, None)
                 self._observables.append(observable)
-                self._qua_variable_names.append(var_name)
-                self._qua_stream_names.append(stream_name)
+                self.qua_variable_names.append(var_name)
+                self.qua_stream_names.append(stream_name)
                 logging.debug(
                     "Added qua-var-name %s to point %s", var_name, self.name)
                 logging.debug(
@@ -75,10 +75,8 @@ class ReadoutPoint:
 
     def qua_measure_and_save(self):
         """Measures and saves qua variables"""
-        qua.align()
         self._qua_measure()
         self._qua_save_vars()
-        qua.align()
 
     def _qua_measure(self):
         """Measures I and Q at the given read point"""
