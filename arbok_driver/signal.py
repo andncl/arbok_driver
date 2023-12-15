@@ -25,6 +25,7 @@ class Signal:
         self.config = config
         self._readout_elements = self.config["elements"]
         self._readout_points = {}
+        self._abstract_readouts = {}
         for point_name, point_config in self.config["readout_points"].items():
             new_point = ReadoutPoint(
                 point_name=point_name,
@@ -50,8 +51,29 @@ class Signal:
         """List of readout elements"""
         return self._readout_elements
 
-    def save_streams(self):
+    @property
+    def abstract_readouts(self):
+        """Dictionary with all abstract readouts registered on the signal"""
+        return self._abstract_readouts
+
+    def qua_save_streams(self):
         """Saves streams of all readout points"""
         for point_name, readout_point in self.readout_points.items():
-            readout_point.save_streams()
-            logging.debug("Saving stream of readout %s", point_name)
+            readout_point.qua_save_streams()
+            logging.debug("Saving streams of readout point %s", point_name)
+
+    def add_abstract_readout(self, abstract_readout, name: str):
+        """
+        Adds an abstract readout to this signal
+        
+        Args:
+            abstract_readout (arbok_driver.AbstractReadout): Readout to add
+            name (str): Abstract readout to add
+        """
+        logging.debug(
+            "Adding abstract readout %s to signal %s",
+            self.name,
+            abstract_readout
+            )
+        setattr(self, name, abstract_readout)
+        self._abstract_readouts[name] = abstract_readout
