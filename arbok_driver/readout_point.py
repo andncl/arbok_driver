@@ -27,7 +27,8 @@ class ReadoutPoint:
         self.description = self.config["desc"]
         self.qua_variable_names = []
         self.qua_stream_names = []
-        self._observables = []
+        self.qua_buffer_names = []
+        self._observables = self.config["observables"]
         self.valid_observables = ('I', 'Q', 'IQ')
         self._add_qua_variable_attributes(self.signal.readout_elements)
 
@@ -55,16 +56,16 @@ class ReadoutPoint:
             for observable in self.config["observables"]:
                 self._check_observable_validity(observable)
                 var_name = f"{name}_{observable}"
+                full_name = f"{self.name}__{var_name}"
                 stream_name = f"{var_name}_stream"
                 setattr(self, var_name, None)
                 setattr(self, stream_name, None)
-                self._observables.append(observable)
                 self.qua_variable_names.append(var_name)
                 self.qua_stream_names.append(stream_name)
+                self.qua_buffer_names.append(full_name)
                 logging.debug(
-                    "Added qua-var-name %s to point %s", var_name, self.name)
-                logging.debug(
-                    "Added qua-stream-name %s to point %s", var_name, self.name)
+        "Added qua-var-names %s and streams %s to point %s",
+        self.qua_variable_names, self.qua_stream_names, self.name)
 
     def _check_observable_validity(self, observable):
         """Checks if observable is valid"""
@@ -75,10 +76,10 @@ class ReadoutPoint:
 
     def qua_measure_and_save(self):
         """Measures and saves qua variables"""
-        self._qua_measure()
+        self.qua_measure()
         self._qua_save_vars()
 
-    def _qua_measure(self):
+    def qua_measure(self):
         """Measures I and Q at the given read point"""
         for name, qm_element in self.signal.readout_elements.items():
             self._check_IQ_qua_vars(name)
@@ -88,7 +89,8 @@ class ReadoutPoint:
                 'measure',
                 qm_element,
                 None,
-                qua.demod.full('x', var_I), qua.demod.full('y', var_Q),
+                qua.demod.full('x', var_I),
+                qua.demod.full('y', var_Q),
                 )
             if 'IQ' in self.config["observables"]:
                 qua.assign(getattr(self, f"{name}_IQ"), var_I + var_Q)
@@ -123,131 +125,15 @@ class ReadoutPoint:
             raise AttributeError(
                 f"{self.name} does not have I and Q variable"
                 )
-    def save_streams(self):
+
+    def qua_save_streams(self):
         """Saves streams and buffers of streams"""
         sweep_size = self.signal.sequence.parent_sequence.sweep_size
         for name, _ in self.signal.readout_elements.items():
-            full_name = f"{self.name}_{name}"
-            I_buffer = getattr(self, f"{name}_I_stream").buffer(sweep_size)
-            Q_buffer = getattr(self, f"{name}_Q_stream").buffer(sweep_size)
-            I_buffer.save(f"{full_name}_I_buffer")
-            Q_buffer.save(f"{full_name}_Q_buffer")
-            getattr(self, f"{name}_I_stream").save_all(f"{full_name}_I")
-            getattr(self, f"{name}_Q_stream").save_all(f"{full_name}_Q")
-
-hanswurscht = {
-    'signals':{
-        'p1p2':{
-            'element': {
-                'set1': 'SDC1',
-            },
-            'readout_points': {
-                'ref': {
-                    'desc':'reference point in 3-1 region',
-                    'observables': ['I', 'Q', 'IQ']
-                },
-                'read': {
-                    'desc':'psb region of between 4-0 and 3-1 region',
-                    'observables': ['I', 'Q', 'IQ']
-                }
-            }
-        },
-        'p3p4':{
-            'element': {
-                'set1': 'SDC1',
-                'set2': 'SDC2'
-            },
-            'readout_points': {
-                'ref': {
-                    'desc':'reference point in 3-1 region',
-                    'observables': ['I', 'Q', 'IQ']
-                },
-                'read': {
-                    'desc':'psb region of between 4-0 and 3-1 region',
-                    'observables': ['I', 'Q', 'IQ']
-                }
-            }
-        },
-        'p5p6':{
-            'element': {
-                'set2': 'SDC2'
-            },
-            'read_points': {
-                'ref': {
-                    'desc':'reference point in 3-1 region',
-                    'observables': ['I', 'Q', 'IQ'],
-                    'save': True
-                },
-                'read': {
-                    'desc':'psb region of between 4-0 and 3-1 region',
-                    'observables': ['I', 'Q', 'IQ'],
-                    'save': True
-                }
-            }
-        },
-    },
-    'readout_groups': {
-        'difference': {
-            'p1p2_diff': {
-                'method': 'difference',
-                'name': 'diff',
-                'signal': 'p1p2',
-                'args': {
-                    'minuend': 'p1p2.ref.set1',
-                    'subtrahend': 'p1p2.read.set1',
-                    'observable': 'IQ'
-                },
-            },
-            'p5p6_diff': {
-                'method': 'difference',
-                'name': 'diff',
-                'signal': 'p5p6',
-                'args': {
-                    'minuend': 'p5p6.ref.set2',
-                    'subtrahend': 'p5p6.read.set2',
-                    'observable': 'IQ'
-                }
-            },
-            'p3p4_set_diff': {
-                'method': 'difference',
-                'name': 'diff',
-                'signal': 'p3p4',
-                'args': {
-                    'minuend': 'p3p4.ref.set1',
-                    'subtrahend': 'p3p4.read.set1',
-                    'observable': 'IQ'
-                }
-            },
-            'p3p4_set_diff': {
-                'method': 'difference',
-                'name': 'diff',
-                'signal': 'p3p4',
-                'args': {
-                    'minuend': 'p3p4.ref.set2',
-                    'subtrahend': 'p3p4.read.set2',
-                    'observable': 'IQ'
-                }
-            },
-        },
-        'spin_readouts': {
-            'p1p2_spin_parity': {
-                'method': 'threshold',
-                'name': 'state',
-                'signal': 'p1p2',
-                'args': {
-                    'charge_readouts': 'p1p2.diff',
-                    'threshold': 0.1
-                }
-            },
-            'p5p6_spin_parity': {
-                'method': 'threshold',
-                'name': 'state',
-                'signal': 'p5p6',
-                'args': {
-                    'charge_readouts': 'p5p6.diff',
-                    'threshold': 0.1
-                }
-            },
-        }
-    }
-}
+            for observable in self._observables:
+                var_name = f"{name}_{observable}"
+                full_name = f"{self.name}__{var_name}"
+                logging.debug("Saving stream %s", full_name)
+                buffer = getattr(self, f"{var_name}_stream").buffer(sweep_size)
+                buffer.save(f"{full_name}_buffer")
+                getattr(self, f"{var_name}_stream").save_all(f"{full_name}_I")
