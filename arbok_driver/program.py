@@ -139,6 +139,7 @@ class Program(Instrument):
             add_config (bool): Whether config is added to output file
         """
         if qua_program is None:
+            print("Generating qua program from sequences")
             qua_program = self.get_qua_program()
         with open(file_name, 'w', encoding="utf-8") as file:
             if self.sample is not None and add_config:
@@ -146,7 +147,7 @@ class Program(Instrument):
                     qua_program, self.sample.config
                     ))
             else:
-                file.write(generate_qua_script(self.get_qua_program()))
+                file.write(generate_qua_script(qua_program))
 
     def run_infinite_average(self, measurement: Measurement, shots: int):
         """ 
