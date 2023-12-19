@@ -1,6 +1,7 @@
 """Module containing ReadoutPoint class"""
 import logging
 from qm import qua
+from .observable import Observable
 
 class ReadoutPoint:
     """
@@ -25,23 +26,19 @@ class ReadoutPoint:
         self.name = f"{self.signal.name}__{point_name}"
         self.config = config
         self.description = self.config["desc"]
-        self.qua_variable_names = []
-        self.qua_stream_names = []
-        self.qua_buffer_names = []
-        self._observables = self.config["observables"]
+        self._observables_names = self.config["observables"]
+        self.observables = {}
         self.valid_observables = ('I', 'Q', 'IQ')
         self._add_qua_variable_attributes(self.signal.readout_elements)
 
     def qua_declare_variables(self):
         """Declares all neccessary qua variables"""
-        qua_name_zip = zip(self.qua_variable_names, self.qua_stream_names)
-        for var_name, stream_name in qua_name_zip:
-            setattr(self, var_name, qua.declare(qua.fixed))
-            setattr(self, stream_name, qua.declare_stream())
+        for observable_name, observable in self.observables.items():
+            observable.qua_var = qua.declare(qua.fixed)
+            observable.qua_stream = qua.declare_stream()
             logging.debug(
-                "Assigned qua-var %s to point %s", var_name, self.name)
-            logging.debug(
-                "Assigned qua-stream %s to point %s", var_name, self.name)
+                "Assigned qua-var and qua-stream %s to point %s",
+                observable_name, self.name)
 
     def _add_qua_variable_attributes(self, readout_elements: dict):
         """
@@ -52,20 +49,19 @@ class ReadoutPoint:
         Args:
             readout_elements (dict): Readout elements from which to read
         """
-        for name, _ in readout_elements.items():
-            for observable in self.config["observables"]:
-                self._check_observable_validity(observable)
-                var_name = f"{name}_{observable}"
-                full_name = f"{self.name}__{var_name}"
-                stream_name = f"{var_name}_stream"
-                setattr(self, var_name, None)
-                setattr(self, stream_name, None)
-                self.qua_variable_names.append(var_name)
-                self.qua_stream_names.append(stream_name)
-                self.qua_buffer_names.append(full_name)
+        for element_name, element in readout_elements.items():
+            for observable_name in self.config["observables"]:
+                observable = Observable(
+                    element_name = element_name,
+                    element = element,
+                    observable_name = observable_name,
+                    readout_point = self
+                )
+                self.observables[observable.full_name] = observable
+                setattr(self, observable.name, observable)
                 logging.debug(
-        "Added qua-var-names %s and streams %s to point %s",
-        self.qua_variable_names, self.qua_stream_names, self.name)
+                    "Added observable %s as qua var and stream to point %s",
+                    observable.name, self.name)
 
     def _check_observable_validity(self, observable):
         """Checks if observable is valid"""
@@ -83,35 +79,25 @@ class ReadoutPoint:
         """Measures I and Q at the given read point"""
         for name, qm_element in self.signal.readout_elements.items():
             self._check_IQ_qua_vars(name)
-            var_I = getattr(self, f"{name}_I")
-            var_Q = getattr(self, f"{name}_Q")
+            qua_var_I = getattr(self, f"{name}_I").qua_var
+            qua_var_Q = getattr(self, f"{name}_Q").qua_var
             qua.measure(
                 'measure',
                 qm_element,
                 None,
-                qua.demod.full('x', var_I),
-                qua.demod.full('y', var_Q),
+                qua.demod.full('x', qua_var_I),
+                qua.demod.full('y', qua_var_Q),
                 )
             if 'IQ' in self.config["observables"]:
-                qua.assign(getattr(self, f"{name}_IQ"), var_I + var_Q)
+                qua.assign(
+                    getattr(self, f"{name}_IQ").qua_var, qua_var_I + qua_var_Q)
 
     def _qua_save_vars(self):
         """Saves streams after measurement"""
-        for name, _ in self.signal.readout_elements.items():
-            self._check_IQ_qua_vars(name)
-            qua.save(
-                getattr(self, f"{name}_I"),
-                getattr(self, f"{name}_I_stream")
-                )
-            qua.save(
-                getattr(self, f"{name}_Q"),
-                getattr(self, f"{name}_Q_stream")
-                )
-            if 'IQ' in self.config["observables"]:
-                qua.save(
-                    getattr(self, f"{name}_IQ"),
-                    getattr(self, f"{name}_IQ_stream")
-                    )
+        for obs_name, observable in self.observables.items():
+            logging.debug(
+                "Saving qua var of observable %s to its stream", obs_name)
+            qua.save(observable.qua_var, observable.qua_stream)
 
     def _check_IQ_qua_vars(self, name):
         """
@@ -129,11 +115,8 @@ class ReadoutPoint:
     def qua_save_streams(self):
         """Saves streams and buffers of streams"""
         sweep_size = self.signal.sequence.parent_sequence.sweep_size
-        for name, _ in self.signal.readout_elements.items():
-            for observable in self._observables:
-                var_name = f"{name}_{observable}"
-                full_name = f"{self.name}__{var_name}"
-                logging.debug("Saving stream %s", full_name)
-                buffer = getattr(self, f"{var_name}_stream").buffer(sweep_size)
-                buffer.save(f"{full_name}_buffer")
-                getattr(self, f"{var_name}_stream").save_all(f"{full_name}_I")
+        for obs_name, observable in self.observables.items():
+            logging.debug("Saving stream %s", obs_name)
+            buffer = observable.qua_stream.buffer(sweep_size)
+            buffer.save(f"{observable.full_name}_buffer")
+            observable.qua_stream.save_all(observable.full_name)
