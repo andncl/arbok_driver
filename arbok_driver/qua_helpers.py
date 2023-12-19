@@ -2,11 +2,13 @@ from typing import Union, Optional
 import logging
 
 from qm.qua import play, amp, ramp_to_zero, align
+from qm import qua
 
 from arbok_driver import SubSequence, SequenceParameter
 
 def arbok_go(
-        sub_sequence: SubSequence, 
+        sub_sequence: SubSequence,
+        elements: list,
         to_volt: Union[str, list],
         operation: str,
         from_volt: Optional[Union[str, list]] = None,
@@ -21,49 +23,78 @@ def arbok_go(
             - [ ] if target is vHome -> ramp_to_zero (avoids accumulated errors
                 from sticky pulses)
     Args:
-        seq (Sequence): Sequence
-        from_volt (str, List): voltage point to come from
+        sub_sequence (Sequence): Sequence from which parameters are fetched
+        elements (list): elements on which pulse is applied
         to_volt (str, List): voltage point to move to
-        duration (str): duration of the operation 
         operation (str): Operation to be played -> find in OPX config
-        align (optional, bool): whether to align all channels before and after
+        from_volt (str, List): voltage point to come from
+        duration (str): duration of the operation 
+        align_elements (optional, bool): whether to align all channels before 
+            and after
     """
-    if from_volt is None:
-        from_volt = ['vHome']
     if isinstance(duration, SequenceParameter):
         if duration.qua_sweeped:
             duration = duration.qua_var
         else:
             duration = int(duration())
-    origin_param_sets = sub_sequence.find_parameters_from_keywords(from_volt)
-    target_param_sets = sub_sequence.find_parameters_from_keywords(to_volt)
-    if len(origin_param_sets) == 0:
-        raise AttributeError(f"Couldnt find parameters with name {from_volt}")
-    if len(target_param_sets) == 0:
-        raise AttributeError(f"Couldnt find parameters with name {to_volt}")
-    if align_elements:
-        align()
-    for target_list, origin_list in zip(target_param_sets, origin_param_sets):
-        target_v = sum([par() for par in target_list])
-        origin_v = sum([par() for par in origin_list])
-        logging.debug(
-            "Arbok_go: Moving %s from %s (%s) to %s (%s) in %s", 
-            target_list[0].element, origin_v, 
-            from_volt, target_v, to_volt, sub_sequence
-            )
+    from_volt = _check_voltage_point_input(from_volt)
+    to_volt = _check_voltage_point_input(to_volt)
+    from_volt_signs = {point: 1 for point in from_volt}
+    to_volt_signs = {point: 1 for point in to_volt}
+
+    for i, point in enumerate(from_volt):
+        if point[0] == '-':
+            from_volt[i] = point[1:]
+            from_volt_signs[point[1:]] = -1
+    for i, point in enumerate(to_volt):
+        if point[0] == '-':
+            to_volt[i] = point[1:]
+            to_volt_signs[point[1:]] = -1
+    origin_param_sets = sub_sequence.find_parameters_from_keywords(
+        from_volt,
+        elements
+        )
+    target_param_sets = sub_sequence.find_parameters_from_keywords(
+        to_volt,
+        elements
+        )
+    for element in elements:
+        target_v = 0
+        origin_v = 0
+        for point, param in target_param_sets[element].items():
+            target_v += param.get_raw()*to_volt_signs[point]
+        for point, param in origin_param_sets[element].items():
+            origin_v += param.get_raw()*from_volt_signs[point]
         kwargs = {
-            'pulse': operation*amp( target_v - origin_v ),
-            'element': target_list[0].element
+            'pulse': operation*qua.amp( target_v - origin_v ),
+            'element': element
             }
         if duration is not None:
             kwargs['duration'] = duration
-
-        play(**kwargs)
+        logging.debug(
+            "Arbok_go: Moving %s from %s (%s) to %s (%s) in %s", 
+            element, origin_v,
+            from_volt, target_v, to_volt, sub_sequence
+            )
+        qua.play(**kwargs)
     if align_elements:
-        align()
+        qua.align()
+
+def _check_voltage_point_input(points: list | str) -> list:
+    """
+    Checks if input is of type list or string and returns input as list
+    """
+    if points is None:
+        return ['vHome']
+    elif isinstance(points, str):
+        return [points]
+    elif isinstance(points, list):
+        return points
+    else:
+        raise ValueError("Must be of type str or list!")
 
 def reset_elements(element_list: list) -> None:
     """runs `ramp_to_zero` on all element in the given list"""
     for element_name in element_list:
-        ramp_to_zero(element_name)
-    align()
+        qua.ramp_to_zero(element_name)
+    qua.align()
