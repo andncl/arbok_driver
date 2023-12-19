@@ -19,16 +19,22 @@ class ReadSequence(SubSequence):
         Constructor class for ReadSequence class
         Args:
             name (dict): name of the ReadSequence
-            smaple (Sample): sample for which sequence is configured
+            sample (Sample): sample for which sequence is configured
+            seq_config (dict): Dict configuring all parameters for the given
+                read-sequence and its read-points and abstract-readouts
+            available_readout_types (None | dict): Optional, dictionairy with
+                available abstract readouts with method name as key and abstract
+                readout class as value
         """
         super().__init__(name, sample, seq_config)
         self.seq_config = seq_config
-        self.readouts = []
-        self._signals = {}
-        self.readout_points = {}
         self.available_readout_types = available_readout_types
+
+        self._signals = {}
+        self._readout_points = {}
+        self._readout_groups = {}
         self._abstract_readouts = {}
-        self.readout_groups = {}
+
         if 'signals' in self.seq_config:
             logging.debug("Adding signals to ReadSequence: %s", self.name)
             self._add_signals_from_config(self.seq_config['signals'])
@@ -41,17 +47,30 @@ class ReadSequence(SubSequence):
             self._add_gettables_from_readouts()
 
     @property
+    def abstract_readouts(self):
+        """All abstract readouts in this read-sequence"""
+        return self._abstract_readouts
+
+    @property
     def signals(self):
         """Signals registered in this sequence"""
         return self._signals
 
     @property
-    def abstract_readouts(self):
-        """All abstract readouts in this read-sequence"""
-        return self._abstract_readouts
+    def readout_groups(self):
+        """All configured readout groups"""
+        return self._readout_groups
+
+    @property
+    def readout_points(self):
+        """All configured readout points"""
+        return self._readout_points
 
     def qua_declare(self):
-        """QUA variable declaration for mixed down up initialization"""
+        """
+        QUA variable and stream declaration based on the given sequence
+        configuration. Only to be called within qua.program() context manager!
+        """
         for point_name, readout_point in self.readout_points.items():
             logging.debug("Declaring qua vars for %s", point_name)
             readout_point.qua_declare_variables()
@@ -60,6 +79,10 @@ class ReadSequence(SubSequence):
             abstract_readout.qua_declare_variables()
 
     def qua_stream(self):
+        """
+        Saves acquired results to qua stream
+        Only to be called within qua.program() context manager!
+        """
         for _, signal in self.signals.items():
             signal.qua_save_streams()
             logging.debug("Saving streams of signal %s", signal.name)
@@ -69,7 +92,9 @@ class ReadSequence(SubSequence):
             continue
 
     def _add_signals_from_config(self, signal_config: dict):
-        """Creates all signals and their readout points from config"""
+        """
+        Creates all signals and their readout points from config
+        """
         for name, config in signal_config.items():
             new_signal = Signal(name, self, config)
             setattr(self, name, new_signal)
@@ -78,16 +103,18 @@ class ReadSequence(SubSequence):
     def _add_gettables_from_signals(self):
         """Adds gettables from all given signals"""
         for _, signal in self.signals.items():
-            for name, readout_point in signal.readout_points.items():
-                for stream_name in readout_point.qua_buffer_names:
-                    self._add_opx_gettable_parameter(name, stream_name)
+            for _, readout_point in signal.readout_points.items():
+                for obs_name, observable in readout_point.observables.items():
+                    logging.debug("Adding gettable from observable %s to %s",
+                        obs_name, self.name)
+                    self._add_gettable_from_observable(observable)
 
     def _add_gettables_from_readouts(self):
         """Adds gettables from all abstract readouts e.g difference/threshold"""
         for _, readouts in self.readout_groups.items():
-            for readout_name, readout in readouts.items():
-                for stream_name in readout.qua_buffer_names:
-                    self._add_opx_gettable_parameter(readout_name, stream_name)
+            for _, readout in readouts.items():
+                for _, observable in readout.observables.items():
+                    self._add_gettable_from_observable(observable)
 
     def _add_readout_groups_from_config(self, groups_config: dict):
         """Creates readout grops from config file"""
@@ -96,31 +123,48 @@ class ReadSequence(SubSequence):
             readout_group = getattr(self, group_name)
             logging.debug("Creating readout group %s", group_name)
             for readout_name, readout_conf in group_conf.items():
-                match readout_conf["method"]:
+                method = readout_conf["method"]
+                match method:
                     case readout if readout in self.available_readout_types:
                         ReadoutClass = self.available_readout_types[readout]
                     case _:
                         raise ValueError(
-                            f'{readout_conf["method"]} not available!',
+                            f'{method} not available!',
                             'check your available_readout_types'
                         )
                 logging.debug(
-                    "Adding '%s' readout to signal '%s' with name '%s'",
-                    readout_conf["method"],
-                    readout_conf["signal"],
-                    readout_conf["name"],
+                    "Adding '%s' readout to sequence '%s' with name '%s'",
+                    method,
+                    self,
+                    readout_name,
                     )
-                full_name = f'{readout_conf["signal"]}__{readout_conf["name"]}'
                 abstract_readout = ReadoutClass(
                     name = readout_name,
                     attr_name = readout_conf["name"],
                     sequence = self,
-                    signal = readout_conf["signal"],
                     **readout_conf["args"],
                 )
-                readout_group[full_name] = abstract_readout
+                readout_group[readout_name] = abstract_readout
                 self._abstract_readouts[readout_name] = abstract_readout
-            self.readout_groups[group_name] = readout_group
+            self._readout_groups[group_name] = readout_group
+
+    def _add_gettable_from_observable(self, observable):
+        """Adds a gettable to the given readout sequence from an observable"""
+        logging.debug(
+            "Adding gettable %s from readout %s to signal %s",
+            observable.full_name,
+            observable.readout.name,
+            observable.signal.name
+        )
+        self.add_parameter(
+            parameter_class = GettableParameter,
+            name = observable.full_name,
+            sequence = self,
+            vals = Arrays(shape = (1,))
+        )
+        new_gettable = getattr(self, observable.full_name)
+        observable.gettable = new_gettable
+        self._gettables.append(new_gettable)
 
     def _add_opx_gettable_parameter(
         self,
