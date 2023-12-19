@@ -287,16 +287,23 @@ class SequenceBase(Instrument):
         utils.plot_qmm_simulation_results(samples)
         return simulated_job
 
-    def find_parameters_from_keywords(self, keys: str | list):
+    def find_parameters_from_keywords(
+        self,
+        keys: str | list,
+        elements: list[str]
+        ) -> dict:
         """
         Returns a list containing all parameters of the seqeunce with names that
         contain one of names in the 'keys' list.
         TODO:   - raise error if no params were found
 
         Args:
-            keys (str, list): string with parameter name sub-string or list of those
+            keys (str | list): string with parameter name sub-string or list of
+                those
+            elements (list)
         Returns:
-            List of parameters containing substrings from keys in their name
+            Dict of parameters containing substrings from keys in their name
+                with element as key
         """
         if isinstance(keys, str):
             keys = [keys]
@@ -304,8 +311,10 @@ class SequenceBase(Instrument):
             raise ValueError(
                 f"key has to be of type list or str, is {type(keys)}")
 
-        param_list = []
-        for item in keys:
-            param_list.append(
-                [p for p_name, p in self.parameters.items() if item in p_name])
-        return np.swapaxes(np.array(param_list), 0, 1).tolist()
+        element_dict = {element: {} for element in elements}
+        for element in elements:
+            for key in keys:
+                param = getattr(self, f"{key}_{element}")
+                element_dict[element][key] = param
+        return element_dict
+
