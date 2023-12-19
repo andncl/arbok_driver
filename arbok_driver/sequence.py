@@ -86,7 +86,7 @@ class Sequence(SequenceBase):
             *args (GettableParameter): Parameters to be measured
         """
         if not all(isinstance(param, GettableParameter) for param in args):
-            raise TypeError("All arguments need to be of type dict")
+            raise TypeError("All arguments need to GettableParameters")
         if not all(param.sequence.parent_sequence == self for param in args):
             raise AttributeError(
                 f"Not all GettableParameters belong to {self.name}")
