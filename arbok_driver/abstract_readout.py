@@ -4,6 +4,7 @@ import logging
 
 from qm import qua
 from .read_sequence import ReadSequence
+from .observable import ObservableBase
 
 class AbstractReadout(ABC):
     """Abstract base class for dependent readouts"""
@@ -12,92 +13,82 @@ class AbstractReadout(ABC):
         name: str,
         sequence: ReadSequence,
         attr_name: str,
-        signal_name: str,
     ):
         """
         Constructor method of `AbstractReadout`
         
         Args:
             name (str): name of readout
-            config (dict):
-            sequence (arbok_driver.ReadSequence): 
+            sequence (ReadSequence): Sequence generating the given readout
+            attr_name (str): Name of the attribute as which the readout will be
+                added in the signal
+            signal_name (str): Name of the signal that the readout should be
+                added to
         """
         self.name = name
         self.sequence = sequence
         self.attr_name = attr_name
-        self.signal = getattr(self.sequence, signal_name)
-        self.signal.add_abstract_readout(self, f"{self.attr_name}")
-        #self.sequence.abstract_readouts[f"{self.signal.name}__{self.attr_name}"] = self
-        self.stream_list = []
-        self.qua_variable_names = []
-        self.qua_stream_names = []
-        self.qua_buffer_names = []
+        self.observables = {}
 
-
-    @abstractmethod
     def qua_declare_variables(self):
         """Declares all necessary qua variables for readout"""
+        for observable_name, observable in self.observables.items():
+            logging.debug(
+                "Declaring variables for observable %s on abstract readout %s",
+                observable_name, self.name)
+            observable.qua_var = qua.declare(qua.fixed)
+            observable.qua_stream = qua.declare_stream()
 
-    @abstractmethod
-    def qua_measure(self):
-        """Measures the qua variables for the given abstract readout"""
-    @abstractmethod
     def qua_save_variables(self):
-        """Saves acquired results to qua stream"""
+        """Saves the qua variables of all observables in this readout"""
+        for observable_name, observable in self.observables.items():
+            logging.debug(
+                "Saving variables of observable %s on abstract readout %s",
+                observable_name, self.name)
+            qua.save(observable.qua_var, observable.qua_stream)
 
-    @abstractmethod
     def qua_save_streams(self):
         """Saves acquired results to qua stream"""
+        for observable_name, observable in self.observables.items():
+            logging.debug(
+                "Saving streams of observable %s on abstract readout %s",
+                observable_name, self.name)
+            sweep_size = self.sequence.parent_sequence.sweep_size
+            buffer = observable.qua_stream.buffer(sweep_size)
+            buffer.save(f"{observable.full_name}_buffer")
+            observable.qua_stream.save_all(observable.full_name)
 
     def qua_measure_and_save(self):
         """Measures ans saves the result of the given readout"""
         self.qua_measure()
         self.qua_save_variables()
 
-    def _check_type_and_make_list(
-        self, argument: any, arg_type: type):
+    def _find_observable_from_path(self, attr_path: str) -> ObservableBase:
         """
-        Checks validity of constructor arguments and returns them in correct 
-        shape
+        Returns the observable from a given path from a given string. If the
+        string leads to an AbstractReadout it is being tried to find a single
+        observable associated to that AbstractReadout
         
         Args:
-            charge_readouts (str, list): list or str containing charge readouts
-                to refer to
-            threshold (float, list): contains threshold value(s)
+            attr_path (str): Path to the given observable relative to the
+                ReadSequence
+        
+        Returns:
+            ObservableBase: The found observable from the given path
         """
-        if isinstance(argument, arg_type):
-            argument = [argument]
-        elif not isinstance(argument, list):
-            raise ValueError(
-                f"Given argument must be type {arg_type} or list is: ",
-                f"{type(argument)}")
-        return argument
-
-    def _find_signal_attribute(self, attr_path: str):
-        """Returns the attribute from a given string"""
         attributes = attr_path.split('.')
         current_obj = self.sequence
         for attr_name in attributes:
             current_obj = getattr(current_obj, attr_name)
-        if not isinstance(current_obj, qua._dsl._Variable):
-            try:
-                current_obj = current_obj()
-            except TypeError:
-                pass
-        if isinstance(current_obj, qua._dsl._Variable):
-            return current_obj
-        else:
+        if isinstance(current_obj, AbstractReadout):
+            current_obj = current_obj.observable
+        if not isinstance(current_obj, ObservableBase):
             raise ValueError(
-                f"The given path {attr_path} yields a {type(current_obj)}-type")
+                f"The given path {attr_path} yields a {type(current_obj)}-type",
+                "not a child class of ObservableBase"
+            )
+        return current_obj
 
-    def _save_qua_stream_variable(self, qua_stream):
-        """
-        Saves the given stream once as a whole and once with a buffer that
-        matches the given measurement loop
-        
-        Args:
-            qua_stream (qua._dsl._ResultSource): Stream to save
-        """
-        sweep_size = self.sequence.parent_sequence.sweep_size
-        qua_stream.buffer(sweep_size).save(f"{self.name}_buffer")
-        qua_stream.save_all(self.name)
+    @abstractmethod
+    def qua_measure(self):
+        """Measures the qua variables for the given abstract readout"""
