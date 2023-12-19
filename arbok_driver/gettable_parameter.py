@@ -51,11 +51,13 @@ class GettableParameter(ParameterWithSetpoints):
         self.batch_count = 0
 
     def set_raw(self, *args, **kwargs):
-        """ Empty abstract `set_raw` method. Parameter not meant to be set """
+        """Empty abstract `set_raw` method. Parameter not meant to be set"""
 
     def get_raw(self) -> np.ndarray:
         """ 
         Get method to retrieve a single batch of data from a running measurement
+        On its first call, the gettables attributes get configured regarding
+        the given measurement and the underlying hardware.
         """
         if self.result is None:
             # Will be executed on the first call of get()
@@ -68,7 +70,10 @@ class GettableParameter(ParameterWithSetpoints):
         return self.buffer_val.reshape(tuple((reversed(self.shape))))
 
     def _set_up_gettable_from_program(self):
-        """ Set up Gettable attributes from running OPX """
+        """
+        Set up Gettable attributes from running OPX including measurement and 
+        hardware specific values.
+        """
         self.sequence = self.sequence.parent_sequence
         if not self.sequence.parent_sequence.program.opx:
             raise LookupError("Results cant be retreived without OPX connected")
@@ -79,16 +84,25 @@ class GettableParameter(ParameterWithSetpoints):
         self.batch_size = self.sequence.sweep_size
 
     def _fetch_from_opx(self):
-        """ Fetches and returns data from OPX after results came in """
+        """
+        Fetches and returns data from OPX after results came in.
+        This method pauses as long as the required amount of results is not in.
+        Raises a warning if the data generation on the OPX is faster than the
+        data streaming back to the PC.
+        """
         self.count_so_far = self.result.count_so_far()
         if self.count_so_far > (self.batch_count + 2)*self.batch_size:
-            warnings.warn("OVERHEAD of data on OPX! Try larger batches or other sweep type!")
-
+            warnings.warn(
+                "OVERHEAD of data on OPX!",
+                "Try larger batches or other sweep type!"
+            )
         self._wait_until_buffer_full()
         self._fetch_opx_buffer()
 
     def _wait_until_buffer_full(self):
-        """ This function is running until a batch with self.batch_size is ready """
+        """
+        This function is running until a batch with self.batch_size is ready
+        """
         while self.count_so_far < (self.batch_count + 1)*self.batch_size:
             lg.info("Waiting: %s/%s results are in", 
                 self.count_so_far, (self.batch_count + 1)*self.batch_size)
@@ -105,7 +119,7 @@ class GettableParameter(ParameterWithSetpoints):
         self.batch_count += 1
 
     def get_all(self):
-        """ Fetches ALL (not buffered) data """
+        """Fetches ALL (not buffered) data"""
         if self.result is None:
             self._set_up_gettable_from_program()
         if self.result:
@@ -124,6 +138,13 @@ class GettableParameter(ParameterWithSetpoints):
         self.batch_size = 0
         self.batch_count = 0
 
-    def plot_set_current_histogram(self, bins: int = 50) -> tuple:
+    def plot_set_current_histogram(self, *args, **kwargs) -> tuple:
+        """
+        Plots a histrogram of all the measured data so far
+        
+        Args:
+            *args: Arguments for plt.hist
+            **kwargs: Keyword arguments for plt.hist
+        """
         set_current = np.array(self.get_all(), dtype = float)
-        return plt.hist(set_current, bins=50)
+        return plt.hist(set_current, args, kwargs)
