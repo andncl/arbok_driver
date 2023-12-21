@@ -17,6 +17,7 @@ from qm.qua import (
     program, infinite_loop_, pause, stream_processing,
     declare, for_, assign, fixed, advance_input_stream
 )
+from qm import qua
 
 from .sample import Sample
 from .sequence_parameter import SequenceParameter
@@ -210,11 +211,11 @@ class SequenceBase(Instrument):
         for param in current_sweep.parameters:
             if param.input_stream is not None:
                 advance_input_stream(param.input_stream)
-        with for_(idx, 0, idx < current_sweep.length, idx + 1):
+        with qua.for_(idx, 0, idx < current_sweep.length, idx + 1):
             for param in current_sweep.parameters:
                 if isinstance(param, SequenceParameter):
                     if param.input_stream is None:
-                        assign(param.qua_var, param.qua_sweep_arr[idx])
+                        qua.assign(param.qua_var, param.qua_sweep_arr[idx])
             self.recursive_sweep_generation(new_sweeps)
         return
 
@@ -255,6 +256,11 @@ class SequenceBase(Instrument):
                     scale = self.sample.divider_config[element]['division']
                 else:
                     scale = 1
+                qua_type = qua.fixed
+                if 'qua_type' in param_dict:
+                    if param_dict['qua_type'] == 'int':
+                        qua_type = int
+
                 self.add_parameter(
                     name  = f'{param_name}_{element}',
                     config_name = param_name,
@@ -265,10 +271,14 @@ class SequenceBase(Instrument):
                     get_cmd = None,
                     set_cmd = None,
                     scale = scale,
-                    var_type = qua.fixed,
+                    var_type = qua_type,
                     label = f"{element}: label"
                 )
         elif 'value' in param_dict:
+            qua_type = int
+            if 'qua_type' in param_dict:
+                if param_dict['qua_type'] == 'fixed':
+                    qua_type = qua.fixed
             self.add_parameter(
                 name  = param_name,
                 config_name = param_name,
@@ -366,3 +376,11 @@ class SequenceBase(Instrument):
             if hasattr(self, f"{key}_{element}"):
                 parameters[element] = getattr(self, f"{key}_{element}")
         return parameters
+
+    def ask_raw(self, *args):
+        """Overwrites abstract method"""
+        raise NotImplementedError("This driver does not support `ask_raw`")
+
+    def set_raw(self, *args):
+        """Overwrites abstract method"""
+        raise NotImplementedError("This driver does not support `set_raw`")
