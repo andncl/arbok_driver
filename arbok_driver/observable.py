@@ -1,5 +1,7 @@
 """Module containing Observable class"""
 
+from qm import qua
+
 class ObservableBase:
     """
     Base class for observables for both I and Q readouts and AbstractReadouts
@@ -55,6 +57,7 @@ class Observable(ObservableBase):
                 registered
         """
         super().__init__(observable_name, readout = readout_point)
+        self.qua_type = qua.fixed
         self.element_name = element_name
         self.element = element
         self.name = f"{self.element_name}_{observable_name}"
@@ -67,7 +70,8 @@ class AbstractObservable(ObservableBase):
         self,
         observable_name: str,
         abstract_readout,
-        signal: str
+        signal: str,
+        qua_type
         ):
         """
         Constructor method for AbstractObservable
@@ -80,6 +84,7 @@ class AbstractObservable(ObservableBase):
         """
         super().__init__(observable_name, readout = abstract_readout)
         self.name = observable_name
+        self.qua_type = qua_type
         self.signal = getattr(self.readout.sequence, signal)
         self.full_name = f"{self.signal.name}__{self.name}"
         self.signal.observables[self.full_name] = self
