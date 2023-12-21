@@ -30,7 +30,7 @@ class SequenceBase(Instrument):
             self,
             name: str,
             sample: Sample,
-            param_config: Optional[dict | None] = None,
+            sequence_config: Optional[dict | None] = None,
             **kwargs
             ):
         """
@@ -39,20 +39,20 @@ class SequenceBase(Instrument):
         Args:
             name (str): Name of the program
             sample (Sample): Sample class describing phyical device
-            param_config (dict): Dictionary containing all device parameters
+            sequence_config (dict): Dictionary containing all device parameters
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(name, **kwargs)
         self.sample = sample
         self.elements = self.sample.elements
-        self.param_config = param_config
+        self.sequence_config = sequence_config
 
         self._parent_sequence = None
         self._sub_sequences = []
         self._gettables = []
         self._qua_program_as_str = None
-        self.add_qc_params_from_config(self.param_config)
+        self.add_qc_params_from_config(self.sequence_config)
 
     def qua_declare(self):
         """Contains raw QUA code to initialize the qua variables"""
@@ -80,6 +80,36 @@ class SequenceBase(Instrument):
         in a `program`
         """
         return self._gettables
+
+    def add_qc_params_from_config(self, config):
+        """ 
+        Creates QCoDeS parameters for all entries of the config 
+        TODO: Use custom Parameter types for times -> setting in ns ! (cycles)
+                use validator to check if ns are a multiple of 4 (1 cycle)
+        TODO: if voltage add scale = 0.5 and validate if |v| <= 0.5
+
+        Args:
+            config (dict): Configuration containing all sequence parameters
+        """
+        if config is None:
+            logging.info("No params added to %s (no sequence_config)", self.name)
+            return
+        if not isinstance(config, dict):
+            raise ValueError(
+                f"Conf for {self.name} must be of type dict, is {type(config)}")
+        if 'parameters' in config:
+            config = config['parameters']
+            logging.info(
+                "Set para subset of given conf file as param conf for in %s",
+                self.name
+                )
+        for param_name, param_dict in config.items():
+            self._add_param(param_name, param_dict)
+
+    # def add_elements_from_config(self, elements config):
+    #     """
+    #     Adds opx elements from the sequence config
+    #     """
 
     def get_qua_program_as_str(self) -> str:
         """Returns the qua program as str. Will be compiled if it wasnt yet"""
@@ -199,67 +229,63 @@ class SequenceBase(Instrument):
         if not self.submodules:
             getattr(self, 'qua_' + str(seq_type))()
             return
-        #for subsequence in self.submodules.values():
         for subsequence in self._sub_sequences:
             if not subsequence.submodules:
                 getattr(subsequence, 'qua_' + str(seq_type))()
             else:
                 subsequence.recursive_qua_generation(seq_type)
 
-    def add_qc_params_from_config(self, config):
-        """ 
-        Creates QCoDeS parameters for all entries of the config 
-        TODO: Use custom Parameter types for times -> setting in ns ! (cycles)
-                use validator to check if ns are a multiple of 4 (1 cycle)
-        TODO: if voltage add scale = 0.5 and validate if |v| <= 0.5
-
-        Args:
-            config (dict): Configuration containing all sequence parameters
+    def _add_param(self, param_name: str, param_dict):
         """
-        if isinstance(config, dict):
-            if 'parameters' in config:
-                config = config['parameters']
-                print("Set parameters subset as param config")
-        if config is None:
-            logging.debug("No params added to %s (no param_config)", self.name)
-            return
-        for param_name, param_dict in config.items():
-            logging.debug("Adding %s to %s", param_name, self.name)
-            if 'elements' in param_dict:
-                for element, value in param_dict['elements'].items():
-                    if element in self.sample.elements:
-                        scale = self.sample.divider_config[element]['division']
-                    else:
-                        scale = 1
-                    self.add_parameter(
-                        name  = f'{param_name}_{element}',
-                        config_name = param_name,
-                        unit = param_dict["unit"],
-                        initial_value = value,
-                        parameter_class = SequenceParameter,
-                        element = element,
-                        get_cmd = None,
-                        set_cmd = None,
-                        scale = scale,
-                        var_type = qua.fixed
-                    )
-            elif 'value' in param_dict:
+        Adds parameter based on the given parameter configuration
+        
+        Args:
+            param_name (str): Name of the parameter
+            param_dict (dict): Must contain 'unit' key and optionally 'value'
+                or 'elements' for element wise defined parameters
+        """
+        logging.debug("Adding %s to %s", param_name, self.name)
+        if "label" in param_dict:
+            label = param_dict["label"]
+        else:
+            label = None
+        if 'elements' in param_dict:
+            for element, value in param_dict['elements'].items():
+                if element in self.sample.divider_config:
+                    scale = self.sample.divider_config[element]['division']
+                else:
+                    scale = 1
                 self.add_parameter(
-                    name  = param_name,
+                    name  = f'{param_name}_{element}',
                     config_name = param_name,
                     unit = param_dict["unit"],
-                    initial_value = param_dict["value"],
+                    initial_value = value,
                     parameter_class = SequenceParameter,
-                    element = None,
+                    element = element,
+                    get_cmd = None,
                     set_cmd = None,
-                    scale = 1,
-                    var_type = int
+                    scale = scale,
+                    var_type = qua.fixed,
+                    label = f"{element}: label"
                 )
-            else:
-                raise KeyError(
-                    f"The config of parameter {param_name} does not have "
-                     "elements or value"
-                     )
+        elif 'value' in param_dict:
+            self.add_parameter(
+                name  = param_name,
+                config_name = param_name,
+                unit = param_dict["unit"],
+                initial_value = param_dict["value"],
+                parameter_class = SequenceParameter,
+                element = None,
+                set_cmd = None,
+                scale = 1,
+                var_type = int,
+                label = label
+            )
+        else:
+            raise KeyError(
+                f"The config of parameter {param_name} does not have "
+                    "elements or value"
+                    )
 
     def run_remote_simulation(self, host, port, duration: int):
         """
@@ -290,7 +316,7 @@ class SequenceBase(Instrument):
     def find_parameters_from_keywords(
         self,
         keys: str | list,
-        elements: list[str]
+        elements: list[str] = None
         ) -> dict:
         """
         Returns a list containing all parameters of the seqeunce with names that
@@ -305,12 +331,13 @@ class SequenceBase(Instrument):
             Dict of parameters containing substrings from keys in their name
                 with element as key
         """
+        if elements is None:
+            elements = list(self.sample.elements)
         if isinstance(keys, str):
             keys = [keys]
         elif not isinstance(keys, list):
             raise ValueError(
                 f"key has to be of type list or str, is {type(keys)}")
-
         element_dict = {element: {} for element in elements}
         for element in elements:
             for key in keys:
@@ -318,3 +345,24 @@ class SequenceBase(Instrument):
                 element_dict[element][key] = param
         return element_dict
 
+
+    def find_parameters(self, key: str) -> dict:
+        """
+        Finds all parameters generated from elements and a the given key.
+        Similar to `find_parameters_from_keywords` but returns a non nested
+        dict with elements as keys and SequenceParameters as key. This function
+        gets its elements straigt from the given quantum machines config,
+        therefore only params with elements that are known to the hardware are
+        returned.
+
+        Args:
+            key (str): Name of the searched parameters
+
+        Returns:
+            dict: Dict with all found SequenceParameters and elements as keys
+        """
+        parameters = {}
+        for element in self.sample.elements:
+            if hasattr(self, f"{key}_{element}"):
+                parameters[element] = getattr(self, f"{key}_{element}")
+        return parameters
