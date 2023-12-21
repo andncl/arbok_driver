@@ -9,28 +9,28 @@ from arbok_driver import SubSequence, SequenceParameter
 def arbok_go(
         sub_sequence: SubSequence,
         elements: list,
-        to_volt: Union[str, list],
+        to_volt: str | list,
         operation: str,
         from_volt: Optional[Union[str, list]] = None,
-        duration: int = None,
-        align_elements: bool = True
+        duration: any = None,
+        align_after: str = 'elements'
     ):
     """ 
     Helper function that `play`s a qua operation on the respective elements 
     specified in the sequence config.
     TODO:   - [ ] raise error when target and origin dims dont match
             - [ ] raise error if duration is too short
-            - [ ] if target is vHome -> ramp_to_zero (avoids accumulated errors
-                from sticky pulses)
+
     Args:
         sub_sequence (Sequence): Sequence from which parameters are fetched
         elements (list): elements on which pulse is applied
         to_volt (str, List): voltage point to move to
         operation (str): Operation to be played -> find in OPX config
         from_volt (str, List): voltage point to come from
-        duration (str): duration of the operation 
-        align_elements (optional, bool): whether to align all channels before 
-            and after
+        duration (str | qcodes.Parameter): duration of the operation 
+        align_after (optional, bool, str): whether to align channels after
+            ramping. Input 'all' alligns all. 'none' does not align 
+            at all and 'elements' (default) aligns all given elements
     """
     if isinstance(duration, SequenceParameter):
         if duration.qua_sweeped:
@@ -58,6 +58,10 @@ def arbok_go(
         to_volt,
         elements
         )
+    if not set(origin_param_sets.keys()) == set(target_param_sets.keys()):
+        raise KeyError(
+            "All given voltage points must have the same elements in the conf",
+            f"{elements}")
     for element in elements:
         target_v = 0
         origin_v = 0
@@ -77,8 +81,16 @@ def arbok_go(
             from_volt, target_v, to_volt, sub_sequence
             )
         qua.play(**kwargs)
-    if align_elements:
-        qua.align()
+    match align_after:
+        case "elements":
+            qua.align(*elements)
+        case 'none':
+            pass
+        case 'all':
+            qua.align()
+        case _:
+            raise ValueError(
+                "Argument for align can only be bool or 'elements'")
 
 def _check_voltage_point_input(points: list | str) -> list:
     """
