@@ -52,6 +52,7 @@ class GettableParameter(ParameterWithSetpoints):
 
     def set_raw(self, *args, **kwargs):
         """Empty abstract `set_raw` method. Parameter not meant to be set"""
+        raise NotImplementedError("GettableParameters are not meant to be set")
 
     def get_raw(self) -> np.ndarray:
         """ 

@@ -7,7 +7,11 @@ from .read_sequence import ReadSequence
 from .observable import ObservableBase
 
 class AbstractReadout(ABC):
-    """Abstract base class for dependent readouts"""
+    """
+    Abstract base class for abstract readouts. This base class handles qua
+    variable and stream declaration, saving and streaming. The child class only
+    needs to handle the abstract method `qua_measure`
+    """
     def __init__(
         self,
         name: str,
@@ -22,8 +26,6 @@ class AbstractReadout(ABC):
             sequence (ReadSequence): Sequence generating the given readout
             attr_name (str): Name of the attribute as which the readout will be
                 added in the signal
-            signal_name (str): Name of the signal that the readout should be
-                added to
         """
         self.name = name
         self.sequence = sequence
