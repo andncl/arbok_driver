@@ -38,7 +38,7 @@ class AbstractReadout(ABC):
             logging.debug(
                 "Declaring variables for observable %s on abstract readout %s",
                 observable_name, self.name)
-            observable.qua_var = qua.declare(qua.fixed)
+            observable.qua_var = qua.declare(observable.qua_type)
             observable.qua_stream = qua.declare_stream()
 
     def qua_save_variables(self):
