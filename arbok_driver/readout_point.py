@@ -25,8 +25,13 @@ class ReadoutPoint:
         self.point_name = point_name
         self.name = f"{self.signal.name}__{point_name}"
         self.config = config
+        if 'save_values' in self.config:
+            self.save_values = self.config['save_values']
+        else:
+            self.save_values = True
         self.description = self.config["desc"]
         self._observables_names = self.config["observables"]
+
         self.observables = {}
         self.valid_observables = ('I', 'Q', 'IQ')
         self._add_qua_variable_attributes(self.signal.readout_elements)
@@ -115,6 +120,9 @@ class ReadoutPoint:
     def qua_save_streams(self):
         """Saves streams and buffers of streams"""
         sweep_size = self.signal.sequence.parent_sequence.sweep_size
+        if not self.save_values:
+            logging.debug("Values of point %s will not be saved.", self.name)
+            return
         for obs_name, observable in self.observables.items():
             logging.debug("Saving stream %s", obs_name)
             buffer = observable.qua_stream.buffer(sweep_size)
