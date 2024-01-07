@@ -66,20 +66,21 @@ def arbok_go(
         target_v = 0
         origin_v = 0
         for point, param in target_param_sets[element].items():
-            target_v += param.get_raw()*to_volt_signs[point]
+            target_v += param()*to_volt_signs[point]
         for point, param in origin_param_sets[element].items():
-            origin_v += param.get_raw()*from_volt_signs[point]
+            origin_v += param()*from_volt_signs[point]
+        logging.debug(
+            "Arbok_go: Moving %s from %s (%s) to %s (%s) in %s", 
+            element, origin_v,
+            from_volt, target_v, to_volt, sub_sequence
+            )
         kwargs = {
             'pulse': operation*qua.amp( target_v - origin_v ),
             'element': element
             }
         if duration is not None:
             kwargs['duration'] = duration
-        logging.debug(
-            "Arbok_go: Moving %s from %s (%s) to %s (%s) in %s", 
-            element, origin_v,
-            from_volt, target_v, to_volt, sub_sequence
-            )
+
         qua.play(**kwargs)
     match align_after:
         case "elements":
