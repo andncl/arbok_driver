@@ -1,5 +1,5 @@
 """Module containing Observable class"""
-
+import logging
 from qm import qua
 
 class ObservableBase:
@@ -89,3 +89,5 @@ class AbstractObservable(ObservableBase):
         self.full_name = f"{self.signal.name}__{self.name}"
         self.signal.observables[self.full_name] = self
         setattr(self.signal, self.name, self)
+        logging.debug(
+            "Added observable %s to signal %s", self.name, self.signal.name)

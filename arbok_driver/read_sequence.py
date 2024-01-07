@@ -34,7 +34,6 @@ class ReadSequence(SubSequence):
         self._readout_points = {}
         self._readout_groups = {}
         self._abstract_readouts = {}
-
         if 'signals' in self.seq_config:
             logging.debug("Adding signals to ReadSequence: %s", self.name)
             self._add_signals_from_config(self.seq_config['signals'])
@@ -96,6 +95,7 @@ class ReadSequence(SubSequence):
         Creates all signals and their readout points from config
         """
         for name, config in signal_config.items():
+            logging.debug("Adding signal %s to %s", name, self.name)
             new_signal = Signal(name, self, config)
             setattr(self, name, new_signal)
             self._signals[new_signal.name] = new_signal
