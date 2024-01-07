@@ -228,6 +228,9 @@ class SequenceBase(Instrument):
             seq_type (str): Type of qua code containing method to look for
         """
         if not self.submodules:
+            logging.debug(
+                "Reached low level seq running qua_%s code of %s",
+                seq_type, self.name)
             getattr(self, 'qua_' + str(seq_type))()
             return
         for subsequence in self._sub_sequences:
