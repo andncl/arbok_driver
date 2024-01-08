@@ -1,6 +1,6 @@
 """Module containing various utils"""
 import matplotlib.pyplot as plt
-import pandas as pd
+import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -55,7 +55,7 @@ def plotly_qmm_simulation_results(simulated_samples):
     for index, results in controller_dict.items():
         plot_counter +=1 
         for i in range(1, 11):
-            row = (index-1)*2+1 
+            row = (index-1)*2+1
             if str(i) in results.analog:
                 fig.add_trace(
                     go.Scatter(
@@ -101,7 +101,7 @@ def plotly_qmm_simulation_results(simulated_samples):
         #xaxis={"title":'X-axis Title'},
         #yaxis=dict(title='Y-axis Title')
     )
-    fig.show()
+    #fig.show()
     return fig
 
 def get_all_controller_results(simulated_samples):
