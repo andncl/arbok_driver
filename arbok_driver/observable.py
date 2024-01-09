@@ -26,6 +26,8 @@ class ObservableBase:
         self.qua_stream = None
         self.qua_buffer = None
 
+        self.qm_elements = None
+
     def __call__(self):
         """
         Overwrites the default calling behaviour and returns the associated
@@ -63,6 +65,7 @@ class Observable(ObservableBase):
         self.name = f"{self.element_name}_{observable_name}"
         self.full_name = f"{self.readout.name}__{self.name}"
         self.signal = self.readout.signal
+        self.qm_elements = list(set(self.signal.readout_elements.values()))
 
 class AbstractObservable(ObservableBase):
     """Observable class for AbstractRadouts"""
@@ -86,6 +89,7 @@ class AbstractObservable(ObservableBase):
         self.name = observable_name
         self.qua_type = qua_type
         self.signal = getattr(self.readout.sequence, signal)
+        self.qm_elements = list(set(self.signal.readout_elements.values()))
         self.full_name = f"{self.signal.name}__{self.name}"
         self.signal.observables[self.full_name] = self
         setattr(self.signal, self.name, self)
