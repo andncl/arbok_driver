@@ -91,6 +91,19 @@ class AbstractReadout(ABC):
             )
         return current_obj
 
+    def get_qm_elements_from_observables(self):
+        """
+        Collects all qm read elements from the readouts observables and their
+        signal. Duplicates are removed
+
+        Returns:
+            list: List of read elements used in observables
+        """
+        qm_elements = []
+        for _, obs in self.observables.items():
+            qm_elements += obs.qm_elements
+        return list(set(qm_elements))
+
     @abstractmethod
     def qua_measure(self):
         """Measures the qua variables for the given abstract readout"""
