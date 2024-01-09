@@ -3,7 +3,6 @@ from .gettable_parameter import GettableParameter
 from .observable import Observable, AbstractObservable
 from .program import Program
 from .read_sequence import ReadSequence
-from .readout_helper import Readout
 from .sample import Sample
 from .sequence import Sequence
 from .sequence_parameter import SequenceParameter
