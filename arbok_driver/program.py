@@ -175,7 +175,7 @@ class Program(Instrument):
         Simulates the given program of the sequence for `duration` cycles
         TODO: Move to SequenceBase and add checks if OPX is connected
         Args:
-            duration (int): 
+            duration (int): Simulation duration in cycles
 
         Returns:
             simulated_job (SimulatedJob): QM job with waveform simulation result
