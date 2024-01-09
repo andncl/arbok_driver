@@ -1,6 +1,7 @@
 """Module containing various utils"""
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -30,7 +31,55 @@ def plot_qmm_simulation_results(simulated_samples):
     b.set_ylabel("Digital Signal")
     fig.subplots_adjust(wspace=0, hspace=0)
 
-def plotly_qmm_simulation_results(simulated_samples):
+def plotly_sim_results(simulated_samples):
+    """
+    Plots one graph for each analog and digital simulation result per controller
+    
+    Args:
+        simulated_results: simulated samples from qm simulator
+        
+    Returns:
+        plotly figure
+    """
+    controller_dict = get_all_controller_results(simulated_samples)
+    fig = make_subplots(rows=1, cols=1)
+    for index, results in controller_dict.items():
+        for i in range(1, 11):
+            if str(i) in results.analog:
+                fig.add_trace(
+                    go.Scatter(
+                        x = list(range(len(results.analog[str(i)]))),
+                        y = results.analog[str(i)],
+                        mode='lines',
+                        name = f'con{index} analog ch{i}',
+                        opacity=0.8,
+                        visible = True
+                        ),
+                    )
+        for i in range(1, 11):
+            if str(i) in results.digital:
+                fig.add_trace(
+                    go.Scatter(
+                        x = list(range(len(results.digital[str(i)]))),
+                        y = np.array(results.digital[str(i)], dtype = int),
+                        mode='lines',
+                        name = f'con{index} digital ch{i}',
+                        opacity=0.8,
+                        visible='legendonly',
+                        ),
+                    )
+        fig.update_xaxes(title_text="time in ns", row=1, col=1)
+        fig.update_yaxes(title_text="voltage in V", row=1, col=1)
+
+    fig.update_layout(
+        autosize=True,
+        margin=dict(l=50, r=50, t=50, b=50),
+        title_text="Simulation results on all available quantum machines",
+        legend_tracegroupgap = 100,
+    )
+    return fig
+
+def plotly_sim_results_separate(simulated_samples):
     """
     Plots one graph for each analog and digital simulation result per controller
     
@@ -63,6 +112,7 @@ def plotly_qmm_simulation_results(simulated_samples):
                         y = results.analog[str(i)],
                         mode='lines',
                         name = f'con{index} analog ch{i}',
+                        opacity=0.8,
                         #legendgroup= str(row),
                         visible = True
                         ),
@@ -71,21 +121,22 @@ def plotly_qmm_simulation_results(simulated_samples):
                     )
         fig.update_xaxes(title_text="time in ns", row=row, col=1)
         fig.update_yaxes(title_text="voltage in V", row=row, col=1)
-        #fig.update_legends(yanchor = 'top', row = row, col = 1)
-        for i in range(1, len(results.digital)):
-            plot_counter +=1 
-            row = index*2
+        for i in range(1, 11):
             if str(i) in results.digital:
+                row = index*2
+                plot_counter +=1
                 fig.add_trace(
                     go.Scatter(
                         x = list(range(len(results.digital[str(i)]))),
                         y = np.array(results.digital[str(i)], dtype = int),
                         mode='lines',
                         name = f'con{index} digital ch{i}',
-                        visible = True,
+                        opacity=0.8,
+                        visible=True,
                         #legendgroup= str(row),
                         ),
                     row=index*2,
+                    #row=(index-1)*2+1,
                     col=1,
                     )
         fig.update_xaxes(title_text="time in ns", row=row, col=1)
@@ -94,14 +145,11 @@ def plotly_qmm_simulation_results(simulated_samples):
     fig.update_layout(
         autosize=False,
         width=800,
-        height=plot_counter*400,
+        height=plot_counter*300,
         margin=dict(l=50, r=50, t=50, b=50),
         title_text="Simulation results on all available quantum machines",
         legend_tracegroupgap = 100,
-        #xaxis={"title":'X-axis Title'},
-        #yaxis=dict(title='Y-axis Title')
     )
-    fig.show()
     return fig
 
 def get_all_controller_results(simulated_samples):
