@@ -16,4 +16,4 @@ class Sample():
         self.name = name
         self.config = opx_config
         self.divider_config = divider_config
-        self.elements = self.config['elements'].keys()
+        self.elements = list(self.config['elements'].keys())
