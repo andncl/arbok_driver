@@ -62,6 +62,11 @@ def arbok_go(
         raise KeyError(
             "All given voltage points must have the same elements in the conf",
             f"{elements}")
+    _qua_align(
+        method=align_after,
+        elements = elements,
+        sub_sequence = sub_sequence
+        )
     for element in elements:
         target_v = 0
         origin_v = 0
@@ -82,13 +87,22 @@ def arbok_go(
             kwargs['duration'] = duration
 
         qua.play(**kwargs)
-    match align_after:
+    _qua_align(
+        method=align_after,
+        elements = elements,
+        sub_sequence = sub_sequence
+        )
+
+def _qua_align(method, elements, sub_sequence):
+    match method:
         case "elements":
             qua.align(*elements)
         case 'none':
             pass
         case 'all':
             qua.align()
+        case 'sequence':
+            qua.align(*sub_sequence.elements)
         case _:
             raise ValueError(
                 "Argument for align can only be bool or 'elements'")
