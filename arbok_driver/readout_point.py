@@ -99,6 +99,9 @@ class ReadoutPoint:
 
     def _qua_save_vars(self):
         """Saves streams after measurement"""
+        if not self.save_values:
+            logging.debug("Values of point %s will not be saved.", self.name)
+            return
         for obs_name, observable in self.observables.items():
             logging.debug(
                 "Saving qua var of observable %s to its stream", obs_name)
@@ -121,7 +124,7 @@ class ReadoutPoint:
         """Saves streams and buffers of streams"""
         sweep_size = self.signal.sequence.parent_sequence.sweep_size
         if not self.save_values:
-            logging.debug("Values of point %s will not be saved.", self.name)
+            logging.debug("Values of point %s will not be streamed.", self.name)
             return
         for obs_name, observable in self.observables.items():
             logging.debug("Saving stream %s", obs_name)
