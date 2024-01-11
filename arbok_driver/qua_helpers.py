@@ -120,8 +120,16 @@ def _check_voltage_point_input(points: list | str) -> list:
     else:
         raise ValueError("Must be of type str or list!")
 
-def reset_elements(element_list: list) -> None:
+def reset_elements(
+        element_list: list,
+        sub_sequence: any,
+        align_method: str = 'sequence',
+        ) -> None:
     """runs `ramp_to_zero` on all element in the given list"""
     for element_name in element_list:
         qua.ramp_to_zero(element_name)
-    qua.align()
+    _qua_align(
+        method=align_method,
+        elements=element_list,
+        sub_sequence=sub_sequence
+        )
