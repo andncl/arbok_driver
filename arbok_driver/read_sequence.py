@@ -195,3 +195,12 @@ class ReadSequence(SubSequence):
             vals = Arrays(shape = (1,))
         )
         self._gettables.append(getattr(self, gettable_name))
+
+    def get_qm_elements_from_signals(self):
+        """
+        Gets all qm elements from the configured signals in this read sequence
+        """
+        qm_elements = []
+        for _, signal in self.signals.items():
+            qm_elements += signal.readout_elements.values()
+        return list(set(qm_elements))
