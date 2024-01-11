@@ -206,7 +206,7 @@ class SequenceBase(Instrument):
         new_sweeps = sweeps[:-1]
         current_sweep = sweeps[-1]
         idx = declare(int)
-        logging.debug( "Adding qua loop for %s",
+        logging.debug("Adding qua loop for %s",
             [par.name for par in current_sweep.parameters])
         for param in current_sweep.parameters:
             if param.input_stream is not None:
@@ -387,3 +387,16 @@ class SequenceBase(Instrument):
     def set_raw(self, *args):
         """Overwrites abstract method"""
         raise NotImplementedError("This driver does not support `set_raw`")
+
+    def set_params_with_unit_to_value(self, unit: str, value: any):
+        """
+        Sets all parameters with the given unit to the given value
+
+        Args:
+            unit (str): Unit of the parameters to be set
+            value (any): Value to be set
+        """
+        for param_name, param in self.parameters.items():
+            if param.unit == unit:
+                logging.debug("Setting param %s to %s", param_name, value)
+                param(value)
