@@ -151,15 +151,13 @@ def plotly_sim_results_separate(simulated_samples):
     )
     return fig
 
-def get_all_controller_results(simulated_samples):
-    all_controllers_found = False
-    controller_nr = 1
+def get_all_controller_results(simulated_samples: any) -> dict:
+    """Takes simulated samples and returns a dict with all controller results"""
     controller_dict = {}
-    while not all_controllers_found:
-        if hasattr(simulated_samples, f"con{controller_nr}"):
-            controller = getattr(simulated_samples, f"con{controller_nr}")
-            controller_dict[controller_nr] = controller
-            controller_nr += 1
-        else:
-            all_controllers_found = True
+
+    for name, attr in simulated_samples.__dict__.items():
+        if 'con' in name:
+            controller_dict[name.split('con')[1]] = attr
+    if len(controller_dict) == 0:
+        raise ValueError("No controller results found!")
     return controller_dict
