@@ -13,7 +13,8 @@ class ReadSequence(SubSequence):
         name,
         sample,
         seq_config,
-        available_readout_types = None
+        available_abstract_readouts = None,
+        available_readout_points = None
         ):
         """
         Constructor class for ReadSequence class
@@ -22,13 +23,14 @@ class ReadSequence(SubSequence):
             sample (Sample): sample for which sequence is configured
             seq_config (dict): Dict configuring all parameters for the given
                 read-sequence and its read-points and abstract-readouts
-            available_readout_types (None | dict): Optional, dictionairy with
+            available_abstract_readouts (None | dict): Optional, dictionairy with
                 available abstract readouts with method name as key and abstract
                 readout class as value
         """
         super().__init__(name, sample, seq_config)
         self.seq_config = seq_config
-        self.available_readout_types = available_readout_types
+        self.available_abstract_readouts = available_abstract_readouts
+        self.available_readout_points = available_readout_points
 
         self._signals = {}
         self._readout_points = {}
@@ -96,7 +98,8 @@ class ReadSequence(SubSequence):
         """
         for name, config in signal_config.items():
             logging.debug("Adding signal %s to %s", name, self.name)
-            new_signal = Signal(name, self, config)
+            new_signal = Signal(name, self, config,
+                self.available_readout_points)
             setattr(self, name, new_signal)
             self._signals[new_signal.name] = new_signal
 
@@ -124,14 +127,13 @@ class ReadSequence(SubSequence):
             logging.debug("Creating readout group %s", group_name)
             for readout_name, readout_conf in group_conf.items():
                 method = readout_conf["method"]
-                match method:
-                    case readout if readout in self.available_readout_types:
-                        ReadoutClass = self.available_readout_types[readout]
-                    case _:
-                        raise ValueError(
-                            f'{method} not available!',
-                            'check your available_readout_types'
-                        )
+                if method in self.available_abstract_readouts:
+                    ReadoutClass = self.available_abstract_readouts[method]
+                else:
+                    raise ValueError(
+                        f"{method} not available!",
+                        "check your available_abstract_readouts"
+                    )
                 logging.debug(
                     "Adding '%s' readout to sequence '%s' with name '%s'",
                     method,

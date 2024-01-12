@@ -11,6 +11,7 @@ class Signal:
         name: str,
         sequence,
         config: dict,
+        available_readout_points = None
         ):
         """
         Constructor method of Signal class
@@ -23,6 +24,10 @@ class Signal:
         self.name = name
         self.sequence = sequence
         self.config = config
+        if available_readout_points is None:
+            self.available_readout_points = {}
+        else:
+            self.available_readout_points = available_readout_points
 
         self._observables = {}
         self._readout_elements = self.config["elements"]
@@ -50,26 +55,6 @@ class Signal:
             readout_point.qua_save_streams()
             logging.debug("Saving streams of readout point %s", point_name)
 
-    def add_abstract_readout(
-        self,
-        abstract_readout,
-        name: str
-        ):
-        """
-        Adds an abstract readout to this signal
-        
-        Args:
-            abstract_readout (arbok_driver.AbstractReadout): Readout to add
-            name (str): Abstract readout to add
-        """
-        logging.debug(
-            "Adding abstract readout %s to signal %s",
-            self.name,
-            abstract_readout
-            )
-        setattr(self, name, abstract_readout)
-        self._abstract_readouts[name] = abstract_readout
-
     def readout_points_from_config(self, points_config: dict):
         """
         Adds the readout points to the signal from the given config
@@ -78,12 +63,20 @@ class Signal:
             points_config (dict): dictionairy configuring all readout points
         """
         for point_name, point_config in points_config.items():
+            method = point_config["method"]
+            if method in self.available_readout_points:
+                ReadoutClass = self.available_readout_points[method]
+            else:
+                raise ValueError(
+                    f"{method} not available!",
+                    "check your available_abstract_readouts"
+                )
             logging.debug(
                 "Adding readout point '%s' to signal '%s'",
                 point_name,
                 self.name
                 )
-            new_point = ReadoutPoint(
+            new_point = ReadoutClass(
                 point_name=point_name,
                 signal=self,
                 config=point_config

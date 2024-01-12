@@ -1,9 +1,11 @@
 """Module containing ReadoutPoint class"""
 import logging
+from abc import ABC, abstractmethod
+
 from qm import qua
 from .observable import Observable
 
-class ReadoutPoint:
+class ReadoutPoint(ABC):
     """
     Class managing voltage signal readout points of OPX
     """
@@ -17,7 +19,7 @@ class ReadoutPoint:
         Constructor method of ReadoutPoint class
         
         Args:
-            name (str): Name of the signal
+            point_name (str): Name of readout point
             signal (Signal): Signal corresponding to readout point
             config (dict): List of readout points
         """
@@ -35,6 +37,10 @@ class ReadoutPoint:
         self.observables = {}
         self.valid_observables = ('I', 'Q', 'IQ')
         self._add_qua_variable_attributes(self.signal.readout_elements)
+
+    @abstractmethod
+    def qua_measure(self):
+        """Measures I and Q at the given read point"""
 
     def qua_declare_variables(self):
         """Declares all neccessary qua variables"""
@@ -80,22 +86,6 @@ class ReadoutPoint:
         self.qua_measure()
         self._qua_save_vars()
 
-    def qua_measure(self):
-        """Measures I and Q at the given read point"""
-        for name, qm_element in self.signal.readout_elements.items():
-            self._check_IQ_qua_vars(name)
-            qua_var_I = getattr(self, f"{name}_I").qua_var
-            qua_var_Q = getattr(self, f"{name}_Q").qua_var
-            qua.measure(
-                'measure',
-                qm_element,
-                None,
-                qua.demod.full('x', qua_var_I),
-                qua.demod.full('y', qua_var_Q),
-                )
-            if 'IQ' in self.config["observables"]:
-                qua.assign(
-                    getattr(self, f"{name}_IQ").qua_var, qua_var_I + qua_var_Q)
 
     def _qua_save_vars(self):
         """Saves streams after measurement"""
