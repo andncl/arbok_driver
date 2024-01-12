@@ -81,7 +81,12 @@ class AbstractReadout(ABC):
         attributes = attr_path.split('.')
         current_obj = self.sequence
         for attr_name in attributes:
-            current_obj = getattr(current_obj, attr_name)
+            try:
+                current_obj = getattr(current_obj, attr_name)
+            except AttributeError as exc:
+                raise AttributeError(
+                    f'Attribute {attr_name} not found in {current_obj.name}'
+                ) from exc
         if isinstance(current_obj, AbstractReadout):
             current_obj = current_obj.observable
         if not isinstance(current_obj, ObservableBase):
