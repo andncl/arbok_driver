@@ -359,7 +359,7 @@ class SequenceBase(Instrument):
         return element_dict
 
 
-    def find_parameters(self, key: str) -> dict:
+    def find_parameters(self, key: str, elements: list = None) -> dict:
         """
         Finds all parameters generated from elements and a the given key.
         Similar to `find_parameters_from_keywords` but returns a non nested
@@ -370,12 +370,15 @@ class SequenceBase(Instrument):
 
         Args:
             key (str): Name of the searched parameters
+            elements (list): List of elements to be searched for
 
         Returns:
             dict: Dict with all found SequenceParameters and elements as keys
         """
         parameters = {}
-        for element in self.sample.elements:
+        if elements is None:
+            elements = self.sample.elements
+        for element in elements:
             if hasattr(self, f"{key}_{element}"):
                 parameters[element] = getattr(self, f"{key}_{element}")
         return parameters
