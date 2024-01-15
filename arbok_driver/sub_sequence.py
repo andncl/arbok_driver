@@ -1,5 +1,6 @@
 """ Module containing Sequence class """
 import logging
+from typing import Any
 
 from .sample import Sample
 from .sequence import Sequence
@@ -56,3 +57,23 @@ class SubSequence(SequenceBase):
             return f"{self.name}__{path}"
         else:
             return self._parent_sequence.get_sequence_path(f"{self.name}__{path}")
+
+    def __getattr__(self, key: str) -> Any:
+        """Returns parameter from self. If parameter is not found in self, 
+        searches parent sequence"""
+        if key in self.parameters:
+            return self.parameters[key]
+        elif self.parent_sequence is None:
+            raise AttributeError(
+                f"Sub-sequence {self.name} does not have attribute {key}")
+        else:
+            return self._return_parent_sequence_parameters(key)
+
+    def _return_parent_sequence_parameters(self, key: str) -> Any:
+        """Returns attribute from parent sequence"""
+        logging.debug("Searching parent sequence %s for parameter %s",
+                        self.parent_sequence.name, key)
+        if key in self.parent_sequence.parameters:
+            return self.parent_sequence.parameters[key]
+        raise AttributeError(
+            f"Parameter {key} not found in {self.parent_sequence.name}")
