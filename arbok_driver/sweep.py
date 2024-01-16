@@ -63,13 +63,15 @@ class Sweep:
                 if isinstance(value, (list, np.ndarray)):
                     self._config_to_register[parameter] = value
                 elif isinstance(value, int):
-                    # creates a mock set of values (stream array indices)
+                    ### creates a mock set of values (stream array indices)
                     self._config_to_register[parameter] = np.arange(value)
-                    parameter.input_stream = True
                 else:
                     raise ValueError(
                         "Keys in sweep dictionairies must be of type int, list"
                         f"or numpy.ndarray, is:  {type(value)}")
+            if isinstance(self.config[parameter], int):
+                parameter.input_stream = True
+                parameter.add_stream_param_to_sequence()
 
     def check_input_dict(self) -> None:
         """
@@ -98,7 +100,7 @@ class Sweep:
                 raise ValueError(
                         "Keys in sweep dictionairies must be of type int, list"
                         f"or numpy.ndarray, is:  {type(values)}")
-        # checks if all setpoint arrays have the same length
+        ### checks if all setpoint arrays have the same length
         if param_arrays:
             list_iter = iter(param_arrays)
             length = len(next(list_iter))
