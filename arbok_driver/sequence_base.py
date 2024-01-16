@@ -7,17 +7,12 @@ import warnings
 
 import numpy as np
 
-from qcodes.instrument import InstrumentModule, Instrument
+from qcodes.instrument import Instrument
 from qcodes.validators import Arrays
 
 from qm import SimulationConfig, generate_qua_script, qua
 from qm.QuantumMachinesManager import QuantumMachinesManager
 from qm.simulate.credentials import create_credentials
-from qm.qua import (
-    program, infinite_loop_, pause, stream_processing,
-    declare, for_, assign, fixed, advance_input_stream
-)
-from qm import qua
 
 from .sample import Sample
 from .sequence_parameter import SequenceParameter
@@ -73,7 +68,7 @@ class SequenceBase(Instrument):
         List of `SubSequences`s that build the given sequence
         """
         return self._sub_sequences
-    
+
     @property
     def gettables(self) -> list:
         """
@@ -106,11 +101,6 @@ class SequenceBase(Instrument):
                 )
         for param_name, param_dict in config.items():
             self._add_param(param_name, param_dict)
-
-    # def add_elements_from_config(self, elements config):
-    #     """
-    #     Adds opx elements from the sequence config
-    #     """
 
     def get_qua_program_as_str(self) -> str:
         """Returns the qua program as str. Will be compiled if it wasnt yet"""
@@ -150,7 +140,7 @@ class SequenceBase(Instrument):
         Returns:
             program: Program compiled into QUA language
         """
-        with program() as prog:
+        with qua.program() as prog:
             self.get_qua_code(simulate)
         self._qua_program_as_str = generate_qua_script(prog)
         return prog
@@ -168,12 +158,12 @@ class SequenceBase(Instrument):
                 "The sub sequence {self.name} is not linked to a sequence")
         self.qua_declare_sweep_vars()
         self.recursive_qua_generation(seq_type = 'declare')
-        with infinite_loop_():
+        with qua.infinite_loop_():
             if not simulate:
-                pause()
+                qua.pause()
             self.recursive_sweep_generation(
                 copy.copy(self.parent_sequence.sweeps))
-        with stream_processing():
+        with qua.stream_processing():
             self.recursive_qua_generation(seq_type = 'stream')
 
     def print_qua_program_to_file(self, file_name: str):
@@ -200,17 +190,17 @@ class SequenceBase(Instrument):
             sweeps (list): list of Sweep objects
         """
         if len(sweeps) == 0:
-            # this condition gets triggered if we arrive at the innermost loop
+            ### this condition gets triggered if we arrive at the innermost loop
             self.recursive_qua_generation('sequence')
             return
         new_sweeps = sweeps[:-1]
         current_sweep = sweeps[-1]
-        idx = declare(int)
+        idx = qua.declare(int)
         logging.debug("Adding qua loop for %s",
             [par.name for par in current_sweep.parameters])
         for param in current_sweep.parameters:
             if param.input_stream is not None:
-                advance_input_stream(param.input_stream)
+                qua.advance_input_stream(param.input_stream)
         with qua.for_(idx, 0, idx < current_sweep.length, idx + 1):
             for param in current_sweep.parameters:
                 if isinstance(param, SequenceParameter):
