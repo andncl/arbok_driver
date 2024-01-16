@@ -29,8 +29,7 @@ def run_qdac_measurement_from_opx_program(
     """
     ### Firstly, all settables are extracted from the sweep dict
     ### and the results arguments are created. Those will used for `add_result`
-    result_args_dict = _get_setpoints_and_result_arguments(
-        sweep_list, register_all)
+    result_args_dict = _get_result_arguments(sweep_list, register_all)
     ### The extracted settables are registered in the measurement
     for param, _ in result_args_dict.items():
         logging.debug("Registering sequence parameter %s", param.full_name)
@@ -46,7 +45,7 @@ def run_qdac_measurement_from_opx_program(
     ### qcodes (non-opx) parameters
     with measurement.run() as datasaver:
         _create_recursive_measurement_loop(
-            program = sequence,
+            sequence = sequence,
             datasaver = datasaver,
             sweeps_list_temp = sweep_list,
             res_args_dict= result_args_dict,
@@ -56,7 +55,7 @@ def run_qdac_measurement_from_opx_program(
     return dataset
 
 
-def _get_setpoints_and_result_arguments(
+def _get_result_arguments(
         sweep_list: list[dict],
         register_all: bool = False) -> dict:
     """
@@ -88,7 +87,7 @@ def _get_setpoints_and_result_arguments(
     return result_args_dict
 
 def _create_recursive_measurement_loop(
-        program: Program,
+        sequence: Sequence,
         datasaver: Runner,
         sweeps_list_temp: list,
         res_args_dict: dict,
@@ -104,8 +103,10 @@ def _create_recursive_measurement_loop(
     if not sweeps_list_temp:
         ### This is the end of the recursion.
         ### All gettables will be fetched in the following
+        logging.debug("Fetching gettables")
+        print(sequence.gettables)
         result_args_temp = []
-        for gettable in program.gettables:
+        for gettable in sequence.gettables:
             result_args_temp.append((gettable, gettable.get_raw(),))
         result_args_temp += list(res_args_dict.values())
         datasaver.add_result(*result_args_temp)
@@ -127,4 +128,4 @@ def _create_recursive_measurement_loop(
                 logging.debug( "Param %s on %s not registered",
                     param.instrument, param.name)
         _create_recursive_measurement_loop(
-                program, datasaver, sweeps_list_temp, res_args_dict)
+                sequence, datasaver, sweeps_list_temp, res_args_dict)
