@@ -24,7 +24,6 @@ class SubSequence(SequenceBase):
             name (str): Name of the program
             sample (Sample): Sample class describing phyical device
             param_config (dict): Dictionary containing all device parameters
-            *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(name, sample, param_config, **kwargs)
@@ -47,12 +46,12 @@ class SubSequence(SequenceBase):
         else:
             return self._parent_sequence.find_parent_sequence()
 
-    def get_sequence_path(self, path: str = None):
+    def get_sequence_path(self, path: str = None) -> str:
         """Returns the path of subsequences up to the parent sequence"""
         if path is None:
             path = ""
         if isinstance(self._parent_sequence, Sequence):
-            return f"{self._parent_sequence.name}__{self.name}__{path}" 
+            return f"{self._parent_sequence.name}__{self.name}__{path}"
         elif self._parent_sequence is None:
             return f"{self.name}__{path}"
         else:
