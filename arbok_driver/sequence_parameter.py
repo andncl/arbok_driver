@@ -35,9 +35,14 @@ class SequenceParameter(Parameter):
         self.input_stream = None
 
     @property
-    def sequence_path(self):
+    def sequence_path(self) -> str:
         """Returns the path through all parent sequences above"""
-        return f"{self.instrument.get_sequence_path()}{self.name}"
+        return f"{self.instrument.get_sequence_path()}_{self.name}"
+
+    @property
+    def full_name(self) -> str:
+        """Returns the full name of the parameter"""
+        return self.sequence_path
 
     def __call__(self, 
                  value: Optional[float | int | ndarray] = None
@@ -69,7 +74,6 @@ class SequenceParameter(Parameter):
         Declares the parameter inside qua code as variable and sets its class
         attributes accordingly. Note: This method can only be called inside the
         qua.program() context manager
-        TODO: Fix doctring!
 
         Args:
             setpoints (list, numpy.array): Setpoints for parameter sweep
@@ -97,4 +101,13 @@ class SequenceParameter(Parameter):
                 name = self.sequence_path,
                 size = int(setpoints)
             )
-    
+
+    def add_stream_param_to_sequence(self):
+        """Adds input stream to sequence"""
+        if self.input_stream is not None:
+            sequence = self.instrument.parent_sequence
+            sequence.add_input_stream_parameter(self)
+        else:
+            raise ValueError(
+                f"Parameter {self.name} has no input stream to add"
+            )
