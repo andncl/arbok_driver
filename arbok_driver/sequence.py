@@ -67,7 +67,7 @@ class Sequence(SequenceBase):
                 and np arrays as setpoints. All values (arrays) must have same 
                 length!
         """
-        if not all([isinstance(sweep_dict, dict) for sweep_dict in args]):
+        if not all(isinstance(sweep_dict, dict) for sweep_dict in args):
             raise TypeError("All arguments need to be of type dict")
         self._sweeps = []
         for sweep_dict in args:
@@ -85,8 +85,10 @@ class Sequence(SequenceBase):
         Args:
             *args (GettableParameter): Parameters to be measured
         """
-        if not all(isinstance(param, GettableParameter) for param in args):
-            raise TypeError("All arguments need to be GettableParameters")
+        arg_types = [type(param) for param in args]
+        if not all(arg_type == GettableParameter for arg_type in arg_types):
+            raise TypeError(
+                f"All args need to be GettableParameters, Are: {arg_types}")
         if not all(param.sequence.parent_sequence == self for param in args):
             raise AttributeError(
                 f"Not all GettableParameters belong to {self.name}")
