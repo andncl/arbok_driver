@@ -16,7 +16,6 @@ class GettableParameter(ParameterWithSetpoints):
     Attributes:
         unit (str): Unit of the parameter
         label (label): Label for parameter (printed on axis)
-        can_resume (bool): Whether the instance resumes the program after read
         readout (Readout): `Readout` instance that created this parameter
         sequence (Sequence): `Sequence` managing the sequence of QUA program
         qm_job (RunningQmJob): Running job on the opx to interact with
@@ -38,7 +37,6 @@ class GettableParameter(ParameterWithSetpoints):
         super().__init__(name, *args, **kwargs)
         self.unit = ""
         self.label = ""
-        self.can_resume = False
 
         self.sequence = sequence
         self.qm_job = None
@@ -50,7 +48,7 @@ class GettableParameter(ParameterWithSetpoints):
         self.batch_size = 0
         self.batch_count = 0
 
-    def set_raw(self, *args, **kwargs):
+    def set_raw(self, *args, **kwargs) -> None:
         """Empty abstract `set_raw` method. Parameter not meant to be set"""
         raise NotImplementedError("GettableParameters are not meant to be set")
 
@@ -66,8 +64,6 @@ class GettableParameter(ParameterWithSetpoints):
         self._fetch_from_opx()
         if self.buffer_val is None:
             warnings.warn("NO VALUE STREAMED!")
-        if self.sequence.stream_mode == "pause_each" and self.can_resume:
-            self.qm_job.resume()
         return self.buffer_val.reshape(tuple((reversed(self.shape))))
 
     def _set_up_gettable_from_program(self):
