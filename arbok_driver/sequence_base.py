@@ -177,7 +177,10 @@ class SequenceBase(Instrument):
         for sweep in self.parent_sequence.sweeps:
             for param, setpoints in sweep.config.items():
                 if isinstance(param, SequenceParameter):
-                    param.qua_declare(setpoints)
+                    if param.input_stream is None:
+                        logging.debug("Declaring %s as %s",
+                                      param.name, param.var_type)
+                        param.qua_declare(setpoints)
 
     def recursive_sweep_generation(self, sweeps):
         """
@@ -205,7 +208,13 @@ class SequenceBase(Instrument):
             for param in current_sweep.parameters:
                 if isinstance(param, SequenceParameter):
                     if param.input_stream is None:
+                        logging.debug("Assigning %s to %s (loop)",
+                                      param.name, param.qua_sweep_arr[idx])
                         qua.assign(param.qua_var, param.qua_sweep_arr[idx])
+                    else:
+                        logging.debug("Assigning %s to %s (input stream)",
+                                      param.name, param.qua_sweep_arr[idx])
+                        qua.assign(param.qua_var, param.input_stream[idx])
             self.recursive_sweep_generation(new_sweeps)
         return
 
@@ -265,7 +274,7 @@ class SequenceBase(Instrument):
                     set_cmd = None,
                     scale = scale,
                     var_type = qua_type,
-                    label = f"{element}: label"
+                    label = f"{element}: {label}"
                 )
         elif 'value' in param_dict:
             qua_type = int
