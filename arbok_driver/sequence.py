@@ -1,11 +1,13 @@
+"""Module containing sequence class"""
 import math
-from typing import Union
+from collections import Counter
 
 import numpy as np
 from qcodes.validators import Arrays
 import matplotlib.pyplot as plt
 
 from .gettable_parameter import GettableParameter
+from .sequence_parameter import SequenceParameter
 from .sample import Sample
 from .sequence_base import SequenceBase
 from .sweep import Sweep
@@ -33,11 +35,11 @@ class Sequence(SequenceBase):
         self.program = None
         self.parent_sequence = self
         self.stream_mode = "pause_each"
+        self._input_stream_parameters = []
         self._sweeps = []
         self._gettables = []
         self._sweep_size = 1
         self._setpoints_for_gettables = ()
-
 
     @property
     def sweeps(self) -> list:
@@ -55,6 +57,11 @@ class Sequence(SequenceBase):
         self._sweep_size = int(
             math.prod([sweep.length for sweep in self.sweeps]))
         return self._sweep_size
+
+    @property
+    def input_stream_parameters(self) -> list:
+        """Registered input stream parameters"""
+        return self._input_stream_parameters
 
     def set_sweeps(self, *args) -> None:
         """ 
@@ -85,21 +92,76 @@ class Sequence(SequenceBase):
         Args:
             *args (GettableParameter): Parameters to be measured
         """
-        arg_types = [type(param) for param in args]
-        if not all(arg_type == GettableParameter for arg_type in arg_types):
-            raise TypeError(
-                f"All args need to be GettableParameters, Are: {arg_types}")
-        if not all(param.sequence.parent_sequence == self for param in args):
-            raise AttributeError(
-                f"Not all GettableParameters belong to {self.name}")
+        self._check_given_gettables(args)
         self._gettables = list(args)
+        self._configure_gettables()
+        self.sweeps.reverse()
+
+    def _configure_gettables(self) -> None:
+        """
+        Configures all gettables to be measured. Sets batch_size, can_resume,
+        setpoints and vals
+        """
         for i, gettable in enumerate(self.gettables):
             gettable.batch_size = self.sweep_size
             gettable.can_resume = True if i==(len(self.gettables)-1) else False
             gettable.setpoints = self._setpoints_for_gettables
             gettable.vals = Arrays(
                 shape = tuple(sweep.length for sweep in self.sweeps))
-        self.sweeps.reverse()
+
+    def _check_given_gettables(self, gettables: list) -> None:
+        """
+        Check validity of given gettables
+        
+        Args:
+            gettables (list): List of GettableParameters
+
+        Raises:
+            TypeError: If not all gettables are of type GettableParameter
+            AttributeError: If not all gettables belong to self
+        """
+        all_gettable_parameters = all(
+            isinstance(gettable, GettableParameter) for gettable in gettables)
+        all_gettables_from_self = all(
+            gettable.sequence.parent_sequence == self for gettable in gettables)
+        if not all_gettable_parameters:
+            raise TypeError(
+                f"All args need to be GettableParameters, Are: {gettables}")
+        if not all_gettables_from_self:
+            raise AttributeError(
+                f"Not all GettableParameters belong to {self.name}")
+
+    def get_sequence_path(self):
+        """Returns its name since sequence is the top level sequence"""
+        return self.name
+
+    def add_input_stream_parameter(self, parameter) -> None:
+        """Adds given parameter to input stream parameters"""
+        if not isinstance(parameter, SequenceParameter):
+            raise TypeError(
+                "Parameter must be of type SequenceParameter, "
+                f"is: {type(parameter)}"
+                )
+        self._input_stream_parameters.append(parameter)
+
+    def advance_input_streams(self, new_value_dict: dict) -> None:
+        """
+        Advances all input streams by one step with the new given values
+        
+        Args:
+            new_value_dict (dict): Dictionary containing all parameters and 
+                their new values
+        """
+        if Counter(new_value_dict.keys()) != Counter(self.input_stream_parameters):
+            raise KeyError(
+                "Given value dict must contain all input stream parameters"
+                f"given are: {new_value_dict.keys()}.\n Required are: "
+                f"{self.input_stream_parameters}"
+                )
+        for parameter in self.input_stream_parameters:
+            self.program.qm_job.advance_input_stream(
+                name = parameter.full_name
+            )
 
     def plot_current_histograms(self, gettables: list = None, bins: int = 50):
         """
@@ -108,7 +170,7 @@ class Sequence(SequenceBase):
         Args:
             gettables (list, GettableParameter): Parameter or list of parameters
                 to plot histograms for
-            bins (int): Number of bins for histogram        
+            bins (int): Number of bins for histogram
         """
         gettable_list = []
         if gettables is None:
