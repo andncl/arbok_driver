@@ -1,4 +1,4 @@
-""" Helper tools for running and measuring OPX programs"""
+""" Helper tools for running and measuring OPX sequences"""
 import copy
 import logging
 import re
@@ -57,11 +57,11 @@ def run_qdac_measurement_from_opx_program(
     ):
     """ 
     Runs QCoDeS `measurement` based on specified settables and gettables on
-    the given opx `program` and and returns the resulting dataset with an
+    the given opx `sequence` and and returns the resulting dataset with an
     amount of `shots`
     
     Args:
-        program (Program): arbok_driver Program, parameterizing measurement
+        sequence (Program): arbok_driver Program, parameterizing measurement
         measurement (Measurement): qcodes measurement object
         sweep_list (list[dict]): List of dictionairies with params as keys and
             np.ndarrays as settables. Each list entry creates one sweep axis.

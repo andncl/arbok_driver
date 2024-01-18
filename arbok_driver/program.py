@@ -2,7 +2,7 @@ import copy
 from typing import Union
 
 from qm import qua, SimulationConfig, generate_qua_script
-from qm import QuantumMachinesManager
+from qm.quantum_machines_manager import QuantumMachinesManager
 
 from qcodes.instrument import Instrument
 from qcodes.parameters import Parameter
