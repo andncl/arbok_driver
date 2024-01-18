@@ -1,10 +1,53 @@
 """ Helper tools for running and measuring OPX programs"""
 import copy
 import logging
+import re
 
 from qcodes.dataset import Measurement
 from qcodes.dataset.measurements import Runner
 from arbok_driver import Program, Sequence
+
+def create_measurement_loop(
+    sequence: Sequence,
+    measurement: Measurement,
+    sweep_list: list[dict],
+    register_all: bool = False,
+    ):
+    """Decorator to create a measurement loop for a given measurement"""
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            ### Firstly, all settables are extracted from the sweep dict and the
+            ### results arguments are created. Those will used for `add_result`
+            result_args_dict = _get_result_arguments(sweep_list, register_all)
+            print("RES ARGS: ", result_args_dict.keys())
+            ### The extracted settables are registered in the measurement
+            for param, _ in result_args_dict.items():
+                logging.debug(
+                    "Registering sequence parameter %s", param.full_name)
+                measurement.register_parameter(param)
+            ### The gettables are registered in the measurement
+            for gettable in sequence.gettables:
+                gettable_setpoints = result_args_dict.keys()
+                logging.debug("Registering gettable %s", gettable_setpoints)
+                measurement.register_parameter(
+                    gettable, setpoints = gettable_setpoints)
+
+            print("MEAS PARAMS: ", measurement.parameters.keys())
+            ### The measurement is run with the recursive measurement loop over
+            ### the qcodes (non-opx) parameters
+            with measurement.run() as datasaver:
+                _create_recursive_measurement_loop(
+                    sequence = sequence,
+                    datasaver = datasaver,
+                    sweeps_list_temp = sweep_list,
+                    res_args_dict= result_args_dict,
+                    )
+                func(*args, **kwargs)
+                dataset = datasaver.dataset
+                print("DONE")
+            return dataset
+        return wrapper
+    return decorator
 
 def run_qdac_measurement_from_opx_program(
     sequence: Sequence,
@@ -30,6 +73,7 @@ def run_qdac_measurement_from_opx_program(
     ### Firstly, all settables are extracted from the sweep dict
     ### and the results arguments are created. Those will used for `add_result`
     result_args_dict = _get_result_arguments(sweep_list, register_all)
+    print("RES ARGS: ", result_args_dict.keys())
     ### The extracted settables are registered in the measurement
     for param, _ in result_args_dict.items():
         logging.debug("Registering sequence parameter %s", param.full_name)
@@ -40,7 +84,7 @@ def run_qdac_measurement_from_opx_program(
         logging.debug("Registering gettable %s", gettable_setpoints)
         measurement.register_parameter(gettable, setpoints = gettable_setpoints)
 
-    print(measurement.parameters)
+    print("MEAS PARAMS: ", measurement.parameters.keys())
     ### The measurement is run with the recursive measurement loop over the
     ### qcodes (non-opx) parameters
     with measurement.run() as datasaver:
@@ -106,6 +150,7 @@ def _create_recursive_measurement_loop(
         logging.debug("Fetching gettables")
         print(sequence.gettables)
         result_args_temp = []
+        sequence.program.qm_job.resume()
         for gettable in sequence.gettables:
             result_args_temp.append((gettable, gettable.get_raw(),))
         result_args_temp += list(res_args_dict.values())
