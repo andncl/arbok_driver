@@ -1,76 +1,76 @@
-""" Helper tools for running and measuring OPX programs"""
+""" Helper tools for running and measuring OPX sequences"""
 import copy
 import logging
 
 from qcodes.dataset import Measurement
 
-from arbok_driver import Program
+from arbok_driver import Program, Sequence
 
-def register_opx_program_qc_params_on_measurement(
-    program: Program,
+def register_opx_sequence_qc_params_on_measurement(
+    sequence: Program,
     measurement: Measurement
     ):
     """
-    Registeres QCoDeS params describing the given OPX program on the QCoDeS
+    Registeres QCoDeS params describing the given OPX sequence on the QCoDeS
     measurement object
     
     Args:
-        program (Program): arbok_driver Program
+        sequence (Program): arbok_driver Program
         measurement (Measurement): QCoDeS measurement object
     Returns:
         QCoDes measurement object: Measurement with registered parameters
     """
-    if not hasattr(program, 'iteration'):
-        program.add_parameter(
+    if not hasattr(sequence, 'iteration'):
+        sequence.add_parameter(
             'iteration', initial_value = 0, get_cmd = None, set_cmd = None)
 
-    measurement.register_parameter(program.iteration)
-    for gettable in program.gettables:
+    measurement.register_parameter(sequence.iteration)
+    for gettable in sequence.gettables:
         measurement.register_parameter(
-            gettable, setpoints = (program.iteration,) )
+            gettable, setpoints = (sequence.iteration,) )
     return measurement
 
-def run_qc_measurement_from_opx_program(
-    program: Program,
+def run_qc_measurement_from_opx_sequence(
+    sequence: Sequence,
     measurement: Measurement,
     shots: int
     ):
     """ 
     Runs QCoDeS `measurement` based on specified settables and gettables on
-    the given opx `program` and and returns the resulting dataset with an
+    the given opx `sequence` and and returns the resulting dataset with an
     amount of `shots`
     
     Args:
-        program (Program): arbok_driver Program, parameterizing measurement
+        sequence (Program): arbok_driver Program, parameterizing measurement
         measurement (Measurement): qcodes measurement object
         shots (int): amount of repetitions to be performed for averaging  
     Returns:
         dataset: QCoDeS dataset
     """
-    register_opx_program_qc_params_on_measurement(program, measurement)
+    register_opx_sequence_qc_params_on_measurement(sequence, measurement)
     with measurement.run() as datasaver:
         for shot in range(shots):
-            program.iteration.set(shot)
-            add_result_args = ((program.iteration, program.iteration.get()),)
+            sequence.iteration.set(shot)
+            add_result_args = ((sequence.iteration, sequence.iteration.get()),)
 
-            for gettable in program.gettables:
+            for gettable in sequence.gettables:
                 add_result_args += ((gettable, gettable.get_raw(),),)
             datasaver.add_result(*add_result_args)
         dataset = datasaver.dataset
     return dataset
 
-def run_qdac_measurement_from_opx_program(
-    program: Program,
+def run_qdac_measurement_from_opx_sequence(
+    sequence: Program,
     measurement: Measurement,
     sweep_list: list[dict],
     ):
     """ 
     Runs QCoDeS `measurement` based on specified settables and gettables on
-    the given opx `program` and and returns the resulting dataset with an
+    the given opx `sequence` and and returns the resulting dataset with an
     amount of `shots`
     
     Args:
-        program (Program): arbok_driver Program, parameterizing measurement
+        sequence (Program): arbok_driver Program, parameterizing measurement
         measurement (Measurement): qcodes measurement object
         sweep_list (list[dict]): List of dictionairies with params as keys and
             np.ndarrays as settables. Each list entry creates one sweep axis.
@@ -86,7 +86,7 @@ def run_qdac_measurement_from_opx_program(
         """
         result_args_temp = copy.copy(result_args_temp)
         if not sweeps_list_temp:
-            for gettable in program.gettables:
+            for gettable in sequence.gettables:
                 result_args_temp.append((gettable, gettable.get_raw(),))
             result_args_temp += list(res_args_dict.values())
             datasaver.add_result(*result_args_temp)
@@ -119,7 +119,7 @@ def run_qdac_measurement_from_opx_program(
                 gettable_setpoints.append(param)
             logging.debug("Register settable %s on axis %s", param.name, i)
 
-    for gettable in program.gettables:
+    for gettable in sequence.gettables:
         logging.debug("Register gettable %s", gettable_setpoints)
         measurement.register_parameter(gettable, setpoints = gettable_setpoints)
 
