@@ -89,8 +89,6 @@ class Program(Instrument):
             for sequence in self._sequences:
                 with qua.infinite_loop_():
                     if not simulate:
-                        #if sequence.input_streams is not None:
-                        #    sequence.advance_input_streams()
                         qua.pause()
                     sequence.recursive_sweep_generation(
                         copy.copy(sequence.sweeps))
@@ -108,8 +106,6 @@ class Program(Instrument):
         """
         self.qm_job = self.opx.execute(qua_program)
         self.result_handles = self.qm_job.result_handles
-        if self.stream_mode == "pause_each":
-            self.qm_job.resume()
 
     def _register_qc_params_in_measurement(self, measurement: Measurement):
         """
