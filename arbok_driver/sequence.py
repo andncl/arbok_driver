@@ -187,10 +187,10 @@ class Sequence(SequenceBase):
             figsize = (5, 3*len(self.gettables))
             )
 
-        ALPHA = 1
+        ALPHA = 0.8
         for i, gettable in enumerate(gettable_list):
             current_gettable = getattr(
-                gettable.instrument, f"{gettable.readout.name}_read")
+                gettable.instrument, f"{gettable.name}")
             current_vals = np.array(current_gettable.get_all(), dtype = float)
             ax[i].hist(
                 current_vals,
@@ -198,12 +198,6 @@ class Sequence(SequenceBase):
                 label = current_gettable.name,
                 alpha = ALPHA,
                 color = 'black'
-                )
-            ax[i].axvline(
-                gettable.readout.threshold,
-                label = "threshold",
-                alpha = ALPHA,
-                color = 'red'
                 )
             ax[i].set_xlabel("SET read current histogram")
             ax[i].set_ylabel("counts")
