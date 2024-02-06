@@ -382,6 +382,11 @@ class SequenceBase(Instrument):
                 parameters[element] = getattr(self, f"{key}_{element}")
         return parameters
 
+    def find_parameter(self, key: str, element: str):
+        """Returns parameter with a certain key for a given element"""
+        parameter = getattr(self, f"{key}_{element}")
+        return parameter
+
     def ask_raw(self, *args):
         """Overwrites abstract method"""
         raise NotImplementedError("This driver does not support `ask_raw`")
