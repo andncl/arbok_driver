@@ -159,7 +159,7 @@ def _create_recursive_measurement_loop(
 
         ### Program is resumed and all gettables are fetched when ready
         sequence.program.qm_job.resume()
-        logging.debug("Fetching gettables")
+        logging.debug("Job resumed, Fetching gettables")
         result_args_temp = []
         for gettable in sequence.gettables:
             result_args_temp.append((gettable, gettable.get_raw(),))
