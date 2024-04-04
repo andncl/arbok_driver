@@ -1,7 +1,11 @@
 """ Module containing GettableParameter class """
 
 import warnings
+import contextlib
+import sys, io, os
 import logging as lg
+
+from rich.progress import Progress
 import numpy as np
 import matplotlib.pyplot as plt
 from qcodes.parameters import ParameterWithSetpoints
@@ -52,7 +56,7 @@ class GettableParameter(ParameterWithSetpoints):
         """Empty abstract `set_raw` method. Parameter not meant to be set"""
         raise NotImplementedError("GettableParameters are not meant to be set")
 
-    def get_raw(self) -> np.ndarray:
+    def get_raw(self, progress_bar = None) -> np.ndarray:
         """ 
         Get method to retrieve a single batch of data from a running measurement
         On its first call, the gettables attributes get configured regarding
@@ -61,7 +65,7 @@ class GettableParameter(ParameterWithSetpoints):
         if self.result is None:
             # Will be executed on the first call of get()
             self._set_up_gettable_from_program()
-        self._fetch_from_opx()
+        self._fetch_from_opx(progress_bar = progress_bar)
         if self.buffer_val is None:
             warnings.warn("NO VALUE STREAMED!")
         return self.buffer_val.reshape(tuple((reversed(self.shape))))
@@ -80,7 +84,7 @@ class GettableParameter(ParameterWithSetpoints):
         self.shape = tuple(sweep.length for sweep in self.sequence.sweeps)
         self.batch_size = self.sequence.sweep_size
 
-    def _fetch_from_opx(self):
+    def _fetch_from_opx(self, progress_bar = None):
         """
         Fetches and returns data from OPX after results came in.
         This method pauses as long as the required amount of results is not in.
@@ -93,17 +97,31 @@ class GettableParameter(ParameterWithSetpoints):
                 "OVERHEAD of data on OPX!",
                 "Try larger batches or other sweep type!"
             )
-        self._wait_until_buffer_full()
+        self._wait_until_buffer_full(progress_bar = progress_bar)
         self._fetch_opx_buffer()
 
-    def _wait_until_buffer_full(self):
+    def _wait_until_buffer_full(self, progress_bar = None):
         """
         This function is running until a batch with self.batch_size is ready
         """
-        while self.count_so_far < (self.batch_count + 1)*self.batch_size:
-            lg.info("Waiting: %s/%s results are in", 
-                self.count_so_far, (self.batch_count + 1)*self.batch_size)
+        # with Progress() as progress:
+        #     progress_bar = progress.add_task("[red]Total...",
+        #         total = self.batch_size)
+        last_counts = 0
+        processed_counts = self.batch_count*self.batch_size
+        while self.count_so_far-processed_counts < self.batch_size:
+            lg.info("Waiting: %s/%s results are in",
+                self.count_so_far, processed_counts + self.batch_size)
+            new_counts = self.count_so_far-processed_counts
+            if progress_bar is not None:
+                progress_bar[1].update(
+                    progress_bar[0], completed = new_counts)
+            last_counts = new_counts
             self.count_so_far = self.result.count_so_far()
+        new_counts = self.count_so_far-processed_counts
+        if progress_bar is not None:
+            progress_bar[1].update(progress_bar[0], completed = new_counts)
+        # iteration_progress_bar.close()
 
     def _fetch_opx_buffer(self):
         """
