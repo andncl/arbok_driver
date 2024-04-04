@@ -3,6 +3,8 @@ import copy
 import time
 import logging
 
+import numpy as np
+from rich.progress import Progress
 from qcodes.dataset import Measurement
 from qcodes.dataset.measurements import Runner
 
@@ -40,6 +42,8 @@ def create_measurement_loop(
     Returns:
         qcodes.Dataset: Dataset of the measurement
     """
+    sweep_lengths = [len(next(iter(dic.values()))) for dic in sweep_list]
+    nr_sweep_list_points = np.prod(sweep_lengths)
     def decorator(func):
         """Decorator to be returned"""
         def wrapper(*args, **kwargs):
@@ -64,21 +68,30 @@ def create_measurement_loop(
             ### the qcodes (non-opx) parameters
             with measurement.run() as datasaver:
                 ### Measurement loops are generated recursively
-                _create_recursive_measurement_loop(
-                    #*args,
-                    #**kwargs,
-                    sequence = sequence,
-                    datasaver = datasaver,
-                    sweeps_list_temp = sweep_list,
-                    res_args_dict= result_args_dict,
-                    inner_function=func,
-                    **kwargs
-                    )
+                with Progress() as progress_tracker:
+                    progress_bars = {}
+
+                    progress_bars['total_progress'] = progress_tracker.add_task(
+                        description = "[green]Total progress...",
+                        total = nr_sweep_list_points - 1)
+                    progress_bars['batch_progress'] = progress_tracker.add_task(
+                        description = "[cyan]Batch progress...",
+                        total = sequence.sweep_size)
+                    _create_recursive_measurement_loop(
+                        sequence = sequence,
+                        datasaver = datasaver,
+                        sweeps_list_temp = sweep_list,
+                        res_args_dict= result_args_dict,
+                        inner_function=func,
+                        progress_bars = progress_bars,
+                        progress_tracker = progress_tracker,
+                        **kwargs
+                        )
+                    print("Measurement finished!")
                 dataset = datasaver.dataset
             return dataset
         return wrapper
     return decorator
-
 
 def run_arbok_measurement(
     sequence,
@@ -138,6 +151,8 @@ def _create_recursive_measurement_loop(
         datasaver: Runner,
         sweeps_list_temp: list,
         res_args_dict: dict,
+        progress_bars: list,
+        progress_tracker: any,
         *args: any,
         inner_function = None,
         **kwargs: any
@@ -162,11 +177,21 @@ def _create_recursive_measurement_loop(
         logging.debug("Job resumed, Fetching gettables")
         result_args_temp = []
         for gettable in sequence.gettables:
-            result_args_temp.append((gettable, gettable.get_raw(),))
+            result_args_temp.append(
+                (
+                    gettable,
+                    gettable.get_raw(
+                        progress_bar = (
+                            progress_bars['batch_progress'], progress_tracker,
+                        )
+                    )
+                )
+            )
 
         ### Retreived results are added to the datasaver
         result_args_temp += list(res_args_dict.values())
         datasaver.add_result(*result_args_temp)
+        progress_tracker.update(progress_bars['total_progress'], advance=1)
         return
 
     ### The first axis will be popped from the list and iterated over
@@ -193,5 +218,7 @@ def _create_recursive_measurement_loop(
                 sweeps_list_temp = sweeps_list_temp,
                 res_args_dict = res_args_dict,
                 inner_function = inner_function,
+                progress_bars = progress_bars,
+                progress_tracker = progress_tracker,
                 **kwargs
                 )
