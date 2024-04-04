@@ -1,11 +1,7 @@
 """ Module containing GettableParameter class """
 
 import warnings
-import contextlib
-import sys, io, os
 import logging as lg
-
-from rich.progress import Progress
 import numpy as np
 import matplotlib.pyplot as plt
 from qcodes.parameters import ParameterWithSetpoints
@@ -104,10 +100,6 @@ class GettableParameter(ParameterWithSetpoints):
         """
         This function is running until a batch with self.batch_size is ready
         """
-        # with Progress() as progress:
-        #     progress_bar = progress.add_task("[red]Total...",
-        #         total = self.batch_size)
-        last_counts = 0
         processed_counts = self.batch_count*self.batch_size
         while self.count_so_far-processed_counts < self.batch_size:
             lg.info("Waiting: %s/%s results are in",
@@ -116,7 +108,6 @@ class GettableParameter(ParameterWithSetpoints):
             if progress_bar is not None:
                 progress_bar[1].update(
                     progress_bar[0], completed = new_counts)
-            last_counts = new_counts
             self.count_so_far = self.result.count_so_far()
         new_counts = self.count_so_far-processed_counts
         if progress_bar is not None:
