@@ -178,9 +178,9 @@ class SequenceBase(Instrument):
             for param, setpoints in sweep.config.items():
                 if isinstance(param, SequenceParameter):
                     if param.input_stream is None:
-                        logging.debug("Declaring %s as %s",
-                                      param.name, param.var_type)
-                        param.qua_declare(setpoints)
+                    logging.debug("Declaring %s as %s",
+                                    param.name, param.var_type)
+                    param.qua_declare(setpoints)
 
     def recursive_sweep_generation(self, sweeps):
         """
@@ -201,21 +201,9 @@ class SequenceBase(Instrument):
         idx = qua.declare(int)
         logging.debug("Adding qua loop for %s",
             [par.name for par in current_sweep.parameters])
-        for param in current_sweep.parameters:
-            if param.input_stream is not None:
-                qua.advance_input_stream(param.input_stream)
-        with qua.for_(idx, 0, idx < current_sweep.length, idx + 1):
-            for param in current_sweep.parameters:
-                if isinstance(param, SequenceParameter):
-                    if param.input_stream is None:
-                        logging.debug("Assigning %s to %s (loop)",
-                                      param.name, param.qua_sweep_arr[idx])
-                        qua.assign(param.qua_var, param.qua_sweep_arr[idx])
-                    else:
-                        logging.debug("Assigning %s to %s (input stream)",
-                                      param.name, param.qua_sweep_arr[idx])
-                        qua.assign(param.qua_var, param.input_stream[idx])
-            self.recursive_sweep_generation(new_sweeps)
+        current_sweep.qua_generate_parameter_sweep(
+            lambda: self.recursive_sweep_generation(new_sweeps)
+            )
         return
 
     def recursive_qua_generation(self, seq_type: str):
@@ -279,8 +267,11 @@ class SequenceBase(Instrument):
         elif 'value' in param_dict:
             qua_type = int
             if 'qua_type' in param_dict:
-                if param_dict['qua_type'] == 'fixed':
+                given_type = param_dict['qua_type']
+                if given_type == 'fixed':
                     qua_type = qua.fixed
+                if given_type == 'int':
+                    qua_type = int
             self.add_parameter(
                 name  = param_name,
                 config_name = param_name,
@@ -290,7 +281,7 @@ class SequenceBase(Instrument):
                 element = None,
                 set_cmd = None,
                 scale = 1,
-                var_type = int,
+                var_type = qua_type,
                 label = label
             )
         else:

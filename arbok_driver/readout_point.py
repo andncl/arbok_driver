@@ -24,6 +24,7 @@ class ReadoutPoint(ABC):
             config (dict): List of readout points
         """
         self.signal = signal
+        self.sequence = self.signal.sequence
         self.point_name = point_name
         self.name = f"{self.signal.name}__{point_name}"
         self.config = config
