@@ -63,7 +63,7 @@ class Observable(ObservableBase):
         self.element_name = element_name
         self.element = element
         self.name = f"{self.element_name}_{observable_name}"
-        self.full_name = f"{self.readout.name}__{self.name}"
+        self.full_name = f"{self.readout.sequence.name}_{self.readout.name}__{self.name}"
         self.signal = self.readout.signal
         self.qm_elements = list(set(self.signal.readout_elements.values()))
 
@@ -74,7 +74,8 @@ class AbstractObservable(ObservableBase):
         observable_name: str,
         abstract_readout,
         signal: str,
-        qua_type
+        qua_type,
+        adc_trace: bool = False,
         ):
         """
         Constructor method for AbstractObservable
@@ -83,14 +84,18 @@ class AbstractObservable(ObservableBase):
             observable_name (str): Name of the observable
             readout (AbstractReadout): Abstract readout under which the
                 observable will be registered
-            signal 
+            signal (Signal): Signal to be stored on
+            qua_type (type): type of variable to create
+            adc_stream (bool): Whether an ADC stream is saved. Defaults to False
         """
         super().__init__(observable_name, readout = abstract_readout)
         self.name = observable_name
         self.qua_type = qua_type
+        self.adc_trace = adc_trace
+
         self.signal = getattr(self.readout.sequence, signal)
         self.qm_elements = list(set(self.signal.readout_elements.values()))
-        self.full_name = f"{self.signal.name}__{self.name}"
+        self.full_name = f"{self.readout.sequence.name}_{self.signal.name}__{self.name}"
         self.signal.observables[self.full_name] = self
         setattr(self.signal, self.name, self)
         logging.debug(
