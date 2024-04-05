@@ -12,7 +12,7 @@ from .sequence import Sequence
 from .sample import Sample
 from . import utils
 
-class Program(Instrument):
+class ArbokDriver(Instrument):
     """
     Class containing all functionality to manage and run modular sequences on a 
     physical OPX instrument
@@ -29,7 +29,7 @@ class Program(Instrument):
         Constructor class for `Program` class
         
         Args:
-            name (str): Name of the program
+            name (str): Name of the instrument
             sample (Sample): Sample class describing phyical device
             param_config (dict): Dictionary containing all device parameters
             *args: Variable length argument list.
@@ -74,7 +74,7 @@ class Program(Instrument):
             new_sequence (Sequence): Sequence to be added
         """
         self._sequences.append(new_sequence)
-        new_sequence.program = self
+        new_sequence.driver = self
         self.add_submodule(new_sequence.name, new_sequence)
 
     def get_qua_program(self, simulate = False) -> qua.program:
