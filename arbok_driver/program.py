@@ -44,11 +44,16 @@ class Program(Instrument):
         self.stream_mode = "pause_each"
 
         self._sequences = []
+        self.add_parameter('iteration', get_cmd = None, set_cmd =None)
 
     @property
     def sequences(self):
         """Sequences to be run within program uploaded to the OPX"""
         return self._sequences
+
+    def reset_sequences(self):
+        self._sequences = []
+        self.submodules = {}
 
     def connect_opx(self, host_ip: str):
         """

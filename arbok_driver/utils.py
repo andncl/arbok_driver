@@ -1,8 +1,11 @@
 """Module containing various utils"""
+import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from qcodes.instrument import Instrument
+from qcodes.station import Station
 
 def plot_qmm_simulation_results(simulated_samples):
     """ 
@@ -161,3 +164,38 @@ def get_all_controller_results(simulated_samples: any) -> dict:
     if len(controller_dict) == 0:
         raise ValueError("No controller results found!")
     return controller_dict
+
+def set_qm_logging_to_file(filename):
+    """Changes the standart logging handle (stdout) to the given file"""
+    logger = logging.getLogger('qm')
+    logger.setLevel('DEBUG')
+
+    qm_log_file = open(filename, 'w')
+    lh = logging.StreamHandler(qm_log_file)
+    logger.addHandler(lh)
+    for handler in logger.handlers:
+        logger.removeHandler(handler)
+
+def remove_instrument(instrument_name: str, station: Station):
+    """
+    Deletes and removes an established instrument
+    Args:
+        instrument (str): name of instrument to delete
+        station (Station): Station that instrument is registered to
+    """
+    if instrument_name in station.components:
+        station.remove_component(instrument_name)
+        print(f"Removing '{instrument_name}' from station")
+
+    if instrument_name in globals():
+        instrument = eval(instrument_name)
+        print(f"closing and deleting '{instrument.name}'")
+        instrument.close()
+        del globals()[instrument_name]
+    else:
+        print(f"'{instrument_name}' is not deleted, it does not exist")
+    instrument_dict = Instrument._all_instruments
+    if instrument_name in dict(instrument_dict):
+        del instrument_dict[instrument_name]
+        print(
+            f"Removed '{instrument_name}' from global qcodes instrument index")
