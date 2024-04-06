@@ -1,6 +1,10 @@
 """ Module with Sweep class """
-import numpy as np
+import warnings
+import logging
 
+import numpy as np
+from qm import qua
+from qualang_tools import loops
 from qcodes.parameters import Parameter
 from .sequence_parameter import SequenceParameter
 
@@ -17,8 +21,12 @@ class Sweep:
         self._config_to_register = None
         self._parameters = None
         self._length = None
+        self._inputs_are_streamed = None
+        self._input_streams = None
+        self._can_be_parametrized = None
         self.register_all = register_all
         self.configure_sweep()
+        self._check_if_parametrizable()
 
     @property
     def parameters(self):
@@ -26,9 +34,34 @@ class Sweep:
         return self._parameters
 
     @property
+    def qua_variables(self):
+        """ Tuple containing all qua variables of parameters """
+        return tuple(par.qua_var for par in self.parameters)
+
+    @property
+    def qua_sweep_arrays(self):
+        """ Tuple containing all qua sweep arrays of parameters """
+        return tuple(par.qua_sweep_arr for par in self.parameters)
+
+    @property
     def length(self):
         """ Number of samples for parameters on the given axis """
         return self._length
+
+    @property
+    def input_streams(self):
+        """Returns all input streams if the sweep is set up to be streamed"""
+        return tuple(par.input_stream for par in self.parameters)
+
+    @property
+    def inputs_are_streamed(self):
+        """Whether sweep is fed by input stream"""
+        return self._inputs_are_streamed
+
+    @property
+    def can_be_parametrized(self):
+        """Whether sweep is fed by input stream"""
+        return self._check_if_parametrizable()
 
     @property
     def config(self) -> dict:
@@ -72,6 +105,10 @@ class Sweep:
             if isinstance(self.config[parameter], int):
                 parameter.input_stream = True
                 parameter.add_stream_param_to_sequence()
+        if all(param.input_stream is not None for param in self.parameters):
+            self._inputs_are_streamed = True
+        else:
+            self._inputs_are_streamed = False
 
     def check_input_dict(self) -> None:
         """
@@ -121,3 +158,76 @@ class Sweep:
                         f" same as static sweep array ({self._length})"
                     )
             self._length = param_streams[0]
+
+    def _check_if_parametrizable(self):
+        """
+        Checks whether the sweep array can be defined in terms of start, step
+        and stop (memory saving).
+        """
+        if self.inputs_are_streamed:
+            return False
+        if len(self.parameters)>1:
+            return False
+        sweep_arr = self.config[self.parameters[0]]
+        sweep_arr_differences = np.ediff1d(sweep_arr)
+        mean_step = np.mean(sweep_arr_differences)
+        if np.std(sweep_arr_differences) < 0.1*mean_step:
+            for parameter in self.parameters:
+                parameter.can_be_parametrized = True
+            return True
+        else:
+            return False
+
+    def qua_generate_parameter_sweep(self, next_action):
+        """
+        Runs a qua loop based on the configured method. Currently three
+        different methods are available:
+            1) From input stream
+            2) From parametrized array (start, stop, step)
+            3) From an explicitly defined qua array
+        """
+        if self.inputs_are_streamed:
+            self._qua_input_stream_loop(next_action)
+        elif self.can_be_parametrized:
+            self._qua_parmetrized_loop(next_action)
+        else:
+            self._qua_explicit_array_loop(next_action)
+
+
+    def _qua_input_stream_loop(self, next_action):
+        """Runs a qua for loop for an array that is imported from a stream"""
+        warnings.warn("Input streaming is not fully supported")
+        for param in self.parameters:
+            qua.advance_input_stream(param.input_stream)
+            logging.debug(
+                "Assigning %s with length %s (input stream)",
+                param.name, self.length)
+        with qua.for_each_(
+            self.qua_variables, self.input_streams):
+            next_action()
+
+    def _qua_parmetrized_loop(self, next_action):
+        """
+        Runs a qua for loop from parametrized qua_arange. Start, stop and step
+        are calculated from the input array
+        """
+        param = self.parameters[0]
+        sweep_array = param.get_raw()
+        step = np.mean(np.ediff1d(sweep_array))
+        start, stop = sweep_array[0], sweep_array[-1] + step
+        warnings.warn(
+            f"Your input array {param.qua_sweep_arr} for {param.name} "
+            "will be parametrized, check output"
+            )
+        with qua.for_(*loops.qua_arange(param.qua_var, start, stop, step)):
+            next_action()
+
+    def _qua_explicit_array_loop(self, next_action):
+        """Runs a qua for loop from explicitly defined qua arrays"""
+        for param in self.parameters:
+            logging.debug(
+                "Assigning %s to %s (loop)",
+                    param.name, param.qua_sweep_arr)
+        with qua.for_each_(self.qua_variables,
+                        self.qua_sweep_arrays):
+            next_action()
