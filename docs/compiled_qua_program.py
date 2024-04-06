@@ -1,6 +1,6 @@
 
-# Single QUA script generated at 2024-04-06 12:24:17.594850
-# QUA library version: 1.1.6
+# Single QUA script generated at 2024-04-06 16:53:00.317319
+# QUA library version: 1.1.7
 
 from qm.qua import *
 

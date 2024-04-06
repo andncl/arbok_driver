@@ -1,10 +1,10 @@
-"""Module containing generic sequence for a adiabatic sequence"""
+"""Module containing generic sequence for a simple square pulse sequence"""
 from qm import qua
 from arbok_driver import SubSequence, Sample, qua_helpers
 
 class SquarePulse(SubSequence):
     """
-    Class containing parameters and sequence for a square pulse
+    Class containing parameters and sequence for a simple square pulse
     """
     def __init__(self, name: str,sample: Sample, seq_config: dict):
         """
@@ -16,10 +16,9 @@ class SquarePulse(SubSequence):
             config (dict): config containing pulse parameters
         """
         super().__init__(name, sample, seq_config)
-        ### The section below is unique to this specific sequence
-
 
     def qua_sequence(self):
+        """Macro that will be played within the qua.program() context"""
         qua.align()
         qua.play('ramp'*qua.amp(self.amplitude()), self.element())
         qua.wait(self.t_square_pulse(), self.element())
