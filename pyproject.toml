@@ -25,6 +25,6 @@ dependencies = [
     "qcodes >= 0.42",
     "qualang_tools >= 0.15.2",
     "qcodes-contrib-drivers >= 0.18",
-    "rich >= 13.7.1,
+    "rich >= 13.7.1",
 ]
 dynamic = ["version"]
