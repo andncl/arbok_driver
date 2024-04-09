@@ -21,6 +21,8 @@ qm_config = {
                 1: {"offset": 0.0},
                 2: {"offset": 0.0},
                 3: {"offset": 0.0},
+                4: {"offset": 0.0},
+                5: {"offset": 0.0},
             },
             "analog_inputs": {
                 1: {"offset": 0.0, "gain_db": 0},
@@ -47,9 +49,27 @@ qm_config = {
                 "bias": "bias_gate_2_pulse",
             },
         },
-        "readout_element": {
+        "gate_3": {
             "singleInput": {
                 "port": ("con1", 3),
+            },
+            "hold_offset": {"duration": hold_offset_duration},  # in clock cycles (4ns)
+            "operations": {
+                "bias": "bias_gate_1_pulse",
+            },
+        },
+        "gate_4": {
+            "singleInput": {
+                "port": ("con1", 4),
+            },
+            "hold_offset": {"duration": hold_offset_duration},  # in clock cycles (4ns)
+            "operations": {
+                "bias": "bias_gate_2_pulse",
+            },
+        },
+        "readout_element": {
+            "singleInput": {
+                "port": ("con1", 5),
             },
             "operations": {
                 "readout": "readout_pulse",

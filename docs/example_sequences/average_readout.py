@@ -22,7 +22,6 @@ class Average(ReadoutPoint):
             config (dict): List of readout points
         """
         super().__init__(point_name, signal, config)
-        print(self.observables.keys())
 
     def qua_measure(self):
         """
