@@ -1,5 +1,5 @@
 
-# Single QUA script generated at 2024-04-09 13:32:30.000334
+# Single QUA script generated at 2024-04-09 15:13:31.750022
 # QUA library version: 1.1.7
 
 from qm.qua import *
