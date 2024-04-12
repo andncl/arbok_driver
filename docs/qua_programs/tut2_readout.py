@@ -1,5 +1,5 @@
 
-# Single QUA script generated at 2024-04-09 11:46:39.949217
+# Single QUA script generated at 2024-04-12 13:25:52.707227
 # QUA library version: 1.1.7
 
 from qm.qua import *
@@ -36,20 +36,20 @@ with program() as prog:
         r7 = declare_stream()
         save(v7, r7)
     with stream_processing():
-        r1.buffer(1).save("dummy_readout_qubit1__ref__sensor1_I_buffer")
-        r1.save_all("dummy_readout_qubit1__ref__sensor1_I")
-        r2.buffer(1).save("dummy_readout_qubit1__ref__sensor1_Q_buffer")
-        r2.save_all("dummy_readout_qubit1__ref__sensor1_Q")
-        r3.buffer(1).save("dummy_readout_qubit1__ref__sensor1_IQ_buffer")
-        r3.save_all("dummy_readout_qubit1__ref__sensor1_IQ")
-        r4.buffer(1).save("dummy_readout_qubit1__read__sensor1_I_buffer")
-        r4.save_all("dummy_readout_qubit1__read__sensor1_I")
-        r5.buffer(1).save("dummy_readout_qubit1__read__sensor1_Q_buffer")
-        r5.save_all("dummy_readout_qubit1__read__sensor1_Q")
-        r6.buffer(1).save("dummy_readout_qubit1__read__sensor1_IQ_buffer")
-        r6.save_all("dummy_readout_qubit1__read__sensor1_IQ")
-        r7.buffer(1).save("dummy_readout_qubit1__diff_buffer")
-        r7.save_all("dummy_readout_qubit1__diff")
+        r1.buffer(1).save("dummy_readout__qubit1__reference__sensor1_I_buffer")
+        r1.save_all("dummy_readout__qubit1__reference__sensor1_I")
+        r2.buffer(1).save("dummy_readout__qubit1__reference__sensor1_Q_buffer")
+        r2.save_all("dummy_readout__qubit1__reference__sensor1_Q")
+        r3.buffer(1).save("dummy_readout__qubit1__reference__sensor1_IQ_buffer")
+        r3.save_all("dummy_readout__qubit1__reference__sensor1_IQ")
+        r4.buffer(1).save("dummy_readout__qubit1__read__sensor1_I_buffer")
+        r4.save_all("dummy_readout__qubit1__read__sensor1_I")
+        r5.buffer(1).save("dummy_readout__qubit1__read__sensor1_Q_buffer")
+        r5.save_all("dummy_readout__qubit1__read__sensor1_Q")
+        r6.buffer(1).save("dummy_readout__qubit1__read__sensor1_IQ_buffer")
+        r6.save_all("dummy_readout__qubit1__read__sensor1_IQ")
+        r7.buffer(1).save("dummy_readout__qubit1__diff_buffer")
+        r7.save_all("dummy_readout__qubit1__diff")
 
 
 config = None
