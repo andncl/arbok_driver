@@ -13,7 +13,7 @@ from .sequence_base import SequenceBase
 from .sweep import Sweep
 
 class Sequence(SequenceBase):
-    """Class describing a Sequence in an OPX program"""
+    """Class describing a Sequence in an OPX driver"""
     def __init__(
             self,
             name: str,
@@ -32,7 +32,7 @@ class Sequence(SequenceBase):
             **kwargs: Key word arguments for InstrumentModule 
         """
         super().__init__(name, sample, param_config, **kwargs)
-        self.program = None
+        self.driver = None
         self.parent_sequence = self
         self.stream_mode = "pause_each"
         self._input_stream_parameters = []
@@ -159,7 +159,7 @@ class Sequence(SequenceBase):
                 f"{self.input_stream_parameters}"
                 )
         for parameter in self.input_stream_parameters:
-            self.program.qm_job.advance_input_stream(
+            self.driver.qm_job.advance_input_stream(
                 name = parameter.full_name
             )
 

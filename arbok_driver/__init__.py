@@ -4,7 +4,7 @@ from .measurement_helpers import (
     run_arbok_measurement, create_measurement_loop
 )
 from .observable import Observable, AbstractObservable
-from .program import Program
+from .arbok_driver import ArbokDriver
 from .read_sequence import ReadSequence
 from .sample import Sample
 from .sequence import Sequence

@@ -1,0 +1,514 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="320mm"
+   height="100mm"
+   viewBox="0 0 320 100"
+   version="1.1"
+   id="svg364"
+   inkscape:version="1.2.2 (732a01da63, 2022-12-09)"
+   sodipodi:docname="readout_sequence_scheme.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview366"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="1.0759173"
+     inkscape:cx="626.44218"
+     inkscape:cy="232.35986"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="1072"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g1054" />
+  <defs
+     id="defs361">
+    <rect
+       x="689.64406"
+       y="250.01921"
+       width="225.85378"
+       height="116.17993"
+       id="rect1501" />
+    <rect
+       x="690.73079"
+       y="49.948183"
+       width="224.10961"
+       height="116.32669"
+       id="rect1495" />
+    <rect
+       x="966.76022"
+       y="260.25632"
+       width="232.65337"
+       height="124.21325"
+       id="rect1280" />
+    <rect
+       x="966.10301"
+       y="49.29097"
+       width="235.93945"
+       height="112.3834"
+       id="rect1274" />
+    <rect
+       x="969.40534"
+       y="49.26029"
+       width="223.53019"
+       height="118.50353"
+       id="rect1249" />
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       transform="matrix(0.26458333,0,0,0.26458333,-8.4613066,-33.400478)"
+       id="g1054">
+      <path
+         d="m 55.8019,133.5 c -6.7941,0 -12.3018,5.508 -12.3018,12.302 v 340.396 c 0,6.794 5.5077,12.302 12.3018,12.302 H 661.198 c 6.794,0 12.302,-5.508 12.302,-12.302 V 145.802 c 0,-6.794 -5.508,-12.302 -12.302,-12.302 z"
+         stroke="#000000"
+         stroke-width="3.06142"
+         stroke-linejoin="round"
+         stroke-miterlimit="10"
+         fill="#92d050"
+         fill-rule="evenodd"
+         id="path890" />
+      <text
+         font-family="'Liberation Sans', 'Liberation Sans_MSFontService', sans-serif"
+         font-weight="700"
+         font-size="21px"
+         transform="translate(57.4912,170)"
+         id="text892">ReadSequence</text>
+      <text
+         font-family="'Liberation Sans', 'Liberation Sans_MSFontService', sans-serif"
+         font-weight="700"
+         font-size="21px"
+         transform="translate(216.385,170)"
+         id="text894">(</text>
+      <text
+         font-family="'Liberation Sans', 'Liberation Sans_MSFontService', sans-serif"
+         font-weight="700"
+         font-size="21px"
+         transform="translate(223.491,170)"
+         id="text896">SubSequence</text>
+      <text
+         font-family="'Liberation Sans', 'Liberation Sans_MSFontService', sans-serif"
+         font-weight="700"
+         font-size="21px"
+         transform="translate(364.578,170)"
+         id="text898">)</text>
+      <text
+         font-family="'Liberation Sans', 'Liberation Sans_MSFontService', sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(57.4912,190)"
+         id="text900">Child class of</text>
+      <text
+         font-family="'Liberation Sans', 'Liberation Sans_MSFontService', sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(157.091,190)"
+         id="text902">SubSequence</text>
+      <text
+         font-family="'Liberation Sans', 'Liberation Sans_MSFontService', sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(257.638,190)"
+         id="text904">. Supports parameterized sequence building, sweeps,</text>
+      <text
+         font-family="'Liberation Sans', 'Liberation Sans_MSFontService', sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(57.4912,208)"
+         id="text906">etc</text>
+      <text
+         font-family="'Liberation Sans', 'Liberation Sans_MSFontService', sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(83.2846,208)"
+         id="text908">like its parent. Can handle</text>
+      <text
+         font-family="'Liberation Sans', 'Liberation Sans_MSFontService', sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(272.751,208)"
+         id="text910">ReadoutPoints</text>
+      <text
+         font-family="'Liberation Sans', 'Liberation Sans_MSFontService', sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(382.171,208)"
+         id="text912">and</text>
+      <text
+         font-family="'Liberation Sans', 'Liberation Sans_MSFontService', sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(412.438,208)"
+         id="text914">AbstractReadouts</text>
+      <path
+         d="M 90,236.24 C 90,235.555 90.555,235 91.2396,235 H 176.76 c 0.685,0 1.24,0.555 1.24,1.24 v 28.52 c 0,0.685 -0.555,1.24 -1.24,1.24 H 91.2396 C 90.555,266 90,265.445 90,264.76 Z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#0070c0"
+         fill-rule="evenodd"
+         id="path916" />
+      <text
+         fill="#e8e8e8"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="24px"
+         id="text918"
+         x="100.269"
+         y="258">Signal</text>
+      <path
+         d="m 460,236.24 c 0,-0.685 0.555,-1.24 1.24,-1.24 h 195.52 c 0.685,0 1.24,0.555 1.24,1.24 v 28.52 c 0,0.685 -0.555,1.24 -1.24,1.24 H 461.24 c -0.685,0 -1.24,-0.555 -1.24,-1.24 z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#ffff00"
+         fill-rule="evenodd"
+         id="path920" />
+      <text
+         fill="#262626"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="24px"
+         id="text922"
+         x="478.69199"
+         y="258">ReadoutPoint</text>
+      <path
+         d="m 459,332.24 c 0,-0.685 0.555,-1.24 1.24,-1.24 h 195.52 c 0.685,0 1.24,0.555 1.24,1.24 v 28.52 c 0,0.685 -0.555,1.24 -1.24,1.24 H 460.24 c -0.685,0 -1.24,-0.555 -1.24,-1.24 z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#104862"
+         fill-rule="evenodd"
+         id="path924" />
+      <text
+         fill="#e8e8e8"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="24px"
+         id="text926"
+         x="464.22699"
+         y="354">AbstractReadout</text>
+      <path
+         d="m 251,240.167 c 0,-2.854 2.313,-5.167 5.167,-5.167 h 120.666 c 2.854,0 5.167,2.313 5.167,5.167 v 20.666 c 0,2.854 -2.313,5.167 -5.167,5.167 H 256.167 C 253.313,266 251,263.687 251,260.833 Z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#7f7f7f"
+         fill-rule="evenodd"
+         id="path928" />
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         id="text930"
+         x="261.608"
+         y="258">Observable</text>
+      <path
+         d="m 251,292.333 c 0,-2.945 2.388,-5.333 5.333,-5.333 h 120.334 c 2.945,0 5.333,2.388 5.333,5.333 v 21.334 c 0,2.945 -2.388,5.333 -5.333,5.333 H 256.333 C 253.388,319 251,316.612 251,313.667 Z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#7f7f7f"
+         fill-rule="evenodd"
+         id="path932" />
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         id="text934"
+         x="261.45099"
+         y="310">Observable</text>
+      <path
+         d="m 252,345.167 c 0,-2.854 2.313,-5.167 5.167,-5.167 h 119.666 c 2.854,0 5.167,2.313 5.167,5.167 v 20.666 c 0,2.854 -2.313,5.167 -5.167,5.167 H 257.167 C 254.313,371 252,368.687 252,365.833 Z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#7f7f7f"
+         fill-rule="evenodd"
+         id="path936" />
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         id="text938"
+         x="262.04099"
+         y="363">Observable</text>
+      <path
+         d="m 252,397.333 c 0,-2.945 2.388,-5.333 5.333,-5.333 h 119.334 c 2.945,0 5.333,2.388 5.333,5.333 v 21.334 c 0,2.945 -2.388,5.333 -5.333,5.333 H 257.333 C 254.388,424 252,421.612 252,418.667 Z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#7f7f7f"
+         fill-rule="evenodd"
+         id="path940" />
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         id="text942"
+         x="261.72699"
+         y="415">Observable</text>
+      <path
+         d="m 252,450.167 c 0,-2.854 2.313,-5.167 5.167,-5.167 h 120.666 c 2.854,0 5.167,2.313 5.167,5.167 v 20.666 c 0,2.854 -2.313,5.167 -5.167,5.167 H 257.167 C 254.313,476 252,473.687 252,470.833 Z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#7f7f7f"
+         fill-rule="evenodd"
+         id="path944" />
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         id="text946"
+         x="262.22501"
+         y="468">Observable</text>
+      <path
+         d="M 90,393.28 C 90,392.573 90.5729,392 91.2797,392 H 176.72 c 0.707,0 1.28,0.573 1.28,1.28 v 29.44 c 0,0.707 -0.573,1.28 -1.28,1.28 H 91.2797 C 90.5729,424 90,423.427 90,422.72 Z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#0070c0"
+         fill-rule="evenodd"
+         id="path948" />
+      <text
+         fill="#e8e8e8"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="24px"
+         id="text950"
+         x="100.269"
+         y="416">Signal</text>
+      <path
+         d="m 251.617,251.231 -6.865,-0.002 -6.651,-0.007 -6.22,-0.012 -5.572,-0.015 -4.71,-0.017 -3.632,-0.02 -1.346,-0.01 -1,-0.011 -0.635,-0.011 -0.228,-0.012 -0.212,-0.01 0.034,10e-4 -0.615,-0.011 h 0.006 l -0.993,-0.011 -1.34,-0.01 -3.628,-0.019 -4.708,-0.018 -5.57,-0.015 -6.218,-0.011 -6.848,-0.007 0.002,-2 6.85,0.007 6.219,0.011 5.573,0.015 4.71,0.018 3.633,0.019 1.347,0.011 0.996,0.01 0.636,0.011 0.228,0.012 0.211,0.011 -0.034,-10e-4 0.616,0.01 h -0.007 l 0.99,0.011 1.341,0.01 3.629,0.02 4.708,0.017 5.571,0.015 6.218,0.012 6.649,0.007 6.866,0.002 z M 185.998,254.004 178,250 l 8.002,-3.996 z"
+         id="path952" />
+      <path
+         d="m 251.35,303.693 -5.432,-0.603 -5.346,-1.732 -4.982,-2.682 -4.458,-3.474 -3.773,-4.116 -2.92,-4.611 -1.892,-4.965 -0.659,-5.044 -0.259,-2.48 0.039,0.19 -0.751,-2.448 0.063,0.156 -1.211,-2.409 0.073,0.122 -1.638,-2.351 0.075,0.095 -2.033,-2.274 0.073,0.073 -2.394,-2.178 0.102,0.082 -5.742,-3.989 0.126,0.075 -6.793,-3.371 0.12,0.05 -7.582,-2.599 0.122,0.034 -8.109,-1.673 0.132,0.018 -1.721,-0.121 0.141,-1.995 1.787,0.126 8.236,1.699 7.704,2.641 6.918,3.432 5.856,4.068 2.481,2.256 2.107,2.358 1.714,2.46 1.281,2.548 0.803,2.621 0.268,2.564 -0.003,-0.026 0.642,4.915 -0.057,-0.227 1.814,4.76 -0.09,-0.178 2.819,4.451 -0.108,-0.14 3.656,3.988 -0.122,-0.113 4.326,3.371 -0.141,-0.092 4.828,2.599 -0.165,-0.071 5.163,1.673 -0.198,-0.043 5.331,0.592 z M 185.698,254.554 178,250 l 8.262,-3.426 z"
+         id="path954" />
+      <path
+         d="m 251.958,356.162 -3.3,-0.31 -3.347,-0.924 -3.27,-1.478 -3.168,-1.986 -3.047,-2.451 -2.905,-2.873 -2.74,-3.257 -2.565,-3.617 -4.451,-8.07 -3.433,-9.014 -2.206,-9.62 -0.584,-4.977 -0.199,-4.962 0.001,0.006 -0.228,-4.923 0.008,0.089 -0.665,-4.885 0.015,0.083 -1.072,-4.808 0.02,0.078 -1.45,-4.692 0.04,0.108 -3.92,-8.884 0.073,0.135 -5.085,-7.959 0.07,0.096 -2.906,-3.537 0.057,0.063 -3.11,-3.19 0.067,0.063 -3.285,-2.805 0.08,0.061 -3.43,-2.382 0.094,0.058 -3.546,-1.919 0.165,0.071 -4.478,-1.462 0.621,-1.901 4.564,1.49 3.675,1.989 3.516,2.441 3.357,2.868 3.172,3.253 2.971,3.616 5.157,8.074 3.974,9.007 1.48,4.786 1.09,4.888 0.676,4.97 0.231,4.971 0.197,4.926 -0.006,-0.076 0.573,4.884 -0.018,-0.106 2.178,9.5 -0.041,-0.133 3.384,8.884 -0.058,-0.127 4.389,7.959 -0.06,-0.095 2.508,3.536 -0.05,-0.065 2.684,3.19 -0.061,-0.067 2.835,2.805 -0.077,-0.068 2.961,2.381 -0.095,-0.068 3.061,1.919 -0.119,-0.064 3.137,1.419 -0.146,-0.053 3.187,0.88 -0.173,-0.032 3.213,0.302 z M 185.201,255.306 178,250 l 8.565,-2.577 z"
+         id="path956" />
+      <path
+         d="m 251.737,409 h -6.877 -6.661 -6.229 -5.58 -4.717 -3.636 -1.346 -0.995 -0.616 -0.212 -0.211 -0.617 -0.994 -1.346 -3.637 -4.716 -5.581 -6.228 -6.871 v -2 h 6.871 6.228 5.581 4.716 3.637 1.346 0.994 0.617 0.211 0.212 0.616 0.995 1.346 3.636 4.717 5.58 6.229 6.661 6.877 z m -65.737,3 -8,-4 8,-4 z"
+         id="path958" />
+      <path
+         d="m 252.05,461.464 -6.901,-0.596 -6.757,-1.703 -6.316,-2.646 -5.667,-3.436 -4.809,-4.082 -3.737,-4.592 -2.418,-4.937 -0.657,-2.617 -0.216,-2.536 -0.21,-2.456 0.026,0.158 -0.611,-2.437 0.072,0.196 -2.322,-4.739 0.123,0.191 -3.607,-4.432 0.128,0.131 -4.678,-3.971 0.129,0.093 -5.535,-3.356 0.132,0.067 -6.178,-2.587 0.167,0.053 -6.8,-1.526 0.438,-1.951 6.886,1.545 6.328,2.65 5.667,3.436 4.809,4.082 3.737,4.593 2.418,4.936 0.657,2.617 0.216,2.537 0.21,2.456 -0.026,-0.158 0.611,2.437 -0.072,-0.197 2.322,4.74 -0.123,-0.192 3.607,4.432 -0.129,-0.131 4.679,3.971 -0.129,-0.092 5.535,3.356 -0.132,-0.068 6.178,2.588 -0.142,-0.047 6.607,1.665 -0.159,-0.027 6.821,0.589 z M 186.515,412.85 179,408 l 8.389,-3.102 z"
+         id="path960" />
+      <path
+         d="M 3.58314e-4,-1 7.25274,-0.997401 l 7.02526,0.007344 6.5696,0.011413 5.8862,0.014802 4.9752,0.017516 3.8366,0.019553 1.4213,0.010337 1.055,0.010635 0.6694,0.011065 0.2391,0.011608 0.2231,0.010833 -0.032,-0.001041 0.6502,0.010748 -0.0064,-8.6e-5 1.0489,0.010579 1.4164,0.010299 3.8328,0.019533 4.9726,0.017505 5.8844,0.014798 6.5682,0.01141 7.6094,0.007125 L 71.0962,1.22857 63.4851,1.22145 56.9154,1.21003 51.029,1.19523 46.0532,1.17771 42.216,1.15815 40.7941,1.1478 39.7419,1.13719 39.0724,1.12613 38.8334,1.11452 38.6103,1.10369 38.6423,1.10473 37.992,1.09398 37.9985,1.09406 36.9524,1.08351 35.5354,1.0732 31.7019,1.05366 26.7288,1.03615 20.8441,1.02135 14.2759,1.00994 7.25202,1.0026 -3.58314e-4,1 Z M 69.7655,-3.77199 77.7638,0.231391 69.7621,4.22801 Z"
+         transform="matrix(-1,0,0,1,459.764,250)"
+         id="path962" />
+      <path
+         d="m 0.123453,-0.99235 3.747817,0.466245 3.80251,1.389758 3.69692,2.214537 3.5711,2.96546 3.4279,3.65193 3.2654,4.27922 3.0807,4.8493 2.8719,5.3633 2.6374,5.8208 2.3813,6.2352 3.8521,13.3955 1.4304,7.0996 1.0553,7.2609 0.6542,7.3786 0.2237,7.4086 0.2227,7.3795 -0.0035,-0.0582 0.6493,7.3217 -0.0065,-0.0554 1.0474,7.2058 -0.0093,-0.053 1.4169,7.033 -0.0192,-0.079 3.8292,13.316 -0.0269,-0.081 2.3553,6.167 -0.0233,-0.055 2.6113,5.763 -0.0293,-0.06 2.8387,5.302 -0.0375,-0.065 3.0377,4.782 -0.0491,-0.07 3.2084,4.204 -0.0659,-0.078 3.3505,3.57 -0.0902,-0.085 3.4642,2.877 -0.1911,-0.125 4.3496,2.177 -0.8954,1.789 -4.4524,-2.229 -3.6004,-2.99 -3.4279,-3.652 -3.2654,-4.279 -3.0807,-4.85 -2.8719,-5.363 -2.6374,-5.821 -2.3813,-6.235 -3.8521,-13.395 -1.4304,-7.1 -1.0553,-7.2609 -0.6543,-7.3786 -0.2236,-7.4085 -0.2228,-7.3795 0.0035,0.0581 -0.6493,-7.3217 0.0065,0.0555 -1.0473,-7.2063 0.0093,0.0537 -1.417,-7.0331 0.0193,0.0789 -3.8292,-13.3157 0.0269,0.0804 -2.3553,-6.1672 0.0233,0.0559 -2.6112,-5.763 0.0292,0.0593 -2.8387,-5.3013 0.0375,0.0642 -3.0377,-4.7817 0.0491,0.0704 -3.2084,-4.2045 0.0659,0.0778 L 13.5261,7.45771 13.6163,7.54265 10.1521,4.66591 10.277,4.75444 6.72745,2.62816 6.89806,2.70953 3.29161,1.39143 3.51143,1.44455 -0.123453,0.99235 Z M 70.9469,151.706 l 6.6981,5.928 -8.7608,1.802 z"
+         transform="matrix(-1,0,0,1,459.645,250)"
+         id="path964" />
+      <path
+         d="m 458.828,347.478 -7.236,-0.493 -7.069,-1.404 -6.614,-2.184 -5.942,-2.839 -5.054,-3.381 -3.92,-3.797 -1.497,-2.07 -1.111,-2.129 -0.7,-2.198 -0.231,-2.135 -0.221,-2.036 0.041,0.196 -0.643,-2.02 0.067,0.16 -1.037,-1.988 0.076,0.123 -1.403,-1.939 0.114,0.132 -3.792,-3.673 0.139,0.113 -4.918,-3.291 0.125,0.071 -5.82,-2.781 0.118,0.047 -6.496,-2.144 0.139,0.035 -7.473,-1.329 0.35,-1.969 7.543,1.341 6.624,2.187 5.942,2.84 5.054,3.38 3.92,3.797 1.497,2.07 1.111,2.129 0.7,2.198 0.231,2.135 0.221,2.036 -0.042,-0.196 0.643,2.02 -0.066,-0.159 1.037,1.987 -0.076,-0.123 1.403,1.94 -0.114,-0.132 3.792,3.672 -0.14,-0.112 4.919,3.29 -0.125,-0.071 5.82,2.781 -0.118,-0.047 6.496,2.144 -0.119,-0.031 6.946,1.38 -0.127,-0.017 7.172,0.489 z M 389.65,307.635 382,303 l 8.298,-3.339 z"
+         id="path966" />
+      <path
+         d="m 0.0141813,-0.9999 7.1299087,0.101123 6.92001,0.28636 6.4745,0.445196 5.8098,0.578315 4.9303,0.687066 3.8326,0.7732 1.4795,0.426 1.1684,0.4664 0.9407,0.61546 0.3397,0.65278 0.2188,0.42072 -0.3396,-0.37528 0.6381,0.41743 -0.1768,-0.09192 1.0293,0.41085 -0.0941,-0.03221 1.3926,0.40097 -0.079,-0.0193 3.7631,0.75917 -0.0597,-0.01018 4.8808,0.68017 -0.039,-0.00465 5.7751,0.57486 L 55.9187,7.16007 62.3644,7.60328 62.3327,7.6016 69.6762,7.87323 69.6022,9.87186 62.243,9.59965 55.7663,9.15431 49.9565,8.57599 45.0262,7.88892 41.1935,7.11572 39.7141,6.68973 38.5457,6.22332 37.6049,5.60787 37.2653,4.95508 37.0464,4.53436 37.3861,4.90964 36.748,4.49221 36.9248,4.58413 35.8955,4.17329 35.9895,4.2055 34.597,3.80453 34.676,3.82382 30.9129,3.06466 30.9726,3.07484 26.0918,2.39466 26.1308,2.39931 20.3557,1.82446 20.3862,1.82702 13.9405,1.38381 13.9678,1.38531 7.07498,1.10007 7.10214,1.10083 -0.0141813,0.9999 Z M 68.3748,4.85023 76.3049,8.98709 68.2373,12.849 Z"
+         transform="matrix(-1,0,0,1,458.305,347)"
+         id="path968" />
+      <path
+         d="m 0.0913239,-0.995821 3.6492561,0.334663 3.69262,0.994881 3.611,1.594557 3.503,2.14434 3.3709,2.6473 3.2151,3.10593 3.0351,3.52185 2.841,3.9111 4.9322,8.7338 3.799,9.7386 1.4126,5.1684 1.041,5.2801 0.6457,5.3678 0.2199,5.3725 0.2184,5.3332 -0.0063,-0.0785 0.6365,5.2914 -0.0117,-0.074 1.0268,5.2079 -0.0165,-0.0702 1.3891,5.0829 -0.033,-0.0998 3.7541,9.6233 -0.0609,-0.1284 4.8691,8.6221 -0.0617,-0.096 2.783,3.8312 -0.0516,-0.0651 2.9782,3.456 -0.0628,-0.067 3.1454,3.039 -0.0771,-0.067 3.2848,2.579 -0.0956,-0.066 3.3963,2.079 -0.1791,-0.086 4.048,1.478 -0.686,1.878 -4.1419,-1.512 -3.5312,-2.162 -3.3709,-2.647 -3.2151,-3.106 -3.0351,-3.522 -2.841,-3.9109 -4.9322,-8.7338 -3.799,-9.7386 -1.4126,-5.1684 -1.041,-5.2802 -0.6457,-5.3677 -0.22,-5.3725 -0.2184,-5.3332 0.0064,0.0785 -0.6365,-5.2914 0.0117,0.074 -1.0268,-5.208 0.0165,0.0702 -1.3892,-5.0828 0.033,0.0998 -3.754,-9.6233 0.0609,0.1283 -4.8691,-8.622 0.0617,0.096 -2.783,-3.8312 0.0516,0.0651 -2.9782,-3.4558 0.0628,0.0664 L 16.5654,8.19395 16.6425,8.2612 13.3578,5.68154 13.4533,5.74797 10.057,3.66895 10.1752,3.73084 6.69526,2.19418 6.83906,2.24497 3.3034,1.29237 3.47222,1.32262 -0.0913239,0.995821 Z M 69.0865,108.398 l 7.0347,5.524 -8.64,2.313 z"
+         transform="matrix(-1,0,0,1,459.121,347)"
+         id="path970" />
+      <path
+         d="m 712,138.678 c 0,-3.688 2.99,-6.678 6.678,-6.678 h 226.644 c 3.688,0 6.678,2.99 6.678,6.678 v 153.644 c 0,3.688 -2.99,6.678 -6.678,6.678 H 718.678 C 714.99,299 712,296.01 712,292.322 Z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#0070c0"
+         fill-rule="evenodd"
+         id="path972" />
+      <text
+         fill="#e8e8e8"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="24px"
+         id="text974"
+         x="721.45898"
+         y="159"
+         style="font-size:21.3333px">Signal:</text>
+      <text
+         fill="#e8e8e8"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="24px"
+         transform="translate(790.792,169)"
+         id="text976" />
+      <path
+         d="m 713,338.313 c 0,-4.039 3.274,-7.313 7.313,-7.313 h 226.374 c 4.039,0 7.313,3.274 7.313,7.313 v 152.374 c 0,4.039 -3.274,7.313 -7.313,7.313 H 720.313 C 716.274,498 713,494.726 713,490.687 Z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#7f7f7f"
+         fill-rule="evenodd"
+         id="path990" />
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="21px"
+         id="text992"
+         x="721.242"
+         y="360">Observable:</text>
+      <path
+         d="m 991,139.313 c 0,-4.039 3.274,-7.313 7.313,-7.313 h 225.377 c 4.04,0 7.31,3.274 7.31,7.313 v 152.374 c 0,4.039 -3.27,7.313 -7.31,7.313 H 998.313 C 994.274,299 991,295.726 991,291.687 Z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#ffff00"
+         fill-rule="evenodd"
+         id="path1014" />
+      <text
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="21px"
+         id="text1016"
+         x="1000.9"
+         y="161"><tspan
+   style="font-size:21.3333px"
+   id="tspan1505">ReadoutPoint</tspan>:</text>
+      <text
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="21px"
+         transform="translate(1134.87,169)"
+         id="text1018" />
+      <path
+         d="m 994,337.678 c 0,-3.688 2.99,-6.678 6.68,-6.678 h 223.64 c 3.69,0 6.68,2.99 6.68,6.678 v 153.644 c 0,3.688 -2.99,6.678 -6.68,6.678 h -223.64 c -3.69,0 -6.68,-2.99 -6.68,-6.678 z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#104862"
+         fill-rule="evenodd"
+         id="path1036" />
+      <text
+         fill="#e8e8e8"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="24px"
+         id="text1038"
+         x="1001.2811"
+         y="358.91245"
+         style="font-size:21.3333px">AbstractReadout</text>
+      <text
+         xml:space="preserve"
+         transform="translate(31.979742,126.23803)"
+         id="text1247"
+         style="font-size:17.3333px;white-space:pre;shape-inside:url(#rect1249);display:inline;fill:#000000" />
+      <text
+         xml:space="preserve"
+         transform="translate(36.580233,119.58082)"
+         id="text1272"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:16px;font-family:Arial;-inkscape-font-specification:Arial;white-space:pre;shape-inside:url(#rect1274);display:inline;fill:#000000"><tspan
+           x="966.10352"
+           y="63.703086"
+           id="tspan2078">Handles readout at different </tspan><tspan
+           x="966.10352"
+           y="83.703086"
+           id="tspan2080">points on the same gates/ </tspan><tspan
+           x="966.10352"
+           y="103.70309"
+           id="tspan2082">elements (e.g difference in </tspan><tspan
+           x="966.10352"
+           y="123.70309"
+           id="tspan2084">frequency or gate voltage </tspan><tspan
+           x="966.10352"
+           y="143.70309"
+           id="tspan2086">space). Creates observables</tspan></text>
+      <text
+         xml:space="preserve"
+         transform="translate(33.951381,109.15049)"
+         id="text1278"
+         style="font-size:16px;white-space:pre;shape-inside:url(#rect1280);display:inline;fill:#000000"><tspan
+           x="966.75977"
+           y="274.81386"
+           id="tspan2090"><tspan
+             style="font-family:Arial;-inkscape-font-specification:Arial;fill:#f2f2f2"
+             id="tspan2088">Arbitrary type of readout, can </tspan></tspan><tspan
+           x="966.75977"
+           y="294.9598"
+           id="tspan2094"><tspan
+             style="font-family:Arial;-inkscape-font-specification:Arial;fill:#f2f2f2"
+             id="tspan2092">take results from observables of </tspan></tspan><tspan
+           x="966.75977"
+           y="315.10573"
+           id="tspan2098"><tspan
+             style="font-family:Arial;-inkscape-font-specification:Arial;fill:#f2f2f2"
+             id="tspan2096">other readouts (points) as input </tspan></tspan><tspan
+           x="966.75977"
+           y="335.25167"
+           id="tspan2102"><tspan
+             style="font-family:Arial;-inkscape-font-specification:Arial;fill:#f2f2f2"
+             id="tspan2100">(e.g difference between other </tspan></tspan><tspan
+           x="966.75977"
+           y="355.3976"
+           id="tspan2106"><tspan
+             style="font-family:Arial;-inkscape-font-specification:Arial;fill:#f2f2f2"
+             id="tspan2104">results). Creates observables</tspan></tspan></text>
+      <text
+         xml:space="preserve"
+         transform="translate(29.979742,114.23803)"
+         id="text1493"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:16px;font-family:Arial;-inkscape-font-specification:Arial;white-space:pre;shape-inside:url(#rect1495);display:inline;fill:#f2f2f2"><tspan
+           x="690.73047"
+           y="64.359336"
+           id="tspan2108">Container for different </tspan><tspan
+           x="690.73047"
+           y="84.359336"
+           id="tspan2110">observables. Acts as a logical </tspan><tspan
+           x="690.73047"
+           y="104.35934"
+           id="tspan2112">group for measurement results </tspan><tspan
+           x="690.73047"
+           y="124.35934"
+           id="tspan2114">(e.g qubit1)</tspan></text>
+      <text
+         xml:space="preserve"
+         transform="translate(31.979742,118.23803)"
+         id="text1499"
+         style="font-size:16px;white-space:pre;shape-inside:url(#rect1501);display:inline;fill:#f2f2f2"><tspan
+           x="689.64453"
+           y="264.57753"
+           id="tspan2118"><tspan
+             style="font-family:Arial;-inkscape-font-specification:Arial"
+             id="tspan2116">Single measurement result </tspan></tspan><tspan
+           x="689.64453"
+           y="284.72347"
+           id="tspan2122"><tspan
+             style="font-family:Arial;-inkscape-font-specification:Arial"
+             id="tspan2120">which can be handled by a </tspan></tspan><tspan
+           x="689.64453"
+           y="304.8694"
+           id="tspan2126"><tspan
+             style="font-family:Arial;-inkscape-font-specification:Arial"
+             id="tspan2124">single data stream. Observable </tspan></tspan><tspan
+           x="689.64453"
+           y="325.01534"
+           id="tspan2130"><tspan
+             style="font-family:Arial;-inkscape-font-specification:Arial"
+             id="tspan2128">are assigned to a single signal.</tspan></tspan></text>
+    </g>
+  </g>
+</svg>

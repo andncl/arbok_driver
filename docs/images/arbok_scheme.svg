@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="170mm"
+   height="110mm"
+   viewBox="0 0 170 110"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.2.2 (732a01da63, 2022-12-09)"
+   sodipodi:docname="arbok_scheme.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="0.76078844"
+     inkscape:cx="396.95661"
+     inkscape:cy="245.79764"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="1072"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       transform="matrix(0.26458333,0,0,0.26458333,-151.79764,-43.563789)"
+       id="g79">
+      <path
+         d="m 602.049,166.5 c -14.662,0 -26.549,11.887 -26.549,26.549 v 334.902 c 0,14.663 11.887,26.549 26.549,26.549 h 576.901 c 14.66,0 26.55,-11.886 26.55,-26.549 V 193.049 c 0,-14.662 -11.89,-26.549 -26.55,-26.549 z"
+         stroke="#000000"
+         stroke-width="3.06142"
+         stroke-linejoin="round"
+         stroke-miterlimit="10"
+         fill="#e8a202"
+         fill-rule="evenodd"
+         id="path9" />
+      <text
+         fill="#ffffff"
+         font-family="'Liberation Sans', 'Liberation Sans_MSFontService', sans-serif"
+         font-weight="700"
+         font-size="21px"
+         transform="translate(594.15,199)"
+         id="text11">ArbokDriver</text>
+      <text
+         fill="#ffffff"
+         font-family="'Liberation Sans', 'Liberation Sans_MSFontService', sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(594.15,219)"
+         id="text13">Manages connections, simulations, compiles to FPGA instructions</text>
+      <path
+         d="m 602,255.198 c 0,-4.528 3.67,-8.198 8.198,-8.198 h 188.604 c 4.528,0 8.198,3.67 8.198,8.198 v 263.604 c 0,4.528 -3.67,8.198 -8.198,8.198 H 610.198 C 605.67,527 602,523.33 602,518.802 Z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#c04f15"
+         fill-rule="evenodd"
+         id="path15" />
+      <rect
+         x="602"
+         y="248"
+         width="196"
+         height="116"
+         fill="#c04f15"
+         id="rect17" />
+      <text
+         fill="#e8e8e8"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="24px"
+         transform="translate(611.562,275)"
+         id="text19">Sequence:</text>
+      <text
+         fill="#e8e8e8"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(611.562,297)"
+         id="text21">Loops, observables</text>
+      <path
+         d="m 807,269 h 310.04"
+         stroke="#000000"
+         stroke-width="6"
+         stroke-miterlimit="8"
+         stroke-dasharray="6, 6"
+         fill="none"
+         fill-rule="evenodd"
+         id="path23" />
+      <path
+         d="M 839,255.198 C 839,250.67 842.67,247 847.198,247 H 1035.8 c 4.53,0 8.2,3.67 8.2,8.198 v 263.604 c 0,4.528 -3.67,8.198 -8.2,8.198 H 847.198 C 842.67,527 839,523.33 839,518.802 Z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#c04f15"
+         fill-rule="evenodd"
+         id="path25" />
+      <rect
+         x="839"
+         y="248"
+         width="132"
+         height="98"
+         fill="#c04f15"
+         id="rect27" />
+      <text
+         fill="#e8e8e8"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="24px"
+         transform="translate(848.963,275)"
+         id="text29">Sequence:</text>
+      <text
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="37px"
+         transform="translate(1134.44,278)"
+         id="text31">(…)</text>
+      <path
+         d="M 695,319 V 520.752"
+         stroke="#000000"
+         stroke-width="6"
+         stroke-miterlimit="8"
+         stroke-dasharray="6, 6"
+         fill="none"
+         fill-rule="evenodd"
+         id="path33" />
+      <path
+         d="m 616,323.5 c 0,-6.351 5.149,-11.5 11.5,-11.5 h 153 c 6.351,0 11.5,5.149 11.5,11.5 v 46 c 0,6.351 -5.149,11.5 -11.5,11.5 h -153 c -6.351,0 -11.5,-5.149 -11.5,-11.5 z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#3b7d23"
+         fill-rule="evenodd"
+         id="path35" />
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         transform="translate(636.511,344)"
+         id="text37">Sub</text>
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         transform="translate(672.511,344)"
+         id="text39">-</text>
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         transform="translate(679.897,344)"
+         id="text41">Sequence</text>
+      <text
+         fill="#e8e8e8"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(649.444,364)"
+         id="text43">Pulse sequence</text>
+      <path
+         d="M 616,414.667 C 616,408.223 621.223,403 627.667,403 h 152.666 c 6.444,0 11.667,5.223 11.667,11.667 v 46.666 C 792,467.777 786.777,473 780.333,473 H 627.667 C 621.223,473 616,467.777 616,461.333 Z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#3b7d23"
+         fill-rule="evenodd"
+         id="path45" />
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         transform="translate(636.511,445)"
+         id="text47">Sub</text>
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         transform="translate(672.511,445)"
+         id="text49">-</text>
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         transform="translate(679.897,445)"
+         id="text51">Sequence</text>
+      <text
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="37px"
+         transform="translate(712.849,512)"
+         id="text53">(…)</text>
+      <path
+         d="M 931,316 V 517.752"
+         stroke="#000000"
+         stroke-width="6"
+         stroke-miterlimit="8"
+         stroke-dasharray="6, 6"
+         fill="none"
+         fill-rule="evenodd"
+         id="path55" />
+      <path
+         d="M 853,319.667 C 853,313.223 858.223,308 864.667,308 h 152.663 c 6.45,0 11.67,5.223 11.67,11.667 v 46.666 c 0,6.444 -5.22,11.667 -11.67,11.667 H 864.667 C 858.223,378 853,372.777 853,366.333 Z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#3b7d23"
+         fill-rule="evenodd"
+         id="path57" />
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         transform="translate(872.586,350)"
+         id="text59">Sub</text>
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         transform="translate(908.586,350)"
+         id="text61">-</text>
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         transform="translate(915.973,350)"
+         id="text63">Sequence</text>
+      <path
+         d="m 853,411.5 c 0,-6.351 5.149,-11.5 11.5,-11.5 h 153 c 6.35,0 11.5,5.149 11.5,11.5 v 46 c 0,6.351 -5.15,11.5 -11.5,11.5 h -153 c -6.351,0 -11.5,-5.149 -11.5,-11.5 z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#3b7d23"
+         fill-rule="evenodd"
+         id="path65" />
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         transform="translate(872.586,442)"
+         id="text67">Sub</text>
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         transform="translate(908.586,442)"
+         id="text69">-</text>
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         transform="translate(915.973,442)"
+         id="text71">Sequence</text>
+      <text
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="37px"
+         transform="translate(948.924,508)"
+         id="text73">(…)</text>
+      <path
+         d="m 1088,185.333 c 0,-4.05 3.28,-7.333 7.33,-7.333 h 88.34 c 4.05,0 7.33,3.283 7.33,7.333 v 29.334 c 0,4.05 -3.28,7.333 -7.33,7.333 h -88.34 c -4.05,0 -7.33,-3.283 -7.33,-7.333 z"
+         stroke="#042433"
+         stroke-width="2"
+         stroke-miterlimit="8"
+         fill="#215f9a"
+         fill-rule="evenodd"
+         id="path75" />
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="21px"
+         transform="translate(1104.04,208)"
+         id="text77">Sample</text>
+    </g>
+  </g>
+</svg>

@@ -177,7 +177,6 @@ class SequenceBase(Instrument):
         for sweep in self.parent_sequence.sweeps:
             for param, setpoints in sweep.config.items():
                 if isinstance(param, SequenceParameter):
-                    if param.input_stream is None:
                     logging.debug("Declaring %s as %s",
                                     param.name, param.var_type)
                     param.qua_declare(setpoints)

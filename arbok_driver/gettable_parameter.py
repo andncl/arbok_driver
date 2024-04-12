@@ -72,9 +72,9 @@ class GettableParameter(ParameterWithSetpoints):
         hardware specific values.
         """
         self.sequence = self.sequence.parent_sequence
-        if not self.sequence.parent_sequence.program.opx:
+        if not self.sequence.parent_sequence.driver.opx:
             raise LookupError("Results cant be retreived without OPX connected")
-        self.qm_job = self.sequence.program.qm_job
+        self.qm_job = self.sequence.driver.qm_job
         self.result = getattr(self.qm_job.result_handles, self.name)
         self.buffer = getattr(self.qm_job.result_handles, f"{self.name}_buffer")
         self.shape = tuple(sweep.length for sweep in self.sequence.sweeps)
