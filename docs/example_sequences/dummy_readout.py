@@ -32,7 +32,7 @@ class DummyReadout(ReadSequence):
         """QUA sequence to perform mixed down up initialization"""
         qua.align()
 
-        ref_points = [x for x in self.readout_points.values() if x.point_name == 'ref']
+        ref_points = [x for x in self.readout_points.values() if x.point_name == 'reference']
         for readout_point in ref_points:
             readout_point.qua_measure_and_save()
 
