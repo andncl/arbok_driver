@@ -192,6 +192,7 @@ def _create_recursive_measurement_loop(
         result_args_temp += list(res_args_dict.values())
         datasaver.add_result(*result_args_temp)
         progress_tracker.update(progress_bars['total_progress'], advance=1)
+        progress_tracker.refresh()
         return
 
     ### The first axis will be popped from the list and iterated over

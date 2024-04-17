@@ -107,19 +107,23 @@ class GettableParameter(ParameterWithSetpoints):
             new_counts = self.count_so_far-processed_counts
             if progress_bar is not None:
                 progress_bar[1].update(
-                    progress_bar[0], completed = new_counts)
+                    progress_bar[0],
+                    completed = new_counts,
+                    description = f"Batch progress {new_counts}/{self.batch_size}"
+                )
+                progress_bar[1].refresh()
             self.count_so_far = self.result.count_so_far()
+            
         new_counts = self.count_so_far-processed_counts
         if progress_bar is not None:
             progress_bar[1].update(progress_bar[0], completed = new_counts)
-        # iteration_progress_bar.close()
 
     def _fetch_opx_buffer(self):
         """
         Fetches the OPX buffer into the `buffer_val` and increments the internal
         counter `count`
         """
-        self.buffer_val = np.array(self.buffer.fetch(-1), dtype = float)
+        self.buffer_val = np.array(self.buffer.fetch_all(), dtype = float)
         if self.buffer_val is None:
             raise ValueError("NO VALUE STREAMED")
         self.batch_count += 1
