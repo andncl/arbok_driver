@@ -61,7 +61,21 @@ class Sweep:
     @property
     def can_be_parametrized(self):
         """Whether sweep is fed by input stream"""
-        return self._check_if_parametrizable()
+        if self._can_be_parametrized is None:
+            return self._check_if_parametrizable()
+        else:
+            return self._can_be_parametrized
+
+    @can_be_parametrized.setter
+    def can_be_parametrized(self, value: bool):
+        """Setter for can_be_parametrized"""
+        if value is False:
+            self._can_be_parametrized = False
+            for parameter in self.parameters:
+                parameter.can_be_parametrized = False
+        else:
+            if self._can_be_parametrized is True:
+                self._can_be_parametrized = True
 
     @property
     def config(self) -> dict:
@@ -159,26 +173,30 @@ class Sweep:
                     )
             self._length = param_streams[0]
 
-    def _check_if_parametrizable(self):
+    def _check_if_parametrizable(self) -> bool:
         """
         Checks whether the sweep array can be defined in terms of start, step
         and stop (memory saving).
+
+        Returns:
+            bool: Whether the sweep can be parametrized
         """
         if self.inputs_are_streamed:
             return False
-        if len(self.parameters)>1:
-            return False
-        sweep_arr = self.config[self.parameters[0]]
-        sweep_arr_differences = np.ediff1d(sweep_arr)
-        mean_step = np.mean(sweep_arr_differences)
-        if np.std(sweep_arr_differences) < 0.1*mean_step:
-            for parameter in self.parameters:
-                parameter.can_be_parametrized = True
-            return True
-        else:
-            return False
+        parameterizability_list = []
+        for param in self.parameters:
+            sweep_arr = self.config[param]
+            sweep_arr_differences = np.ediff1d(sweep_arr)
+            mean_step = np.mean(sweep_arr_differences)
+            if np.std(sweep_arr_differences) > 0.1*mean_step:
+                can_be_parametrized = False
+            else:
+                can_be_parametrized = True
+            param.can_be_parametrized = can_be_parametrized
+            parameterizability_list.append(can_be_parametrized)
+        return any(parameterizability_list)
 
-    def qua_generate_parameter_sweep(self, next_action):
+    def qua_generate_parameter_sweep(self, next_action: callable) -> None:
         """
         Runs a qua loop based on the configured method. Currently three
         different methods are available:
@@ -193,8 +211,7 @@ class Sweep:
         else:
             self._qua_explicit_array_loop(next_action)
 
-
-    def _qua_input_stream_loop(self, next_action):
+    def _qua_input_stream_loop(self, next_action: callable) -> None:
         """Runs a qua for loop for an array that is imported from a stream"""
         warnings.warn("Input streaming is not fully supported")
         for param in self.parameters:
@@ -206,20 +223,43 @@ class Sweep:
             self.qua_variables, self.input_streams):
             next_action()
 
-    def _qua_parmetrized_loop(self, next_action):
+    def _qua_parmetrized_loop(self, next_action: callable) -> None:
         """
         Runs a qua for loop from parametrized qua_arange. Start, stop and step
         are calculated from the input array
+
+        Args:
+            next_action (callable): Next action to be executed after the loop
         """
         param = self.parameters[0]
         sweep_array = param.get_raw()
-        step = np.mean(np.ediff1d(sweep_array))
-        start, stop = sweep_array[0], sweep_array[-1] + step
-        warnings.warn(
-            f"Your input array {param.qua_sweep_arr} for {param.name} "
-            "will be parametrized, check output"
-            )
-        with qua.for_(*loops.qua_arange(param.qua_var, start, stop, step)):
+        parameters_sss = {}
+        for param in self.parameters:
+            if param.can_be_parametrized:
+                start, stop, step = self._parameterize_sweep_array(param, sweep_array)
+                parameters_sss[param] = {
+                    'start': start,
+                    'stop': stop,
+                    'step': step
+                    }
+                length_of_array = len(np.arange(start, stop, step))
+                warnings.warn(
+                    f"\nYour input array of length {len(param.get())} for {param.name} "
+                    f"will be parametrized with start {start}, step {step}, stop {stop}"
+                    f" of length {length_of_array}. Check output!"
+                    )
+
+        # with qua.for_(*loops.qua_arange(param.qua_var, start, stop, step)):
+        #    next_action()
+        for param, sss in parameters_sss.items():
+            qua.assign(param.qua_var, sss['start'])
+        sweep_idx_var = qua.declare(int)
+        with qua.for_(sweep_idx_var, 0, self.length, sweep_idx_var + 1):
+            for param in self.parameters:
+                if param.can_be_parametrized:
+                    qua.assign(param.qua_var, param.qua_var + step)
+                else:
+                    qua.assign(param.qua_var, param.qua_sweep_arr[sweep_idx_var])
             next_action()
 
     def _qua_explicit_array_loop(self, next_action):
@@ -228,6 +268,39 @@ class Sweep:
             logging.debug(
                 "Assigning %s to %s (loop)",
                     param.name, param.qua_sweep_arr)
-        with qua.for_each_(self.qua_variables,
-                        self.qua_sweep_arrays):
+        with qua.for_each_(self.qua_variables, self.qua_sweep_arrays):
             next_action()
+
+    def _parameterize_sweep_array(
+        self, param: SequenceParameter, sweep_array: np.ndarray
+        ) -> tuple[int, int, int] | tuple[float, float, float]:
+        """
+        Parameterizes start, stop and step from given sweep array
+
+        Args:
+            param (SequenceParameter): Sweep-parameter
+            sweep_array (np.ndarray): Array to be parameterized
+
+        Returns:
+            (int, int, int) | (float, float, float): Start, stop and step
+        """
+        start = sweep_array[0]
+        stop = sweep_array[-1]
+        step = np.mean(np.ediff1d(sweep_array))
+        if param.var_type == int:
+            start, stop = int(sweep_array[0]), int(sweep_array[-1] + step)
+            step = int(step)
+        length_of_array = len(np.arange(start, stop, step))
+
+        if length_of_array == self.length:
+            pass
+        elif length_of_array == self.length + 1:
+            stop = stop - step
+        elif length_of_array == self.length - 1:
+            stop = stop + step
+        else:
+            raise ValueError(
+                "Sweep array must have same length as sweep length or one more."
+                f"Is {length_of_array}, should be {self.length} or {self.length+1}"
+                )
+        return start, stop, step
