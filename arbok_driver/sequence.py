@@ -3,6 +3,7 @@ import math
 from collections import Counter
 
 import numpy as np
+from qm import qua
 from qcodes.validators import Arrays
 import matplotlib.pyplot as plt
 
@@ -40,6 +41,8 @@ class Sequence(SequenceBase):
         self._gettables = []
         self._sweep_size = 1
         self._setpoints_for_gettables = ()
+        self.shot_tracker_qua_var = None
+        self.shot_tracker_qua_stream = None
 
     @property
     def sweeps(self) -> list:
@@ -62,6 +65,24 @@ class Sequence(SequenceBase):
     def input_stream_parameters(self) -> list:
         """Registered input stream parameters"""
         return self._input_stream_parameters
+
+    def qua_declare(self):
+        self.shot_tracker_qua_var = qua.declare(int, value = 1)
+        self.shot_tracker_qua_stream = qua.declare_stream()
+
+    def qua_before_sweep(self):
+        qua.assign(self.shot_tracker_qua_var, 0)
+
+    def qua_after_sequence(self):
+        qua.assign(
+            self.shot_tracker_qua_var,
+            self.shot_tracker_qua_var + 1
+            )
+        qua.save(self.shot_tracker_qua_var, self.shot_tracker_qua_stream)
+    
+    def qua_stream(self):
+        """Contains raw QUA code to define streams"""
+        self.shot_tracker_qua_stream.buffer(1).save(self.name + "_shots")
 
     def set_sweeps(self, *args) -> None:
         """ 
@@ -86,7 +107,7 @@ class Sequence(SequenceBase):
                 self._setpoints_for_gettables += (param,)
         print(
             f"Declared {len(self.sweeps)}-dimensional parameter sweep"
-            f"of size {self.sweep_size} {[s.length for s in self.sweeps]}"
+            f" of size {self.sweep_size} {[s.length for s in self.sweeps]}"
         )
 
     def register_gettables(self, *args) -> None:

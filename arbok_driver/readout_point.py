@@ -121,4 +121,3 @@ class ReadoutPoint(ABC):
             logging.debug("Saving stream %s", obs_name)
             buffer = observable.qua_stream.buffer(sweep_size)
             buffer.save(f"{observable.full_name}_buffer")
-            observable.qua_stream.save_all(observable.full_name)

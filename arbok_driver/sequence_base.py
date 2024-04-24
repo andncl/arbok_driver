@@ -54,6 +54,10 @@ class SequenceBase(Instrument):
         """Contains raw QUA code to initialize the qua variables"""
         return
 
+    def qua_before_sweep(self):
+        """Contains raw QUA code that is being executed before sweeps"""
+        return
+    
     def qua_sequence(self):
         """Contains raw QUA code to define the pulse sequence"""
         return
@@ -161,8 +165,7 @@ class SequenceBase(Instrument):
         with qua.infinite_loop_():
             if not simulate:
                 qua.pause()
-            self.recursive_sweep_generation(
-                copy.copy(self.parent_sequence.sweeps))
+            self.qua_before_sweep()
         with qua.stream_processing():
             self.recursive_qua_generation(seq_type = 'stream')
 
@@ -197,9 +200,11 @@ class SequenceBase(Instrument):
             return
         new_sweeps = sweeps[:-1]
         current_sweep = sweeps[-1]
-        idx = qua.declare(int)
+        if self.parent_sequence is self and len(sweeps) == len(self.sweeps):
+            self.qua_before_sweep()
         logging.debug("Adding qua loop for %s",
             [par.name for par in current_sweep.parameters])
+
         current_sweep.qua_generate_parameter_sweep(
             lambda: self.recursive_sweep_generation(new_sweeps)
             )
@@ -213,6 +218,7 @@ class SequenceBase(Instrument):
         Args:
             seq_type (str): Type of qua code containing method to look for
         """
+        getattr(self, 'qua_' + str(seq_type))()
         if not self.submodules:
             logging.debug(
                 "Reached low level seq running qua_%s code of %s",
@@ -224,6 +230,8 @@ class SequenceBase(Instrument):
                 getattr(subsequence, 'qua_' + str(seq_type))()
             else:
                 subsequence.recursive_qua_generation(seq_type)
+        if self.parent_sequence is self and seq_type == 'sequence':
+            self.qua_after_sequence()
 
     def _add_param(self, param_name: str, param_dict):
         """
