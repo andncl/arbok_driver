@@ -84,6 +84,10 @@ class Sequence(SequenceBase):
             for param, setpoints in sweep.config_to_register.items():
                 param.vals = Arrays(shape=(len(setpoints),))
                 self._setpoints_for_gettables += (param,)
+        print(
+            f"Declared {len(self.sweeps)}-dimensional parameter sweep"
+            f"of size {self.sweep_size} {[s.length for s in self.sweeps]}"
+        )
 
     def register_gettables(self, *args) -> None:
         """
