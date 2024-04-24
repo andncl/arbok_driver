@@ -1,6 +1,7 @@
 """ Module containing GettableParameter class """
 
 import warnings
+import time
 import logging as lg
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,11 +20,9 @@ class GettableParameter(ParameterWithSetpoints):
         readout (Readout): `Readout` instance that created this parameter
         sequence (Sequence): `Sequence` managing the sequence of QUA program
         qm_job (RunningQmJob): Running job on the opx to interact with
-        result (obj): QM object managing OPX streams 
         buffer (obj): QM buffer to get results from
         buffer_val (array): flat numpy array containing results of opx fetch
         shape (tuple): Shape of the setpoints array
-        count_so_far (int): Total single measurements of OPX
         batch_size (tuple): Shape of one OPX batch
         count (int): Amount of successful `get` executions
     """
@@ -40,13 +39,11 @@ class GettableParameter(ParameterWithSetpoints):
 
         self.sequence = sequence
         self.qm_job = None
-        self.result = None
         self.buffer = None
         self.buffer_val = None
         self.shape = None
-        self.count_so_far = 0
         self.batch_size = 0
-        self.batch_count = 0
+        self.batch_counter = None
 
     def set_raw(self, *args, **kwargs) -> None:
         """Empty abstract `set_raw` method. Parameter not meant to be set"""
@@ -58,7 +55,7 @@ class GettableParameter(ParameterWithSetpoints):
         On its first call, the gettables attributes get configured regarding
         the given measurement and the underlying hardware.
         """
-        if self.result is None:
+        if self.buffer is None:
             # Will be executed on the first call of get()
             self._set_up_gettable_from_program()
         self._fetch_from_opx(progress_bar = progress_bar)
@@ -75,24 +72,21 @@ class GettableParameter(ParameterWithSetpoints):
         if not self.sequence.parent_sequence.driver.opx:
             raise LookupError("Results cant be retreived without OPX connected")
         self.qm_job = self.sequence.driver.qm_job
-        self.result = getattr(self.qm_job.result_handles, self.name)
+        self.batch_counter = getattr(
+            self.qm_job.result_handles,
+            f"{self.sequence.name}_shots"
+        )
         self.buffer = getattr(self.qm_job.result_handles, f"{self.name}_buffer")
         self.shape = tuple(sweep.length for sweep in self.sequence.sweeps)
         self.batch_size = self.sequence.sweep_size
 
-    def _fetch_from_opx(self, progress_bar = None):
+    def _fetch_from_opx(self, progress_bar: tuple = None):
         """
         Fetches and returns data from OPX after results came in.
         This method pauses as long as the required amount of results is not in.
         Raises a warning if the data generation on the OPX is faster than the
         data streaming back to the PC.
         """
-        self.count_so_far = self.result.count_so_far()
-        if self.count_so_far > (self.batch_count + 2)*self.batch_size:
-            warnings.warn(
-                "OVERHEAD of data on OPX!",
-                "Try larger batches or other sweep type!"
-            )
         self._wait_until_buffer_full(progress_bar = progress_bar)
         self._fetch_opx_buffer()
 
@@ -100,23 +94,32 @@ class GettableParameter(ParameterWithSetpoints):
         """
         This function is running until a batch with self.batch_size is ready
         """
-        processed_counts = self.batch_count*self.batch_size
-        while self.count_so_far-processed_counts < self.batch_size:
-            lg.info("Waiting: %s/%s results are in",
-                self.count_so_far, processed_counts + self.batch_size)
-            new_counts = self.count_so_far-processed_counts
+        batch_count, old_count = 0, 0
+        shot_timing = "Calculating shot timing..."
+        t0 = time.time()
+        while batch_count < self.batch_size:
+            lg.info(
+                "Waiting: %s/%s results are in",
+                batch_count, self.batch_size
+            )
+            shot_count_result = self.batch_counter.fetch_all()
+            if shot_count_result is not None:
+                batch_count = shot_count_result[0]
             if progress_bar is not None:
+                bar_title = f"[cyan]Batch progress {batch_count}/{self.batch_size}\n"
+                if batch_count > old_count:
+                    time_per_shot = 1e3*(time.time()-t0)/(batch_count-old_count)
+                    shot_timing = f"{time_per_shot:.1f} ms per shot"
+                t0 = time.time()
                 progress_bar[1].update(
                     progress_bar[0],
-                    completed = new_counts,
-                    description = f"Batch progress {new_counts}/{self.batch_size}"
+                    completed = batch_count,
+                    description = bar_title + shot_timing
                 )
                 progress_bar[1].refresh()
-            self.count_so_far = self.result.count_so_far()
-            
-        new_counts = self.count_so_far-processed_counts
+                old_count = batch_count
         if progress_bar is not None:
-            progress_bar[1].update(progress_bar[0], completed = new_counts)
+            progress_bar[1].update(progress_bar[0], completed = batch_count)
 
     def _fetch_opx_buffer(self):
         """
@@ -126,7 +129,6 @@ class GettableParameter(ParameterWithSetpoints):
         self.buffer_val = np.array(self.buffer.fetch_all(), dtype = float)
         if self.buffer_val is None:
             raise ValueError("NO VALUE STREAMED")
-        self.batch_count += 1
 
     def get_all(self):
         """Fetches ALL (not buffered) data"""
@@ -140,13 +142,10 @@ class GettableParameter(ParameterWithSetpoints):
     def reset(self):
         """Resets all job specific attributes"""
         self.qm_job = None
-        self.result = None
         self.buffer = None
         self.buffer_val = None
         self.shape = None
-        self.count_so_far = 0
         self.batch_size = 0
-        self.batch_count = 0
 
     def plot_set_current_histogram(self, *args, **kwargs) -> tuple:
         """

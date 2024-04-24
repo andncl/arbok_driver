@@ -59,7 +59,6 @@ class AbstractReadout(ABC):
             sweep_size = self.sequence.parent_sequence.sweep_size
             buffer = observable.qua_stream.buffer(sweep_size)
             buffer.save(f"{observable.full_name}_buffer")
-            observable.qua_stream.save_all(observable.full_name)
 
     def qua_measure_and_save(self):
         """Measures ans saves the result of the given readout"""
