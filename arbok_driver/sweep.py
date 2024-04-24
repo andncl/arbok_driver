@@ -188,7 +188,7 @@ class Sweep:
             sweep_arr = self.config[param]
             sweep_arr_differences = np.ediff1d(sweep_arr)
             mean_step = np.mean(sweep_arr_differences)
-            if np.std(sweep_arr_differences) > 0.1*mean_step:
+            if np.std(sweep_arr_differences) > np.abs(0.1*mean_step):
                 can_be_parametrized = False
             else:
                 can_be_parametrized = True
@@ -232,11 +232,10 @@ class Sweep:
             next_action (callable): Next action to be executed after the loop
         """
         param = self.parameters[0]
-        sweep_array = param.get_raw()
         parameters_sss = {}
         for param in self.parameters:
             if param.can_be_parametrized:
-                start, stop, step = self._parameterize_sweep_array(param, sweep_array)
+                start, stop, step = self._parameterize_sweep_array(param, param.get_raw())
                 parameters_sss[param] = {
                     'start': start,
                     'stop': stop,
@@ -249,16 +248,15 @@ class Sweep:
                     f" of length {length_of_array}. Check output!"
                     )
 
-        # with qua.for_(*loops.qua_arange(param.qua_var, start, stop, step)):
-        #    next_action()
         for param, sss in parameters_sss.items():
             qua.assign(param.qua_var, sss['start'])
         sweep_idx_var = qua.declare(int)
         qua.align()
         with qua.for_(sweep_idx_var, 0, self.length, sweep_idx_var + 1):
-            for param in self.parameters:
+            for param, sss in parameters_sss.items():
                 if param.can_be_parametrized:
-                    qua.assign(param.qua_var, param.qua_var + step)
+                    print(sss)
+                    qua.assign(param.qua_var, param.qua_var + sss['step'])
                 else:
                     qua.assign(param.qua_var, param.qua_sweep_arr[sweep_idx_var])
             qua.align()
