@@ -1,6 +1,7 @@
 """ Module containing GettableParameter class """
 
 import warnings
+import time
 import logging as lg
 import numpy as np
 import matplotlib.pyplot as plt
@@ -101,19 +102,27 @@ class GettableParameter(ParameterWithSetpoints):
         This function is running until a batch with self.batch_size is ready
         """
         processed_counts = self.batch_count*self.batch_size
+        old_counts = processed_counts
+        t0 = time.time()
+        shot_timing = "Calculating shot timing..."
         while self.count_so_far-processed_counts < self.batch_size:
             lg.info("Waiting: %s/%s results are in",
                 self.count_so_far, processed_counts + self.batch_size)
             new_counts = self.count_so_far-processed_counts
             if progress_bar is not None:
+                bar_title = f"[cyan]Batch progress {new_counts}/{self.batch_size}\n"
+                if new_counts > old_counts:
+                    shot_timing = f"{1e3*(time.time()-t0)/(new_counts-old_counts):.1f}"
+                    shot_timing += " ms per shot"
+                t0 = time.time()
                 progress_bar[1].update(
                     progress_bar[0],
                     completed = new_counts,
-                    description = f"Batch progress {new_counts}/{self.batch_size}"
+                    description = bar_title + shot_timing
                 )
                 progress_bar[1].refresh()
+                old_counts = new_counts
             self.count_so_far = self.result.count_so_far()
-            
         new_counts = self.count_so_far-processed_counts
         if progress_bar is not None:
             progress_bar[1].update(progress_bar[0], completed = new_counts)
