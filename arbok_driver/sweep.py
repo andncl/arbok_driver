@@ -254,12 +254,14 @@ class Sweep:
         for param, sss in parameters_sss.items():
             qua.assign(param.qua_var, sss['start'])
         sweep_idx_var = qua.declare(int)
+        qua.align()
         with qua.for_(sweep_idx_var, 0, self.length, sweep_idx_var + 1):
             for param in self.parameters:
                 if param.can_be_parametrized:
                     qua.assign(param.qua_var, param.qua_var + step)
                 else:
                     qua.assign(param.qua_var, param.qua_sweep_arr[sweep_idx_var])
+            qua.align()
             next_action()
 
     def _qua_explicit_array_loop(self, next_action):
