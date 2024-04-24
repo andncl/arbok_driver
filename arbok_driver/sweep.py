@@ -253,10 +253,10 @@ class Sweep:
         sweep_idx_var = qua.declare(int)
         qua.align()
         with qua.for_(sweep_idx_var, 0, self.length, sweep_idx_var + 1):
-            for param, sss in parameters_sss.items():
+            for param in self.parameters:
                 if param.can_be_parametrized:
-                    print(sss)
-                    qua.assign(param.qua_var, param.qua_var + sss['step'])
+                    step = parameters_sss[param]['step']
+                    qua.assign(param.qua_var, param.qua_var + step)
                 else:
                     qua.assign(param.qua_var, param.qua_sweep_arr[sweep_idx_var])
             qua.align()
