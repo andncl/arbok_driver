@@ -23,7 +23,7 @@ class Sweep:
         self._length = None
         self._inputs_are_streamed = None
         self._input_streams = None
-        self._can_be_parametrized = None
+        self._can_be_parameterized = None
         self.register_all = register_all
         self.configure_sweep()
         self._check_if_parametrizable()
@@ -59,23 +59,29 @@ class Sweep:
         return self._inputs_are_streamed
 
     @property
-    def can_be_parametrized(self):
-        """Whether sweep is fed by input stream"""
-        if self._can_be_parametrized is None:
+    def can_be_parameterized(self):
+        """
+        Whether sweep can be parameterized with start, stop and step for memory
+        saving. If the user has not set this value, it will be checked by the
+        entries of the given arrays
+        """
+        if self._can_be_parameterized is None:
             return self._check_if_parametrizable()
         else:
-            return self._can_be_parametrized
+            return self._can_be_parameterized
 
-    @can_be_parametrized.setter
-    def can_be_parametrized(self, value: bool):
-        """Setter for can_be_parametrized"""
+    @can_be_parameterized.setter
+    def can_be_parameterized(self, value: bool):
+        """Setter for can_be_parameterized"""
         if value is False:
-            self._can_be_parametrized = False
+            self._can_be_parameterized = False
             for parameter in self.parameters:
-                parameter.can_be_parametrized = False
+                parameter.can_be_parameterized = False
+        elif value is True:
+            if self._can_be_parameterized is True:
+                self._can_be_parameterized = True
         else:
-            if self._can_be_parametrized is True:
-                self._can_be_parametrized = True
+            raise ValueError("can_be_parameterized must be of type bool")
 
     @property
     def config(self) -> dict:
@@ -189,12 +195,17 @@ class Sweep:
             sweep_arr_differences = np.ediff1d(sweep_arr)
             mean_step = np.mean(sweep_arr_differences)
             if np.std(sweep_arr_differences) > np.abs(0.1*mean_step):
-                can_be_parametrized = False
+                can_be_parameterized = False
             else:
-                can_be_parametrized = True
-            param.can_be_parametrized = can_be_parametrized
-            parameterizability_list.append(can_be_parametrized)
-        return any(parameterizability_list)
+                can_be_parameterized = True
+            param.can_be_parameterized = can_be_parameterized
+            parameterizability_list.append(can_be_parameterized)
+        ### In case not all parameters can be parametrized, none can
+        parameterizabel = all(parameterizability_list)
+        if not parameterizabel:
+            for param in self.parameters:
+                param.can_be_parameterized = False
+        return parameterizabel
 
     def qua_generate_parameter_sweep(self, next_action: callable) -> None:
         """
@@ -206,7 +217,7 @@ class Sweep:
         """
         if self.inputs_are_streamed:
             self._qua_input_stream_loop(next_action)
-        elif self.can_be_parametrized:
+        elif self.can_be_parameterized:
             self._qua_parmetrized_loop(next_action)
         else:
             self._qua_explicit_array_loop(next_action)
@@ -234,7 +245,7 @@ class Sweep:
         param = self.parameters[0]
         parameters_sss = {}
         for param in self.parameters:
-            if param.can_be_parametrized:
+            if param.can_be_parameterized:
                 start, stop, step = self._parameterize_sweep_array(param, param.get_raw())
                 parameters_sss[param] = {
                     'start': start,
@@ -251,10 +262,9 @@ class Sweep:
         for param, sss in parameters_sss.items():
             qua.assign(param.qua_var, sss['start'])
         sweep_idx_var = qua.declare(int)
-        qua.align()
         with qua.for_(sweep_idx_var, 0, self.length, sweep_idx_var + 1):
             for param in self.parameters:
-                if param.can_be_parametrized:
+                if param.can_be_parameterized:
                     step = parameters_sss[param]['step']
                     qua.assign(param.qua_var, param.qua_var + step)
                 else:

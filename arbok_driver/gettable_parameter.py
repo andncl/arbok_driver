@@ -43,6 +43,7 @@ class GettableParameter(ParameterWithSetpoints):
         self.buffer_val = None
         self.shape = None
         self.batch_size = 0
+        self.result_nr = 0
         self.batch_counter = None
 
     def set_raw(self, *args, **kwargs) -> None:
@@ -95,16 +96,19 @@ class GettableParameter(ParameterWithSetpoints):
         This function is running until a batch with self.batch_size is ready
         """
         batch_count, old_count = 0, 0
+        last_result_nr = self.result_nr
         shot_timing = "Calculating shot timing..."
         t0 = time.time()
-        while batch_count < self.batch_size:
+        # while batch_count < self.batch_size:
+        while last_result_nr == self.result_nr:
             lg.info(
                 "Waiting: %s/%s results are in",
                 batch_count, self.batch_size
             )
             shot_count_result = self.batch_counter.fetch_all()
             if shot_count_result is not None:
-                batch_count = shot_count_result[0]
+                self.result_nr, batch_count = divmod(
+                    shot_count_result[0], self.batch_size)
             if progress_bar is not None:
                 bar_title = f"[cyan]Batch progress {batch_count}/{self.batch_size}\n"
                 if batch_count > old_count:

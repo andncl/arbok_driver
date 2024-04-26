@@ -67,7 +67,7 @@ class Sequence(SequenceBase):
         return self._input_stream_parameters
 
     def qua_declare(self):
-        self.shot_tracker_qua_var = qua.declare(int, value = 1)
+        self.shot_tracker_qua_var = qua.declare(int, value = 0)
         self.shot_tracker_qua_stream = qua.declare_stream()
 
     def qua_before_sweep(self):
