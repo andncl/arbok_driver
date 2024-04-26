@@ -73,7 +73,7 @@ def create_measurement_loop(
 
                     progress_bars['total_progress'] = progress_tracker.add_task(
                         description = "[green]Total progress...",
-                        total = nr_sweep_list_points - 1)
+                        total = nr_sweep_list_points)
                     progress_bars['batch_progress'] = progress_tracker.add_task(
                         description = "[cyan]Batch progress...",
                         total = sequence.sweep_size)
