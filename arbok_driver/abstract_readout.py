@@ -17,6 +17,7 @@ class AbstractReadout(ABC):
         name: str,
         sequence: ReadSequence,
         attr_name: str,
+        save_results: bool = True
     ):
         """
         Constructor method of `AbstractReadout`
@@ -30,6 +31,7 @@ class AbstractReadout(ABC):
         self.name = name
         self.sequence = sequence
         self.attr_name = attr_name
+        self.save_results = save_results
         self.observables = {}
 
     def qua_declare_variables(self):
@@ -52,18 +54,23 @@ class AbstractReadout(ABC):
 
     def qua_save_streams(self):
         """Saves acquired results to qua stream"""
-        for observable_name, observable in self.observables.items():
+        if self.save_results:
+            for observable_name, observable in self.observables.items():
+                logging.debug(
+                    "Saving streams of observable %s on abstract readout %s",
+                    observable_name, self.name)
+                sweep_size = self.sequence.parent_sequence.sweep_size
+                buffer = observable.qua_stream.buffer(sweep_size)
+                buffer.save(f"{observable.full_name}_buffer")
+        else:
             logging.debug(
-                "Saving streams of observable %s on abstract readout %s",
-                observable_name, self.name)
-            sweep_size = self.sequence.parent_sequence.sweep_size
-            buffer = observable.qua_stream.buffer(sweep_size)
-            buffer.save(f"{observable.full_name}_buffer")
+                "NOT saving streams of abstract readout %s", self.name)
 
     def qua_measure_and_save(self):
         """Measures ans saves the result of the given readout"""
         self.qua_measure()
-        self.qua_save_variables()
+        if self.save_results:
+            self.qua_save_variables()
 
     def _find_observable_from_path(self, attr_path: str) -> ObservableBase:
         """
