@@ -140,10 +140,15 @@ class ReadSequence(SubSequence):
                     self,
                     readout_name,
                     )
+                if "save_results" in readout_conf:
+                    save_results = readout_conf["save_results"]
+                else:
+                    save_results = True
                 abstract_readout = ReadoutClass(
                     name = readout_name,
                     attr_name = readout_conf["name"],
                     sequence = self,
+                    save_results = save_results,
                     **readout_conf["args"],
                 )
                 readout_group[readout_name] = abstract_readout

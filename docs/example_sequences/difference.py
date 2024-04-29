@@ -12,6 +12,7 @@ class Difference(AbstractReadout):
             name: str,
             sequence: ReadSequence,
             attr_name: str,
+            save_results: bool,
             signal: Signal,
             minuend: str,
             subtrahend: str,
@@ -29,7 +30,7 @@ class Difference(AbstractReadout):
             minuend (str): Path to the qua variable that acts as minuend
             subtrahend (str): Path to the qua variable that acts as subtrahend
         """
-        super().__init__(name, sequence, attr_name)
+        super().__init__(name, sequence, attr_name, save_results)
         self.minuend_path = minuend
         self.subtrahend_path = subtrahend
         self.observable = AbstractObservable(
