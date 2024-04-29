@@ -201,7 +201,7 @@ class Sweep:
             param.can_be_parameterized = can_be_parameterized
             parameterizability_list.append(can_be_parameterized)
         ### In case not all parameters can be parametrized, none can
-        parameterizabel = all(parameterizability_list)
+        parameterizabel = any(parameterizability_list)
         if not parameterizabel:
             for param in self.parameters:
                 param.can_be_parameterized = False
@@ -242,7 +242,7 @@ class Sweep:
         Args:
             next_action (callable): Next action to be executed after the loop
         """
-        param = self.parameters[0]
+
         parameters_sss = {}
         for param in self.parameters:
             if param.can_be_parameterized:
@@ -262,7 +262,12 @@ class Sweep:
         for param, sss in parameters_sss.items():
             qua.assign(param.qua_var, sss['start'])
         sweep_idx_var = qua.declare(int)
-        with qua.for_(sweep_idx_var, 0, self.length, sweep_idx_var + 1):
+        with qua.for_(
+                        var = sweep_idx_var,
+                        init = 0,
+                        cond = sweep_idx_var < self.length,
+                        update = sweep_idx_var + 1
+            ):
             for param in self.parameters:
                 if param.can_be_parameterized:
                     step = parameters_sss[param]['step']
