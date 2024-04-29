@@ -33,7 +33,7 @@ class SequenceParameter(Parameter):
         self.value = None
         self.var_type = var_type
         self.input_stream = None
-        self.can_be_parametrized = False
+        self.can_be_parameterized = False
 
     @property
     def sequence_path(self) -> str:
@@ -91,7 +91,7 @@ class SequenceParameter(Parameter):
         self.vals= Arrays()
 
         self.qua_var = qua.declare(self.var_type)
-        if self.can_be_parametrized:
+        if self.can_be_parameterized:
             self.set(np.array(setpoints))
         elif self.input_stream is None:
             self.set(np.array(setpoints))
