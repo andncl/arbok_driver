@@ -51,6 +51,7 @@ def create_measurement_loop(
             ### Firstly, all settables are extracted from the sweep dict and the
             ### results arguments are created. Those will used for `add_result`
             result_args_dict = _get_result_arguments(sweep_list, register_all)
+
             ### The extracted settables are registered in the measurement
             for param, _ in result_args_dict.items():
                 logging.debug(
@@ -63,6 +64,9 @@ def create_measurement_loop(
                 logging.debug("Registering gettable %s", gettable_setpoints)
                 measurement.register_parameter(
                     gettable, setpoints = gettable_setpoints)
+
+            ### Gettables of the sequence are reset from previous measurements
+            sequence.reset()
 
             ### The measurement is run with the recursive measurement loop over
             ### the qcodes (non-opx) parameters

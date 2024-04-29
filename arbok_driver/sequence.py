@@ -37,12 +37,15 @@ class Sequence(SequenceBase):
         self.parent_sequence = self
         self.stream_mode = "pause_each"
         self._input_stream_parameters = []
+        # self._input_stream
+        self.nr_input_stream_types = {int: 0, bool: 0, qua.fixed: 0}
         self._sweeps = []
         self._gettables = []
         self._sweep_size = 1
         self._setpoints_for_gettables = ()
         self.shot_tracker_qua_var = None
         self.shot_tracker_qua_stream = None
+        self._qua_input_stream = None
 
     @property
     def sweeps(self) -> list:
@@ -66,20 +69,62 @@ class Sequence(SequenceBase):
         """Registered input stream parameters"""
         return self._input_stream_parameters
 
+    @input_stream_parameters.setter
+    def input_stream_parameters(self, parameters: list) -> None:
+        """
+        Setter for input stream parameters
+            
+        Raises:
+            TypeError: If not all parameters are of type SequenceParameter
+            ValueError: If not all parameters are unique
+        """
+        if not all(isinstance(p, SequenceParameter) for p in parameters):
+            raise TypeError(
+                "All input stream parameters must be of type SequenceParameter"
+                )
+        if len(parameters) != len(set(parameters)):
+            raise ValueError(
+                "All input stream parameters must be unique"
+                )
+        self._input_stream_parameters = parameters
+
     def qua_declare(self):
-        self.shot_tracker_qua_var = qua.declare(int, value = 1)
+        """Contains raw QUA code to declare variables"""
+        self.shot_tracker_qua_var = qua.declare(int, value = 0)
         self.shot_tracker_qua_stream = qua.declare_stream()
+        self._qua_declare_input_streams()
 
     def qua_before_sweep(self):
+        """
+        Qua code to be executed before the sweep loop but after the qua.pause
+        statement that aligns the measurement results
+        """
         qua.assign(self.shot_tracker_qua_var, 0)
+        stream_params = self.input_stream_parameters
+        int_params = [p for p in stream_params if p.var_type == int]
+        bool_params = [p for p in stream_params if p.var_type == bool]
+        fixed_params = [p for p in stream_params if p.var_type == qua.fixed]
+                
+        if int_params:
+            for i, param in enumerate(int_params):
+                qua.assign(param.qua_var, self._qua_int_input_stream[i])
+        if bool_params:
+            for i, param in enumerate(bool_params):
+                qua.assign(param.qua_var, self._qua_bool_input_stream[i])
+        if fixed_params:
+            for i, param in enumerate(fixed_params):
+                qua.assign(param.qua_var, self._qua_fixed_input_stream[i])
 
     def qua_after_sequence(self):
+        """
+        Qua code to be executed after the sequence loop and the code it contains
+        """
         qua.assign(
             self.shot_tracker_qua_var,
             self.shot_tracker_qua_var + 1
             )
         qua.save(self.shot_tracker_qua_var, self.shot_tracker_qua_stream)
-    
+
     def qua_stream(self):
         """Contains raw QUA code to define streams"""
         self.shot_tracker_qua_stream.buffer(1).save(self.name + "_shots")
@@ -122,6 +167,58 @@ class Sequence(SequenceBase):
         self._configure_gettables()
         self.sweeps.reverse()
 
+    def reset(self) -> None:
+        """Resets the sequence to its initial state before measurement"""
+        return
+
+    def insert_single_value_input_streams(self, value_dict: dict) -> None:
+        """
+        Compresses all input streams to single array stream
+        
+        Args:
+            value_dict (dict): Dictionary containing all input stream parameters
+                (SequenceParameters)and their values
+        
+        Raises:
+            KeyError: If not all input stream parameters that were added to the
+                input_stream_parameters attribute are given in value_dict
+            ValueError: If the given value_dict contains invalid types
+        """
+        if Counter(value_dict.keys()) != Counter(self.input_stream_parameters):
+            raise KeyError(
+                "Given value dict must contain all input stream parameters"
+                f"given are: {[p.name for p in value_dict.keys()]}."
+                "\n Required are: "
+                f"{[p.name for p in self.input_stream_parameters]}"
+                )
+        int_vals, bool_vals, fixed_vals = [], [], []
+        for param in self.input_stream_parameters:
+            if param.var_type == int:
+                int_vals.append(int(value_dict[param]))
+            elif param.var_type == qua.fixed:
+                fixed_vals.append(float(value_dict[param]))
+            elif param.var_type == bool:
+                bool_vals.append(bool(value_dict[param]))
+            else:
+                raise ValueError(
+                    f"Parameter {param.name} has invalid type {param.var_type}"
+                    )
+        if int_vals:
+            self.driver.qm_job.insert_input_stream(
+                name = f"{self.name}_int_input_stream",
+                data = int_vals
+            )
+        if bool_vals:
+            self.driver.qm_job.insert_input_stream(
+                name = f"{self.name}_bool_input_stream",
+                data = bool_vals
+            )
+        if fixed_vals:
+            self.driver.qm_job.insert_input_stream(
+                name = f"{self.name}_fixed_input_stream",
+                data = fixed_vals
+            )
+
     def _configure_gettables(self) -> None:
         """
         Configures all gettables to be measured. Sets batch_size, can_resume,
@@ -155,6 +252,28 @@ class Sequence(SequenceBase):
         if not all_gettables_from_self:
             raise AttributeError(
                 f"Not all GettableParameters belong to {self.name}")
+
+    def _qua_declare_input_streams(self) -> None:
+        if not self.input_stream_parameters:
+            return
+        for qua_type in [bool, int, qua.fixed]:
+            self._qua_declare_input_stream_type(qua_type)
+    
+    def _qua_declare_input_stream_type(
+        self, type: int | bool | qua.fixed) -> None:
+        length = 0
+        for param in self.input_stream_parameters:
+            if param.var_type == type:
+                length += 1
+                param.qua_var = qua.declare(param.var_type)
+        self.nr_input_stream_types[type] = length
+        if length > 0:
+            input_stream = qua.declare_input_stream(
+                type,
+                name = f"{self.name}_{type.__name__}_input_stream",
+                size = length
+            )
+            setattr(self, f"_qua_{type.__name__}_input_stream", input_stream)
 
     def get_sequence_path(self):
         """Returns its name since sequence is the top level sequence"""
