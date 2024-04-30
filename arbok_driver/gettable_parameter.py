@@ -100,28 +100,31 @@ class GettableParameter(ParameterWithSetpoints):
         shot_timing = "Calculating shot timing..."
         t0 = time.time()
         # while batch_count < self.batch_size:
-        while last_result_nr == self.result_nr:
-            lg.info(
-                "Waiting: %s/%s results are in",
-                batch_count, self.batch_size
-            )
-            shot_count_result = self.batch_counter.fetch_all()
-            if shot_count_result is not None:
-                self.result_nr, batch_count = divmod(
-                    shot_count_result[0], self.batch_size)
-            if progress_bar is not None:
-                bar_title = f"[cyan]Batch progress {batch_count}/{self.batch_size}\n"
-                if batch_count > old_count:
-                    time_per_shot = 1e3*(time.time()-t0)/(batch_count-old_count)
-                    shot_timing = f"{time_per_shot:.1f} ms per shot"
-                t0 = time.time()
-                progress_bar[1].update(
-                    progress_bar[0],
-                    completed = batch_count,
-                    description = bar_title + shot_timing
+        try:
+            while last_result_nr == self.result_nr:
+                lg.info(
+                    "Waiting: %s/%s results are in",
+                    batch_count, self.batch_size
                 )
-                progress_bar[1].refresh()
-                old_count = batch_count
+                shot_count_result = self.batch_counter.fetch_all()
+                if shot_count_result is not None:
+                    self.result_nr, batch_count = divmod(
+                        shot_count_result[0], self.batch_size)
+                if progress_bar is not None:
+                    bar_title = f"[cyan]Batch progress {batch_count}/{self.batch_size}\n"
+                    if batch_count > old_count:
+                        time_per_shot = 1e3*(time.time()-t0)/(batch_count-old_count)
+                        shot_timing = f"{time_per_shot:.1f} ms per shot"
+                    t0 = time.time()
+                    progress_bar[1].update(
+                        progress_bar[0],
+                        completed = batch_count,
+                        description = bar_title + shot_timing
+                    )
+                    progress_bar[1].refresh()
+                    old_count = batch_count
+        except KeyboardInterrupt as exc:
+            raise KeyboardInterrupt('Measurement interrupted by user') from exc
         if progress_bar is not None:
             progress_bar[1].update(progress_bar[0], completed = batch_count)
 
