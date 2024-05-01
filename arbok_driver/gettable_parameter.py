@@ -98,8 +98,8 @@ class GettableParameter(ParameterWithSetpoints):
         batch_count, old_count = 0, 0
         last_result_nr = self.result_nr
         shot_timing = "Calculating shot timing..."
+        total_results = "Total results: ..."
         t0 = time.time()
-        # while batch_count < self.batch_size:
         try:
             while last_result_nr == self.result_nr:
                 lg.info(
@@ -110,16 +110,19 @@ class GettableParameter(ParameterWithSetpoints):
                 if shot_count_result is not None:
                     self.result_nr, batch_count = divmod(
                         shot_count_result[0], self.batch_size)
+                    total_results = f"Total results: {shot_count_result[0]}"
                 if progress_bar is not None:
-                    bar_title = f"[cyan]Batch progress {batch_count}/{self.batch_size}\n"
+                    bar_title = "[cyan]Batch progress "
+                    bar_title += f"{batch_count}/{self.batch_size}\n"
                     if batch_count > old_count:
                         time_per_shot = 1e3*(time.time()-t0)/(batch_count-old_count)
-                        shot_timing = f"{time_per_shot:.1f} ms per shot"
+                        shot_timing = f"{time_per_shot:.1f} ms per shot\n"
+                        
                     t0 = time.time()
                     progress_bar[1].update(
                         progress_bar[0],
                         completed = batch_count,
-                        description = bar_title + shot_timing
+                        description = bar_title + shot_timing + total_results
                     )
                     progress_bar[1].refresh()
                     old_count = batch_count

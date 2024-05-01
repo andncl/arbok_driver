@@ -99,7 +99,7 @@ class Sequence(SequenceBase):
         Qua code to be executed before the sweep loop but after the qua.pause
         statement that aligns the measurement results
         """
-        qua.assign(self.shot_tracker_qua_var, 0)
+        # qua.assign(self.shot_tracker_qua_var, 0)
         stream_params = self.input_stream_parameters
         int_params = [p for p in stream_params if p.var_type == int]
         bool_params = [p for p in stream_params if p.var_type == bool]
