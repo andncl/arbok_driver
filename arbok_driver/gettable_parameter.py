@@ -97,7 +97,7 @@ class GettableParameter(ParameterWithSetpoints):
         """
         batch_count, old_count = 0, 0
         last_result_nr = self.result_nr
-        shot_timing = "Calculating shot timing..."
+        shot_timing = "Calculate timing...\n"
         total_results = "Total results: ..."
         t0 = time.time()
         try:
@@ -156,6 +156,7 @@ class GettableParameter(ParameterWithSetpoints):
         self.buffer_val = None
         self.shape = None
         self.batch_size = 0
+        self.result_nr = 0
 
     def plot_set_current_histogram(self, *args, **kwargs) -> tuple:
         """
