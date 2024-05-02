@@ -246,7 +246,8 @@ class Sweep:
         parameters_sss = {}
         for param in self.parameters:
             if param.can_be_parameterized:
-                start, stop, step = self._parameterize_sweep_array(param, param.get_raw())
+                start, stop, step = self._parameterize_sweep_array(
+                    param, param.get_raw())
                 parameters_sss[param] = {
                     'start': start,
                     'stop': stop,
@@ -254,9 +255,10 @@ class Sweep:
                     }
                 length_of_array = len(np.arange(start, stop, step))
                 warnings.warn(
-                    f"\nYour input array of length {len(param.get())} for {param.name} "
-                    f"will be parametrized with start {start}, step {step}, stop {stop}"
-                    f" of length {length_of_array}. Check output!"
+                    f"\n\tYour input array of length {len(param.get())} "
+                    f"for {param.name} will be parametrized with\n\t"
+                    f"start {start}, step {step}, stop {stop}"
+                    f" of length {length_of_array}. \n\tCheck output!"
                     )
 
         for param, sss in parameters_sss.items():
