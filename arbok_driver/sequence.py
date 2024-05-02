@@ -99,19 +99,21 @@ class Sequence(SequenceBase):
         Qua code to be executed before the sweep loop but after the qua.pause
         statement that aligns the measurement results
         """
-        # qua.assign(self.shot_tracker_qua_var, 0)
         stream_params = self.input_stream_parameters
         int_params = [p for p in stream_params if p.var_type == int]
         bool_params = [p for p in stream_params if p.var_type == bool]
         fixed_params = [p for p in stream_params if p.var_type == qua.fixed]
                 
         if int_params:
+            qua.advance_input_stream(self._qua_int_input_stream)
             for i, param in enumerate(int_params):
                 qua.assign(param.qua_var, self._qua_int_input_stream[i])
         if bool_params:
+            qua.advance_input_stream(self._qua_bool_input_stream)
             for i, param in enumerate(bool_params):
                 qua.assign(param.qua_var, self._qua_bool_input_stream[i])
         if fixed_params:
+            qua.advance_input_stream(self._qua_fixed_input_stream)
             for i, param in enumerate(fixed_params):
                 qua.assign(param.qua_var, self._qua_fixed_input_stream[i])
 
@@ -194,12 +196,12 @@ class Sequence(SequenceBase):
         int_vals, bool_vals, fixed_vals = [], [], []
         for param in self.input_stream_parameters:
             if param.var_type == int:
-                int_vals.append(int(value_dict[param]))
+                int_vals.append(int(value_dict[param]*param.scale))
             elif param.var_type == qua.fixed:
-                fixed_vals.append(float(value_dict[param]))
+                fixed_vals.append(float(value_dict[param]*param.scale))
             elif param.var_type == bool:
                 bool_vals.append(bool(value_dict[param]))
-            else:
+            else:   
                 raise ValueError(
                     f"Parameter {param.name} has invalid type {param.var_type}"
                     )
@@ -266,6 +268,7 @@ class Sequence(SequenceBase):
             if param.var_type == type:
                 length += 1
                 param.qua_var = qua.declare(param.var_type)
+                param.qua_sweeped = True
         self.nr_input_stream_types[type] = length
         if length > 0:
             input_stream = qua.declare_input_stream(
