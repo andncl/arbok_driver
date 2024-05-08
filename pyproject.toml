@@ -9,22 +9,22 @@ authors = [
 ]
 description = "QCoDeS compatible driver for the OPX+ from Quantum Machines"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = {text = "BSD-3-Clause"}
 classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 dependencies = [
     "jupyterlab",
-    "numpy > 1.23",
+    "numpy >= 1.23",
     "matplotlib",
     "plottr",
     "ipython",
     "scipy",
-    "qm-qua >= 1.1.7",
-    "qcodes >= 0.42",
-    "qualang_tools >= 0.15.2",
-    "qcodes-contrib-drivers >= 0.18",
-    "rich >= 13.7.1",
+    "qm-qua == 1.1.7",
+    "qcodes == 0.43",
+    "qualang_tools == 0.15.2",
+    "qcodes-contrib-drivers == 0.18",
+    "rich == 13.7.1",
 ]
 dynamic = ["version"]
