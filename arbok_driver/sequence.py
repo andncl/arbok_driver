@@ -19,8 +19,7 @@ class Sequence(SequenceBase):
             self,
             name: str,
             sample: Sample,
-            param_config: dict | None = None,
-            **kwargs
+            sequence_config: dict | None = None,
             ) -> None:
         """
         Constructor method for Sequence
@@ -28,11 +27,11 @@ class Sequence(SequenceBase):
         Args:
             name (str): Name of the sequence
             sample (Sample): Sample object describing the device in use
-            param_config (dict): Config containing all sequence params and their
-                initial values and units0
+            sequence_config (dict): Config containing all sequence params and
+                their initial values and units0
             **kwargs: Key word arguments for InstrumentModule 
         """
-        super().__init__(name, sample, param_config, **kwargs)
+        super().__init__(name, sample, sequence_config)
         self.driver = None
         self.parent_sequence = self
         self.stream_mode = "pause_each"
