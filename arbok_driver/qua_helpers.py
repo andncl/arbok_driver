@@ -1,7 +1,7 @@
 from typing import Union, Optional
 import logging
+import math
 
-from qm.qua import play, amp, ramp_to_zero, align
 from qm import qua
 
 from arbok_driver import SubSequence, SequenceParameter
@@ -13,13 +13,15 @@ def arbok_go(
         operation: str,
         from_volt: Optional[Union[str, list]] = None,
         duration: any = None,
-        align_after: str = 'elements'
+        align_after: str = 'elements',
+        no_play_tolerance: float = 1e-6
     ):
     """ 
     Helper function that `play`s a qua operation on the respective elements 
     specified in the sequence config.
     TODO:   - [ ] raise error when target and origin dims dont match
             - [ ] raise error if duration is too short
+            - [ ] separate this functions into digestible parts
 
     Args:
         sub_sequence (Sequence): Sequence from which parameters are fetched
@@ -31,6 +33,7 @@ def arbok_go(
         align_after (optional, bool, str): whether to align channels after
             ramping. Input 'all' alligns all. 'none' does not align 
             at all and 'elements' (default) aligns all given elements
+        no_play_tolerance (optional, float): tolerance for not playing a pulse
     """
     if isinstance(duration, SequenceParameter):
         if duration.qua_sweeped:
@@ -68,30 +71,70 @@ def arbok_go(
         sub_sequence = sub_sequence
         )
     for element in elements:
-        target_v = 0
-        origin_v = 0
-        for point, param in target_param_sets[element].items():
-            target_v += param()*to_volt_signs[point]
-        for point, param in origin_param_sets[element].items():
-            origin_v += param()*from_volt_signs[point]
-        logging.debug(
-            "Arbok_go: Moving %s from %s (%s) to %s (%s) in %s", 
-            element, origin_v,
-            from_volt, target_v, to_volt, sub_sequence
-            )
+        sticky_pulse_amplitude = _calculate_sticky_pulse_amplitude(
+            target_param_sets[element],
+            origin_param_sets[element],
+            to_volt_signs,
+            from_volt_signs
+        )
         kwargs = {
-            'pulse': operation*qua.amp( target_v - origin_v ),
+            'pulse': operation*qua.amp(sticky_pulse_amplitude),
             'element': element
             }
         if duration is not None:
             kwargs['duration'] = duration
 
-        qua.play(**kwargs)
+        logging.debug(
+            "Arbok_go: Moving %s from %s to %s by %s in %s", 
+            element, from_volt, to_volt, sticky_pulse_amplitude, sub_sequence
+            )
+        if not isinstance(sticky_pulse_amplitude, float):
+            qua.play(**kwargs)
+        elif math.isclose(sticky_pulse_amplitude, 0, abs_tol= no_play_tolerance):
+            logging.debug(
+                "Arbok_go: Omitting %s since amplitude %s is small (th = %s)", 
+                element, sticky_pulse_amplitude, no_play_tolerance
+                )
+        else:
+            qua.play(**kwargs)
+
     _qua_align(
         method=align_after,
         elements = elements,
         sub_sequence = sub_sequence
         )
+
+def _calculate_sticky_pulse_amplitude(
+        target_points: dict,
+        origin_points: dict,
+        to_volt_signs: dict,
+        from_volt_signs: dict
+        ) -> float:
+    """
+    Calculates the amplitude of the sticky pulse to be played. Target and origin
+    can have multiple points. The amplitude is calculated as the difference
+
+    Args
+        element (str): qua element on which pulse is played
+        target_points (dict): dict containing the target points as keys
+            and their params (either values or qua variables) as values
+        origin_points (dict): dict containing the origin points as keys
+            and their params (either values or qua variables) as values
+        to_volt_signs (dict): dict containing the target points as keys and
+            their signs as values
+        from_volt_signs (dict): dict containing the origin points as keys and
+            their signs as values
+    Returns:
+        float | any: amplitude of the sticky pulse in qm units (note real volts)
+    """
+    target_v, origin_v = 0, 0
+    for point, param in target_points.items():
+        target_v += param()*to_volt_signs[point]
+    for point, param in origin_points.items():
+        origin_v += param()*from_volt_signs[point]
+
+
+    return target_v - origin_v
 
 def _qua_align(method, elements, sub_sequence):
     match method:
