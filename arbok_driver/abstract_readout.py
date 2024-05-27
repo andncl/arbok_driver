@@ -27,6 +27,7 @@ class AbstractReadout(ABC):
             sequence (ReadSequence): Sequence generating the given readout
             attr_name (str): Name of the attribute as which the readout will be
                 added in the signal
+            save_results (bool, optional): Whether to save the results
         """
         self.name = name
         self.sequence = sequence
