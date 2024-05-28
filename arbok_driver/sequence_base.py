@@ -8,7 +8,7 @@ import warnings
 import numpy as np
 
 from qcodes.instrument import Instrument
-from qcodes.validators import Arrays
+from qcodes.validators import Arrays, Numbers, Ints
 
 from qm import SimulationConfig, generate_qua_script, qua
 from qm.QuantumMachinesManager import QuantumMachinesManager
@@ -243,6 +243,7 @@ class SequenceBase(Instrument):
                 or 'elements' for element wise defined parameters
         """
         logging.debug("Adding %s to %s", param_name, self.name)
+        validator = None
         if "label" in param_dict:
             label = param_dict["label"]
         else:
@@ -251,12 +252,14 @@ class SequenceBase(Instrument):
             for element, value in param_dict['elements'].items():
                 if element in self.sample.divider_config:
                     scale = self.sample.divider_config[element]['division']
+                    validator = Numbers(-1/scale, 1/scale)
                 else:
                     scale = 1
                 qua_type = qua.fixed
                 if 'qua_type' in param_dict:
                     if param_dict['qua_type'] == 'int':
                         qua_type = int
+                        validator = Ints()
 
                 self.add_parameter(
                     name  = f'{param_name}_{element}',
@@ -268,6 +271,7 @@ class SequenceBase(Instrument):
                     get_cmd = None,
                     set_cmd = None,
                     scale = scale,
+                    vals = validator,
                     var_type = qua_type,
                     label = f"{element}: {label}"
                 )
@@ -277,8 +281,10 @@ class SequenceBase(Instrument):
                 given_type = param_dict['qua_type']
                 if given_type == 'fixed':
                     qua_type = qua.fixed
+                    validator = Numbers()
                 if given_type == 'int':
                     qua_type = int
+                    validator = Ints()
             self.add_parameter(
                 name  = param_name,
                 config_name = param_name,
@@ -288,6 +294,7 @@ class SequenceBase(Instrument):
                 element = None,
                 set_cmd = None,
                 scale = 1,
+                vals = validator,
                 var_type = qua_type,
                 label = label
             )

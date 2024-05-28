@@ -1,10 +1,11 @@
 """Module containing sequence class"""
 import math
+import logging
 from collections import Counter
 
 import numpy as np
 from qm import qua
-from qcodes.validators import Arrays
+from qcodes.validators import Arrays, Numbers
 import matplotlib.pyplot as plt
 
 from .gettable_parameter import GettableParameter
@@ -145,12 +146,20 @@ class Sequence(SequenceBase):
             raise TypeError("All arguments need to be of type dict")
         self._sweeps = []
         for sweep_dict in args:
+            logging.debug("Adding parameter sweep for %s", sweep_dict.keys())
             self._sweeps.append(Sweep(sweep_dict))
         self._setpoints_for_gettables = ()
         for sweep in self.sweeps:
-            for param, setpoints in sweep.config_to_register.items():
-                param.vals = Arrays(shape=(len(setpoints),))
+            for param, _ in sweep.config_to_register.items():
                 self._setpoints_for_gettables += (param,)
+            for param, setpoints in sweep.config.items():
+                param.vals = Arrays(
+                    min_value = -1/param.scale,
+                    max_value = 1/param.scale,
+                    shape = (len(setpoints),)
+                    )
+                logging.debug(
+                    "Changing vals for %s to %s", param.name, param.vals)
         print(
             f"Declared {len(self.sweeps)}-dimensional parameter sweep"
             f" of size {self.sweep_size} {[s.length for s in self.sweeps]}"
@@ -169,8 +178,15 @@ class Sequence(SequenceBase):
         self.sweeps.reverse()
 
     def reset(self) -> None:
-        """Resets the sequence to its initial state before measurement"""
-        return
+        """
+        Resets the sequence to its initial state before measurement.
+        Resets validators of sweep parameters to their initial number validators
+        """
+        for param in self._setpoints_for_gettables:
+            param.vals = Numbers(
+                min_value = -1/param.scale, max_value = 1/param.scale)
+            print(f"Reset {param.name} to {param.vals}")
+            logging.debug("Reset %s to %s", param.name, param.vals)
 
     def insert_single_value_input_streams(self, value_dict: dict) -> None:
         """
