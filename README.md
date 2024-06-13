@@ -48,14 +48,15 @@ plottr-inspectr --dbpath <path-to-your-database>
 ```
 The data inspector is now running independently of all measurement while beiong connected to the selected database. Select auto-update intervals to have new measurements displayed in real time
 
-### Optional 3) Launch jupyter-lab to run measurements
+## Tutorial: Launch jupyter-lab to run measurements
 
 Jupyter notebooks are a very convenient way of cinducting measurements. Code cells can be run one after another data analysis can be done concurrently to measurements. Keeping measurements in notbooks also guaratees a clear separation between the underlying code base and the configuration files of devices and sequences.
 
 Again activate your conda environment and launch `jupyterlab`
 
+For example to run the first tutorial:
 ```bash
-jupyter lab
+jupyter lab docs/1_parameterizing_sequences.ipynb
 ```
 ## Re-launching an existing arbok session
 If all running applications have been closed for example when the hosting PC is being restarted, a previously run arbok session can be easily restarted in a few steps.
