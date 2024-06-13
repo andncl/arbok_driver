@@ -13,7 +13,7 @@ git clone https://github.com/andncl/arbok_driver.git
 ### 2) Prepare conda environment
 
 ```bash
-conda create --name <your_env_name>
+conda create --name <your_env_name> python=3.11.8
 conda activate <your_env_name>
 conda install pip
 ```
