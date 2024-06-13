@@ -11,7 +11,7 @@ git clone https://github.com/andncl/arbok_driver.git
 ```
 
 ### 2) Prepare conda environment
-
+We create an empty conda environment to avoid interference with other python packages and to manage package dependencies for measurements. Remember to fix the python version as shown below when creating the environment, since some of the modules are not yet compatible with the latest 3.12.
 ```bash
 conda create --name <your_env_name> python=3.11.8
 conda activate <your_env_name>
@@ -31,7 +31,7 @@ packages, install them in your new environment called <your_env_name>
 
 I recommend running measurements from jupyter lab, which is automatically
 installed when executing 3). To pick the environment you just created within
-the jupyter lab application, add it to the ipython kernel
+the jupyter lab application, add it to the ipython kernel.
 
 ```bash
 python -m ipykernel install --name <your_env_name>
