@@ -285,6 +285,9 @@ class SequenceBase(Instrument):
                     case 'int':
                         qua_type = int
                         validator = Ints()
+                    case 'bool':
+                        qua_type = bool
+                        validator = Bool()
             self.add_parameter(
                 name  = param_name,
                 config_name = param_name,
