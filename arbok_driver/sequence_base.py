@@ -276,18 +276,18 @@ class SequenceBase(Instrument):
                     label = f"{element}: {label}"
                 )
         elif 'value' in param_dict:
-            qua_type = int
-            if 'qua_type' in param_dict:
-                match param_dict['qua_type']:
-                    case 'fixed':
-                        qua_type = qua.fixed
-                        validator = Numbers()
-                    case 'int':
-                        qua_type = int
-                        validator = Ints()
-                    case 'bool':
-                        qua_type = bool
-                        validator = Bool()
+            if 'qua_type' not in param_dict:
+                param_dict['qua_type'].qua_type = int
+            match param_dict['qua_type']:
+                case 'fixed':
+                    qua_type = qua.fixed
+                    validator = Numbers()
+                case 'int':
+                    qua_type = int
+                    validator = Ints()
+                case 'bool':
+                    qua_type = bool
+                    validator = Bool()
             self.add_parameter(
                 name  = param_name,
                 config_name = param_name,
