@@ -278,13 +278,13 @@ class SequenceBase(Instrument):
         elif 'value' in param_dict:
             qua_type = int
             if 'qua_type' in param_dict:
-                given_type = param_dict['qua_type']
-                if given_type == 'fixed':
-                    qua_type = qua.fixed
-                    validator = Numbers()
-                if given_type == 'int':
-                    qua_type = int
-                    validator = Ints()
+                match param_dict['qua_type']:
+                    case 'fixed':
+                        qua_type = qua.fixed
+                        validator = Numbers()
+                    case 'int':
+                        qua_type = int
+                        validator = Ints()
             self.add_parameter(
                 name  = param_name,
                 config_name = param_name,
