@@ -10,3 +10,5 @@ qcodes >= 0.37
 qcodes-contrib-drivers >= 0.18
 quantify-core >= 0.7.1
 qualang_tools >= 0.15.2
+
+pytest
