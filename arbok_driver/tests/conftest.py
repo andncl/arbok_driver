@@ -1,7 +1,7 @@
 import pytest 
 import numpy as np
 
-from arbok_driver import Sample, SubSequence, Program, Sequence
+from arbok_driver import Sample, SubSequence, Sequence
 from arbok_driver.tests.dummy_opx_config import dummy_qua_config
 
 @pytest.fixture
