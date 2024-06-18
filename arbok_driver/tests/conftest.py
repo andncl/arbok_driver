@@ -4,10 +4,23 @@ import numpy as np
 from arbok_driver import Sample, SubSequence, Sequence
 from arbok_driver.tests.dummy_opx_config import dummy_qua_config
 
+opx_scale = 2
+divider_config = {
+    'gate_1': {
+        'division': 1*opx_scale,
+    },
+    'gate_2': {
+        'division': 1*opx_scale,
+    },
+    'readout_element': {
+        'division': 1*opx_scale
+    }
+}
+
 @pytest.fixture
 def dummy_sample():
     """Returns dummy sample instance"""
-    return Sample('dummy_sample', dummy_qua_config)
+    return Sample('dummy_sample', dummy_qua_config, divider_config)
 
 @pytest.fixture
 def sub_sequence_1(dummy_sample):
