@@ -270,6 +270,7 @@ class SequenceBase(Instrument):
             if 'type' in param_dict:
                 qua_type = param_dict['type'].qua_type
                 param_dict.setdefault('unit', param_dict['type'].unit) # the user can override the unit if they want to, by manually specifying it
+                param_dict['validator'] = param_dict['type'].validator
             if 'qua_type' in param_dict:
                 if isinstance(param_dict['qua_type'], str) or param_dict['validator'] == None:
                     match param_dict['qua_type']: # TODO: check if we are overwriting validator here ?
