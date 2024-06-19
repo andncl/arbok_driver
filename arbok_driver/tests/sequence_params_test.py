@@ -1,7 +1,6 @@
 import pytest
 import tempfile
 
-from arbok_driver.sequence import SequenceBase, Sample
 from arbok_driver import SubSequence
 
 import logging
