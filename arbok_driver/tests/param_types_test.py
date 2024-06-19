@@ -1,7 +1,8 @@
 import pytest
 import tempfile
 
-from arbok_driver import SubSequence, Voltage, Time
+from arbok_driver import SubSequence
+from arbok_driver.parameter_types import Voltage, Time
 
 import logging
 logging.basicConfig(
