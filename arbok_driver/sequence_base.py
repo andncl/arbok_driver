@@ -104,7 +104,7 @@ class SequenceBase(Instrument):
                 self.name
                 )
         for param_name, param_dict in config.items():
-            self._add_param(param_name, param_dict)
+            self._add_param(param_name, param_name, param_dict)
 
     def get_qua_program_as_str(self) -> str:
         """Returns the qua program as str. Will be compiled if it wasnt yet"""
@@ -233,7 +233,7 @@ class SequenceBase(Instrument):
         if self.parent_sequence is self and seq_type == 'sequence':
             self.qua_after_sequence()
 
-    def _add_param(self, param_name: str, param_dict):
+    def _add_param(self, param_name: str, cfg_name: str, param_dict):
         """
         Adds parameter based on the given parameter configuration
         
@@ -243,60 +243,67 @@ class SequenceBase(Instrument):
                 or 'elements' for element wise defined parameters
         """
         logging.debug("Adding %s to %s", param_name, self.name)
-        validator = None
-        if "label" in param_dict:
-            label = param_dict["label"]
-        else:
-            label = None
+        param_dict.setdefault('validator', None)
+        param_dict.setdefault('label', None)
         if 'elements' in param_dict:
             for element, value in param_dict['elements'].items():
+                qua_type = qua.fixed
+                if 'type' in param_dict:
+                    qua_type = param_dict['type'].qua_type
+                    param_dict['validator'] = param_dict['type'].validator
+                    param_dict['unit'] = param_dict['type'].unit
+                scale = 1
                 if element in self.sample.divider_config:
                     scale = self.sample.divider_config[element]['division']
-                    validator = Numbers(-1/scale, 1/scale)
-                else:
-                    scale = 1
-                qua_type = qua.fixed
+                    param_dict['validator'] = Numbers(-1/scale, 1/scale)
                 if 'qua_type' in param_dict:
-                    if param_dict['qua_type'] == 'int':
+                    if param_dict['qua_type'] == 'int' | int():
                         qua_type = int
-                        validator = Ints()
-
-                self.add_parameter(
-                    name  = f'{param_name}_{element}',
-                    config_name = param_name,
-                    unit = param_dict["unit"],
-                    initial_value = value,
-                    parameter_class = SequenceParameter,
-                    element = element,
-                    get_cmd = None,
-                    set_cmd = None,
-                    scale = scale,
-                    vals = validator,
-                    var_type = qua_type,
-                    label = f"{element}: {label}"
-                )
+                        param_dict['validator'] = Ints()
+                new_param_dict = {'unit' : param_dict['unit'], 'value' : value, 'element' : element,
+                                    'scale' : scale, 'validator' : param_dict['validator'], 'qua_type' : qua_type, 'label' : f"{element}: {param_dict['label']}"}
+                if 'type' in param_dict:
+                    new_param_dict['type'] = param_dict['type']
+                self._add_param(f'{param_name}_{element}', cfg_name, new_param_dict)
         elif 'value' in param_dict:
             qua_type = int
+            if 'type' in param_dict:
+                qua_type = param_dict['type'].qua_type
+                param_dict.setdefault('unit', param_dict['type'].unit) # the user can override the unit if they want to, by manually specifying it
+                param_dict['validator'] = param_dict['type'].validator
             if 'qua_type' in param_dict:
-                given_type = param_dict['qua_type']
-                if given_type == 'fixed':
-                    qua_type = qua.fixed
-                    validator = Numbers()
-                if given_type == 'int':
-                    qua_type = int
-                    validator = Ints()
+                if isinstance(param_dict['qua_type'], str) or param_dict['validator'] == None:
+                    match param_dict['qua_type']: # TODO: check if we are overwriting validator here ?
+                        case 'fixed' | qua.fixed:
+                            qua_type = qua.fixed
+                            if param_dict['validator'] == None:
+                                param_dict['validator'] = Numbers()
+                        case 'int' | int():
+                            qua_type = int
+                            if param_dict['validator'] == None:
+                                param_dict['validator'] = Ints()
+                        case 'bool' | bool():
+                            qua_type = bool
+                            if param_dict['validator'] == None:
+                                param_dict['validator'] = Bool()
+                        case _:
+                            raise ValueError(f"param_dict['qua_type'] unknown type : {param_dict['qua_type']}")
+            # set defaults and merge in changes
+            appl_dict = {'element' : None, 'scale' : 1, 'qua_type' : qua_type, 'type': SequenceParameter}
+            appl_dict.update(param_dict)
             self.add_parameter(
                 name  = param_name,
-                config_name = param_name,
-                unit = param_dict["unit"],
-                initial_value = param_dict["value"],
-                parameter_class = SequenceParameter,
-                element = None,
+                config_name = cfg_name,
+                unit = appl_dict["unit"],
+                initial_value = appl_dict["value"],
+                parameter_class = appl_dict["type"],
+                element = appl_dict['element'],
+                get_cmd = None,
                 set_cmd = None,
-                scale = 1,
-                vals = validator,
-                var_type = qua_type,
-                label = label
+                scale = appl_dict['scale'],
+                vals = appl_dict['validator'],
+                var_type = appl_dict['qua_type'],
+                label = appl_dict['label']
             )
         else:
             raise KeyError(
