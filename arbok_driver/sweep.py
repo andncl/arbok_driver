@@ -242,27 +242,14 @@ class Sweep:
         Args:
             next_action (callable): Next action to be executed after the loop
         """
+        ### Define start, stop and step for all params that can be parameterized
+        parameters_sss = self._parameterize_sweep()
 
-        parameters_sss = {}
-        for param in self.parameters:
-            if param.can_be_parameterized:
-                start, stop, step = self._parameterize_sweep_array(
-                    param, param.get_raw())
-                parameters_sss[param] = {
-                    'start': start,
-                    'stop': stop,
-                    'step': step
-                    }
-                length_of_array = len(np.arange(start, stop, step))
-                warnings.warn(
-                    f"\n\tYour input array of length {len(param.get())} "
-                    f"for {param.name} will be parametrized with\n\t"
-                    f"start {start}, step {step}, stop {stop}"
-                    f" of length {length_of_array}. \n\tCheck output!"
-                    )
-
+        ### Assigns start values to all parameters that can be parameterized
         for param, sss in parameters_sss.items():
             qua.assign(param.qua_var, sss['start'])
+
+        ### Declaring sweep index variable and respective loop for sweep
         sweep_idx_var = qua.declare(int)
         with qua.for_(
                         var = sweep_idx_var,
@@ -271,13 +258,18 @@ class Sweep:
                         update = sweep_idx_var + 1
             ):
             for param in self.parameters:
-                if param.can_be_parameterized:
-                    step = parameters_sss[param]['step']
-                    qua.assign(param.qua_var, param.qua_var + step)
-                else:
-                    qua.assign(param.qua_var, param.qua_sweep_arr[sweep_idx_var])
+                if not param.can_be_parameterized:
+                    qua.assign(
+                        param.qua_var, param.qua_sweep_arr[sweep_idx_var])
             qua.align()
+
+            ### This is where either the whole sequence or the next sweep is run
             next_action()
+
+            ### After the sequence the parameter variable is incremented by step
+            for param, sss in parameters_sss.items():
+                if param.can_be_parameterized:
+                    qua.assign(param.qua_var, param.qua_var + sss['step'])
 
     def _qua_explicit_array_loop(self, next_action):
         """Runs a qua for loop from explicitly defined qua arrays"""
@@ -321,3 +313,27 @@ class Sweep:
                 f"Is {length_of_array}, should be {self.length} or {self.length+1}"
                 )
         return start, stop, step
+
+    def _parameterize_sweep(self):
+        """
+        Parameterizes the sweep array in start, stop, step for all paramerters
+        with sweep arrays with equal step size
+        """
+        parameters_sss = {}
+        for param in self.parameters:
+            if param.can_be_parameterized:
+                start, stop, step = self._parameterize_sweep_array(
+                    param, param.get_raw())
+                parameters_sss[param] = {
+                    'start': start,
+                    'stop': stop,
+                    'step': step
+                    }
+                length_of_array = len(np.arange(start, stop, step))
+                warnings.warn(
+                    f"\n\tYour input array of length {len(param.get())} "
+                    f"for {param.name} will be parametrized with\n\t"
+                    f"start {start}, step {step}, stop {stop}"
+                    f" of length {length_of_array}. \n\tCheck output!"
+                    )
+        return parameters_sss
