@@ -2,7 +2,7 @@
 
 from .sequence_parameter import SequenceParameter
 from qm import qua
-from qcodes.validators import Arrays, Numbers, Ints, MultiTypeOr
+from qcodes.validators import Arrays, Numbers, Ints, MultiTypeOr, Strings
 
 class Time(SequenceParameter):
     unit = 'cycles'
@@ -12,6 +12,15 @@ class Time(SequenceParameter):
     validator = Ints()
     sweep_validator = MultiTypeOr(Ints(), Arrays(valid_types = [int]))
     """ Default: Numbers """
+
+class String(SequenceParameter):
+    unit = 'N/A'
+    """ Default: 'N/A' """
+    qua_type = str
+    """ Default: str """
+    validator = Strings()
+    """ Default: Strings """
+    sweep_validator = MultiTypeOr(Strings(), Arrays(valid_types = [None]))
 
 class Voltage(SequenceParameter):
     unit = 'V'
