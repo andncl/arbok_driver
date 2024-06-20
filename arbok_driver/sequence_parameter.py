@@ -70,6 +70,10 @@ class SequenceParameter(Parameter):
         else:
             raise ValueError("Value to be set must be int, float or np.ndarray")
 
+    def reset(self) -> None:
+        print(self)
+        self.validator = self.sweep_validator.validators[0]
+
     def qua_declare(self, setpoints):
         """
         Declares the parameter inside qua code as variable and sets its class

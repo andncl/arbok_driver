@@ -177,17 +177,6 @@ class Sequence(SequenceBase):
         self._configure_gettables()
         self.sweeps.reverse()
 
-    def reset(self) -> None:
-        """
-        Resets the sequence to its initial state before measurement.
-        Resets validators of sweep parameters to their initial number validators
-        """
-        for param in self._setpoints_for_gettables:
-            param.vals = Numbers(
-                min_value = -1/param.scale, max_value = 1/param.scale)
-            print(f"Reset {param.name} to {param.vals}")
-            logging.debug("Reset %s to %s", param.name, param.vals)
-
     def insert_single_value_input_streams(self, value_dict: dict) -> None:
         """
         Compresses all input streams to single array stream

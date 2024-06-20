@@ -233,6 +233,32 @@ class SequenceBase(Instrument):
         if self.parent_sequence is self and seq_type == 'sequence':
             self.qua_after_sequence()
 
+    # def reset(self) -> None:
+    #     """
+    #     Resets the sequence to its initial state before measurement.
+    #     Resets validators of sweep parameters to their initial number validators
+    #     """
+    #     for sub in self.sub_sequences:
+    #         sub.reset()
+    #     # for param in self._setpoints_for_gettables:
+    #         #  = Numbers(
+    #         #     min_value = -1/param.scale, max_value = 1/param.scale)
+    #         # print(f"Reset {param.name} to {param.vals}")
+    #         # logging.debug("Reset %s to %s", param.name, param.vals)
+
+
+    def reset(self) -> None:
+        """
+        On reset, ensure param validators are no longer sweep_validators
+        """
+        print('SequenceBase::reset')
+        print(self.parameters)
+        for k, param in self.parameters.items():
+            if isinstance(param, SequenceParameter):
+                self.parameters[k].reset()
+        for sub in self.sub_sequences:
+            sub.reset()
+
     def _add_param(self, param_name: str, cfg_name: str, param_dict):
         """
         Adds parameter based on the given parameter configuration
