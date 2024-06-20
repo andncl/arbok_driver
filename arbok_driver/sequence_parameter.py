@@ -45,7 +45,7 @@ class SequenceParameter(Parameter):
         """Returns the full name of the parameter"""
         return self.sequence_path
 
-    def __call__(self, 
+    def __call__(self,
                  value: Optional[float | int | ndarray] = None
                  ) -> Optional[float | int | ndarray]:
         """
