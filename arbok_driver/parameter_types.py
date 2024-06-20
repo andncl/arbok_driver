@@ -9,7 +9,8 @@ class Time(SequenceParameter):
     """ Default: 'cycles' """
     qua_type = int
     """ Default: int """
-    validator = MultiTypeOr(Ints(), Arrays(valid_types = [int]))
+    validator = Ints()
+    sweep_validator = MultiTypeOr(Ints(), Arrays(valid_types = [int]))
     """ Default: Numbers """
 
 class Voltage(SequenceParameter):
@@ -17,7 +18,8 @@ class Voltage(SequenceParameter):
     """ Default: 'V' """
     qua_type = qua.fixed
     """ Default: fixed """
-    validator = MultiTypeOr(Numbers(), Arrays(valid_types = [float]))
+    validator = Numbers()
+    sweep_validator = MultiTypeOr(Numbers(), Arrays(valid_types = [float]))
     """ Default: Numbers """
 
 class Frequency(SequenceParameter):
@@ -25,5 +27,6 @@ class Frequency(SequenceParameter):
     """ Default: 'Hz' """
     qua_type = qua.fixed
     """ Default: 'qua.fixed' """
-    validator = MultiTypeOr(Numbers(), Arrays(valid_types = [float]))
+    validator = Numbers()
+    sweep_validator = MultiTypeOr(Numbers(), Arrays(valid_types = [float]))
     """ Default: Numbers """
