@@ -65,9 +65,6 @@ def create_measurement_loop(
                 measurement.register_parameter(
                     gettable, setpoints = gettable_setpoints)
 
-            ### Gettables of the sequence are reset from previous measurements
-            sequence.reset()
-
             ### The measurement is run with the recursive measurement loop over
             ### the qcodes (non-opx) parameters
             with measurement.run() as datasaver:
