@@ -264,7 +264,7 @@ class SequenceBase(Instrument):
                     scale = self.sample.divider_config[element]['division']
                     param_dict['validator'] = Numbers(-1/scale, 1/scale)
                 if 'qua_type' in param_dict:
-                    if param_dict['qua_type'] == 'int' | int():
+                    if param_dict['qua_type'] == 'int' or param_dict['qua_type'] == int():
                         qua_type = int
                         param_dict['validator'] = Ints()
                 new_param_dict = {'unit' : param_dict['unit'], 'value' : value, 'element' : element,
