@@ -2,14 +2,14 @@
 
 from .sequence_parameter import SequenceParameter
 from qm import qua
-from qcodes.validators import Arrays, Numbers, Ints
+from qcodes.validators import Arrays, Numbers, Ints, MultiTypeOr
 
 class Time(SequenceParameter):
     unit = 'cycles'
     """ Default: 'cycles' """
     qua_type = int
     """ Default: int """
-    validator = Ints()
+    validator = MultiTypeOr(Ints(), Arrays(valid_types = [int]))
     """ Default: Numbers """
 
 class Voltage(SequenceParameter):
@@ -17,7 +17,7 @@ class Voltage(SequenceParameter):
     """ Default: 'V' """
     qua_type = qua.fixed
     """ Default: fixed """
-    validator = Numbers()
+    validator = MultiTypeOr(Numbers(), Arrays(valid_types = [float]))
     """ Default: Numbers """
 
 class Frequency(SequenceParameter):
@@ -25,5 +25,5 @@ class Frequency(SequenceParameter):
     """ Default: 'Hz' """
     qua_type = qua.fixed
     """ Default: 'qua.fixed' """
-    validator = Numbers()
+    validator = MultiTypeOr(Numbers(), Arrays(valid_types = [float]))
     """ Default: Numbers """
