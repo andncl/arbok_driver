@@ -109,6 +109,9 @@ class Sweep:
         self._config_to_register = {}
         for i, parameter in enumerate(self._param_dict.keys()):
             self._parameters.append(parameter)
+            while parameter.remove_validator(): # remove validators and setup the sweep_validator
+                pass
+            parameter.add_validator(parameter.sweep_validator)
             parameter.validate(self._param_dict[parameter])
             if self.register_all:
                 self._config_to_register[parameter] = self.config[parameter]

@@ -71,7 +71,12 @@ class SequenceParameter(Parameter):
             raise ValueError("Value to be set must be int, float or np.ndarray")
 
     def reset(self) -> None:
-        self.validator = self.sweep_validator.validators[0]
+        """
+        In case we have switched to a sweep state, reset the validator to a scalar.
+        """
+        while self.remove_validator():
+            pass
+        self.add_validator(self.validator)
 
     def qua_declare(self, setpoints):
         """
