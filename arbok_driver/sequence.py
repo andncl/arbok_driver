@@ -59,9 +59,15 @@ class Sequence(SequenceBase):
 
     @property
     def sweep_size(self) -> int:
-        """Dimensionality of sweep axes"""
+        """Product of sweep axes sizes"""
         self._sweep_size = int(
             math.prod([sweep.length for sweep in self.sweeps]))
+        return self._sweep_size
+
+    @property
+    def sweep_dims(self) -> int:
+        """Dimensionality of sweep axes"""
+        self._sweep_dims = (sweep.length for sweep in self.sweeps)
         return self._sweep_size
 
     @property
@@ -324,6 +330,18 @@ class Sequence(SequenceBase):
             self.driver.qm_job.advance_input_stream(
                 name = parameter.full_name
             )
+
+    def reshape_results_from_sweeps(self, results: np.ndarray) -> np.ndarray:
+        """
+        Reshapes the results array to the shape of the setpoints from sweeps
+        
+        Args:
+            results (np.ndarray): Results array
+        
+        Returns:
+            np.ndarray: Reshaped results array
+        """
+        return results.reshape(tuple((reversed(s.length) for s in self.sweeps)))
 
     def plot_current_histograms(self, gettables: list = None, bins: int = 50):
         """

@@ -196,12 +196,14 @@ class SequenceBase(Instrument):
         """
         if len(sweeps) == 0:
             ### this condition gets triggered if we arrive at the innermost loop
+            self.recursive_qua_generation('before_sequence')
             self.recursive_qua_generation('sequence')
+            self.recursive_qua_generation('after_sequence')
             return
         new_sweeps = sweeps[:-1]
         current_sweep = sweeps[-1]
-        if self.parent_sequence is self and len(sweeps) == len(self.sweeps):
-            self.qua_before_sweep()
+        # if self.parent_sequence is self and len(sweeps) == len(self.sweeps):
+        #     self.qua_before_sweep()
         logging.debug("Adding qua loop for %s",
             [par.name for par in current_sweep.parameters])
 
@@ -218,20 +220,25 @@ class SequenceBase(Instrument):
         Args:
             seq_type (str): Type of qua code containing method to look for
         """
-        getattr(self, 'qua_' + str(seq_type))()
+        method_name = f"qua_{seq_type}"
+        if hasattr(self, method_name):
+            getattr(self, 'qua_' + str(seq_type))()
+
+        ### The innermost sequence is reached. Run the sequence code
         if not self.submodules:
             logging.debug(
                 "Reached low level seq running qua_%s code of %s",
                 seq_type, self.name)
-            getattr(self, 'qua_' + str(seq_type))()
+            getattr(self, method_name)()
             return
+        
+        ### If the given seqeunce has subsequences, run the recursion of those
         for subsequence in self._sub_sequences:
             if not subsequence.submodules:
-                getattr(subsequence, 'qua_' + str(seq_type))()
+                if hasattr(subsequence, method_name):
+                    getattr(subsequence, method_name)()
             else:
                 subsequence.recursive_qua_generation(seq_type)
-        if self.parent_sequence is self and seq_type == 'sequence':
-            self.qua_after_sequence()
 
     def _add_param(self, param_name: str, cfg_name: str, param_dict):
         """
@@ -257,7 +264,7 @@ class SequenceBase(Instrument):
                     scale = self.sample.divider_config[element]['division']
                     param_dict['validator'] = Numbers(-1/scale, 1/scale)
                 if 'qua_type' in param_dict:
-                    if param_dict['qua_type'] == 'int' | int():
+                    if param_dict['qua_type'] == 'int' or param_dict['qua_type'] == int():
                         qua_type = int
                         param_dict['validator'] = Ints()
                 new_param_dict = {'unit' : param_dict['unit'], 'value' : value, 'element' : element,

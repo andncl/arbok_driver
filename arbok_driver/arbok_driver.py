@@ -41,7 +41,7 @@ class ArbokDriver(Instrument):
         self.opx = None
         self.qm_job = None
         self.result_handles = None
-        self.stream_mode = "pause_each"
+        self.no_pause = False
         self._sequences = []
         self.add_parameter('iteration', get_cmd = None, set_cmd =None)
 
@@ -87,13 +87,23 @@ class ArbokDriver(Instrument):
             qua_program: Program from qm context manager
         """
         with qua.program() as qua_program:
+            ### In the first step all variables of all sequences are declared
             for sequence in self._sequences:
                 sequence.qua_declare_sweep_vars()
                 sequence.recursive_qua_generation(seq_type = 'declare')
+
+            ### An infinite loop starting with a pause is defined to sync the
+            ### client with the QMs
             for sequence in self._sequences:
                 with qua.infinite_loop_():
-                    if not simulate:
+                    if not simulate or not self.no_pause:
                         qua.pause()
+
+                    ### The sequences are run in the order they were added
+                    ### Before_sweep methods are run before the sweep loop
+                    sequence.recursive_qua_generation(seq_type = 'before_sweep')
+
+                    ### The sweep loop is defined for each sequence recursively
                     sequence.recursive_sweep_generation(
                         copy.copy(sequence.sweeps))
             with qua.stream_processing():
