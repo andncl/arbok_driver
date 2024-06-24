@@ -34,7 +34,7 @@ installed when executing 3). To pick the environment you just created within
 the jupyter lab application, add it to the ipython kernel.
 
 ```bash
-python -m ipykernel install --name <your_env_name>
+python -m ipykernel install --user --name <your_env_name>
 ```
 ### Optional 2) Live plotting and data inspection with plottr
  Data inslection and live plotting can be done with the `plottr-inpectr` module. To launch it open a terminal and activate your conda environment...

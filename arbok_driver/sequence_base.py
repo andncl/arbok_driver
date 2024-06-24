@@ -240,6 +240,16 @@ class SequenceBase(Instrument):
             else:
                 subsequence.recursive_qua_generation(seq_type)
 
+    def reset(self) -> None:
+        """
+        On reset, ensure param validators are no longer sweep_validators
+        """
+        for k, param in self.parameters.items():
+            if isinstance(param, SequenceParameter):
+                self.parameters[k].reset()
+        for sub in self.sub_sequences:
+            sub.reset()
+
     def _add_param(self, param_name: str, cfg_name: str, param_dict):
         """
         Adds parameter based on the given parameter configuration
