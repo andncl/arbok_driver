@@ -56,12 +56,20 @@ class GettableParameter(ParameterWithSetpoints):
         On its first call, the gettables attributes get configured regarding
         the given measurement and the underlying hardware.
         """
+        ### Setup is called on first get
         if self.buffer is None:
-            # Will be executed on the first call of get()
             self._set_up_gettable_from_program()
-        self._fetch_from_opx(progress_bar = progress_bar)
-        if self.buffer_val is None:
-            warnings.warn("NO VALUE STREAMED!")
+
+        ### The progress is being tracked while waiting for the buffer to fill
+        self._wait_until_buffer_full(progress_bar = progress_bar)
+        self.buffer_val = self._fetch_opx_buffer()
+
+        ### The QM can have a delay in populating the stream for big sweeps
+        debug_i = 0
+        while not self.buffer_val.shape == (self.sequence.sweep_size,):
+            debug_i += 1
+            time.sleep(0.1)
+            self.buffer_val = self._fetch_opx_buffer()
         return self.buffer_val.reshape(tuple((reversed(self.shape))))
 
     def _set_up_gettable_from_program(self):
@@ -80,16 +88,6 @@ class GettableParameter(ParameterWithSetpoints):
         self.buffer = getattr(self.qm_job.result_handles, f"{self.name}_buffer")
         self.shape = tuple(sweep.length for sweep in self.sequence.sweeps)
         self.batch_size = self.sequence.sweep_size
-
-    def _fetch_from_opx(self, progress_bar: tuple = None):
-        """
-        Fetches and returns data from OPX after results came in.
-        This method pauses as long as the required amount of results is not in.
-        Raises a warning if the data generation on the OPX is faster than the
-        data streaming back to the PC.
-        """
-        self._wait_until_buffer_full(progress_bar = progress_bar)
-        self._fetch_opx_buffer()
 
     def _wait_until_buffer_full(self, progress_bar = None):
         """
@@ -136,18 +134,8 @@ class GettableParameter(ParameterWithSetpoints):
         Fetches the OPX buffer into the `buffer_val` and increments the internal
         counter `count`
         """
-        self.buffer_val = np.array(self.buffer.fetch_all(), dtype = float)
-        if self.buffer_val is None:
-            raise ValueError("NO VALUE STREAMED")
-
-    def get_all(self):
-        """Fetches ALL (not buffered) data"""
-        if self.result is None:
-            self._set_up_gettable_from_program()
-        if self.result:
-            return self.result.fetch_all()
-        else:
-            raise LookupError("Results cant be retreived without OPX")
+        buffer_val = np.array(self.buffer.fetch_all(), dtype = float)
+        return buffer_val
 
     def reset(self):
         """Resets all job specific attributes"""
