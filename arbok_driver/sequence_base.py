@@ -58,8 +58,16 @@ class SequenceBase(Instrument):
         """Contains raw QUA code that is being executed before sweeps"""
         return
     
+    def qua_before_sequence(self):
+        """Contains raw QUA code that is being executed before the sequence"""
+        return
+
     def qua_sequence(self):
         """Contains raw QUA code to define the pulse sequence"""
+        return
+
+    def qua_after_sequence(self):
+        """Contains raw QUA code that is being executed after the sequence"""
         return
 
     def qua_stream(self):
@@ -162,10 +170,25 @@ class SequenceBase(Instrument):
                 "The sub sequence {self.name} is not linked to a sequence")
         self.qua_declare_sweep_vars()
         self.recursive_qua_generation(seq_type = 'declare')
+
+        ### An infinite loop starting with a pause is defined to sync the QM
+        ### with the client
         with qua.infinite_loop_():
             if not simulate:
                 qua.pause()
-            self.qua_before_sweep()
+
+            ### The sequences are run in the order they were added
+            ### Before_sweep methods are run before the sweep loop
+            self.recursive_qua_generation(seq_type = 'before_sweep')
+
+            ### qua_sequence methods of sub_sequences are called recursively
+            ### If parent sequence is present the sweep generation is added
+            if hasattr(self.parent_sequence, 'sweeps'):
+                self.recursive_sweep_generation(self.parent_sequence.sweeps)
+            else:
+                self.recursive_qua_generation(seq_type = 'sequence')
+
+        ### Stream processing is added after the sequences
         with qua.stream_processing():
             self.recursive_qua_generation(seq_type = 'stream')
 
@@ -231,7 +254,7 @@ class SequenceBase(Instrument):
                 seq_type, self.name)
             getattr(self, method_name)()
             return
-        
+
         ### If the given seqeunce has subsequences, run the recursion of those
         for subsequence in self._sub_sequences:
             if not subsequence.submodules:
