@@ -1,8 +1,11 @@
 """ Module containing ParameterType classes """
 
-from .sequence_parameter import SequenceParameter
+import numpy as np
 from qm import qua
-from qcodes.validators import Arrays, Numbers, Ints, MultiTypeOr, Strings
+from qcodes.validators import (
+    Arrays, Numbers, Ints, MultiTypeOr, Strings, Sequence
+)
+from .sequence_parameter import SequenceParameter
 
 class Time(SequenceParameter):
     unit = 'cycles'
@@ -39,3 +42,35 @@ class Frequency(SequenceParameter):
     validator = Numbers()
     sweep_validator = MultiTypeOr(Numbers(), Arrays(valid_types = [float]))
     """ Default: Numbers """
+
+class Amplitude(SequenceParameter):
+    unit = None
+    qua_type = qua.fixed
+    """ Default: fixed """
+    validator = Numbers(min_value = 0, max_value = 1)
+    sweep_validator = MultiTypeOr(
+        Numbers(min_value = 0, max_value = 1),
+        Arrays(valid_types = [float])
+        )
+    """ Default: Numbers """
+
+class List(SequenceParameter):
+    unit = 'N/A'
+    """ Default: 'N/A' """
+    qua_type = None
+    """ Default: str """
+    validator = Sequence()
+    """ Default: Strings """
+    sweep_validator = Sequence()
+
+class Int(Time):
+    unit = '#'
+
+class Radian(SequenceParameter):
+    unit = 'pi'
+    qua_type = qua.fixed
+    validator = Numbers(min_value = -1, max_value = 1)
+    sweep_validator = MultiTypeOr(
+        Numbers(min_value = -1, max_value = 1),
+        Arrays(valid_types = [float])
+        )
