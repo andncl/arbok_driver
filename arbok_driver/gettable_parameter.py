@@ -65,9 +65,7 @@ class GettableParameter(ParameterWithSetpoints):
         self.buffer_val = self._fetch_opx_buffer()
 
         ### The QM can have a delay in populating the stream for big sweeps
-        debug_i = 0
         while not self.buffer_val.shape == (self.sequence.sweep_size,):
-            debug_i += 1
             time.sleep(0.1)
             self.buffer_val = self._fetch_opx_buffer()
         return self.buffer_val.reshape(tuple((reversed(self.shape))))
