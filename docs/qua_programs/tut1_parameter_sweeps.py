@@ -1,5 +1,5 @@
 
-# Single QUA script generated at 2024-06-19 16:00:59.809842
+# Single QUA script generated at 2024-06-27 17:39:00.985865
 # QUA library version: 1.1.7
 
 from qm.qua import *
@@ -12,7 +12,6 @@ with program() as prog:
         pause()
         assign(v1, 0.1)
         with for_(v3,0,(v3<5),(v3+1)):
-            assign(v1, (v1+0.225))
             align()
             align()
             play("ramp"*amp(v1), "gate_1", duration=20)
@@ -21,6 +20,7 @@ with program() as prog:
             assign(v2, (v2+1))
             r1 = declare_stream()
             save(v2, r1)
+            assign(v1, (v1+0.225))
     with stream_processing():
         r1.buffer(1).save("dummy_squence_shots")
 
