@@ -142,7 +142,7 @@ def _qua_align(method, elements, sub_sequence):
             qua.align(*elements)
         case 'none':
             pass
-        case 'all':
+        case 'global':
             qua.align()
         case 'sequence':
             qua.align(*sub_sequence.elements)
