@@ -42,7 +42,6 @@ class ArbokDriver(Instrument):
         self.qm_job = None
         self.result_handles = None
         self.no_pause = False
-        self._sequences = []
         self.add_parameter('iteration', get_cmd = None, set_cmd =None)
 
     @property
@@ -88,13 +87,13 @@ class ArbokDriver(Instrument):
         """
         with qua.program() as qua_program:
             ### In the first step all variables of all sequences are declared
-            for sequence in self._sequences:
+            for _, sequence in self.submodules.items():
                 sequence.qua_declare_sweep_vars()
                 sequence.recursive_qua_generation(seq_type = 'declare')
 
             ### An infinite loop starting with a pause is defined to sync the
             ### client with the QMs
-            for sequence in self._sequences:
+            for _, sequence in self.submodules.items():
                 with qua.infinite_loop_():
                     if not simulate or not self.no_pause:
                         qua.pause()
@@ -107,7 +106,8 @@ class ArbokDriver(Instrument):
                     sequence.recursive_sweep_generation(
                         copy.copy(sequence.sweeps))
             with qua.stream_processing():
-                sequence.recursive_qua_generation(seq_type = 'stream')
+                for _, sequence in self.submodules.items():
+                    sequence.recursive_qua_generation(seq_type = 'stream')
         return qua_program
 
     def run(self, qua_program):

@@ -12,6 +12,7 @@ class SubSequence(SequenceBase):
     """
     def __init__(
             self,
+            parent,
             name: str,
             sample: Sample,
             param_config: dict | None = None,
@@ -26,25 +27,21 @@ class SubSequence(SequenceBase):
             param_config (dict): Dictionary containing all device parameters
             **kwargs: Arbitrary keyword arguments.
         """
-        super().__init__(name, sample, param_config, **kwargs)
+        super().__init__(parent, name, sample, param_config, **kwargs)
 
     @property
     def parent_sequence(self):
         """Returns parent (sub) sequence"""
         return self.find_parent_sequence()
 
-    @parent_sequence.setter
-    def parent_sequence(self, parent):
-        self._parent_sequence = parent
-
     def find_parent_sequence(self):
         """Recursively searches the parent sequence"""
-        if isinstance(self._parent_sequence, Sequence):
-            return self._parent_sequence
-        elif self._parent_sequence is None:
-            return self
-        else:
+        if isinstance(self.parent, Sequence):
+            return self.parent
+        elif isinstance(self.parent, SubSequence):
             return self._parent_sequence.find_parent_sequence()
+        else:
+            raise ValueError("Parent sequence must be of type Sequence")
 
     def get_sequence_path(self, path: str = None) -> str:
         """Returns the path of subsequences up to the parent sequence"""

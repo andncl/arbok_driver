@@ -34,6 +34,7 @@ class SequenceParameter(Parameter):
         self.var_type = var_type
         self.input_stream = None
         self.can_be_parameterized = False
+        self.sweep_validator = None
 
     @property
     def sequence_path(self) -> str:

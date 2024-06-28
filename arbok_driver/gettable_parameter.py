@@ -84,6 +84,10 @@ class GettableParameter(ParameterWithSetpoints):
             f"{self.sequence.name}_shots"
         )
         self.buffer = getattr(self.qm_job.result_handles, f"{self.name}_buffer")
+        if self.buffer is None:
+            raise LookupError(
+                f"Buffer {self.name}_buffer not found. Try one of:"
+                f"{self.qm_job.result_handles.keys()}")
         self.shape = tuple(sweep.length for sweep in self.sequence.sweeps)
         self.batch_size = self.sequence.sweep_size
 

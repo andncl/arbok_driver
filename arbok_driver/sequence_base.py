@@ -7,7 +7,7 @@ import warnings
 
 import numpy as np
 
-from qcodes.instrument import Instrument
+from qcodes.instrument import InstrumentModule
 from qcodes.validators import Arrays, Numbers, Ints
 
 from qm import SimulationConfig, generate_qua_script, qua
@@ -18,12 +18,13 @@ from .sample import Sample
 from .sequence_parameter import SequenceParameter
 from . import utils
 
-class SequenceBase(Instrument):
+class SequenceBase(InstrumentModule):
     """
     Class describing a subsequence of a QUA programm (e.g Init, Control, Read). 
     """
     def __init__(
             self,
+            parent,
             name: str,
             sample: Sample,
             sequence_config: Optional[dict | None] = None,
@@ -39,7 +40,10 @@ class SequenceBase(Instrument):
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
         """
-        super().__init__(name, **kwargs)
+        super().__init__(parent, name, **kwargs)
+        self.parent.add_submodule(self.name, self)
+        setattr(self.parent, self.short_name, self)
+
         self.sample = sample
         self.elements = self.sample.elements
         self.sequence_config = sequence_config
@@ -79,7 +83,7 @@ class SequenceBase(Instrument):
         """
         List of `SubSequences`s that build the given sequence
         """
-        return self._sub_sequences
+        return self.submodules
 
     @property
     def gettables(self) -> list:
@@ -256,7 +260,7 @@ class SequenceBase(Instrument):
             return
 
         ### If the given seqeunce has subsequences, run the recursion of those
-        for subsequence in self._sub_sequences:
+        for _, subsequence in self.submodules.items():
             if not subsequence.submodules:
                 if hasattr(subsequence, method_name):
                     getattr(subsequence, method_name)()
