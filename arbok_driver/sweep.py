@@ -303,7 +303,7 @@ class Sweep:
         step *= 0.999
         if param.var_type == int:
             start, stop = int(sweep_array[0]), int(sweep_array[-1] + step)
-            step = int(step)
+            step = round(step)
 
         ### This can probably done more elegantly
         length_of_array = len(np.arange(start, stop, step))
