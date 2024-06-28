@@ -300,21 +300,24 @@ class Sweep:
         start = sweep_array[0]
         stop = sweep_array[-1]
         step = np.mean(np.ediff1d(sweep_array))
+        step *= 0.999
         if param.var_type == int:
             start, stop = int(sweep_array[0]), int(sweep_array[-1] + step)
-            step = int(step)
-        length_of_array = len(np.arange(start, stop, step))
+            step = round(step)
 
-        if length_of_array == self.length:
-            pass
-        elif length_of_array == self.length + 1:
-            stop = stop - step
-        elif length_of_array == self.length - 1:
-            stop = stop + step
-        else:
+        ### This can probably done more elegantly
+        length_of_array = len(np.arange(start, stop, step))
+        while length_of_array != self.length:
+            if length_of_array > self.length:
+                stop -= step
+            elif length_of_array < self.length:
+                stop += step
+            length_of_array = len(np.arange(start, stop, step))
+
+        if not length_of_array == self.length:
             raise ValueError(
                 "Sweep array must have same length as sweep length or one more."
-                f"Is {length_of_array}, should be {self.length} or {self.length+1}"
+                f"Is {length_of_array}, should be {self.length}"
                 )
         return start, stop, step
 
