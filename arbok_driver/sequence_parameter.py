@@ -9,13 +9,14 @@ from qcodes.validators import Arrays
 from qm import qua
 
 class SequenceParameter(Parameter):
-    sweep_validator = None
-    
     """
     A parameter wrapper that adds the respective element as attribute
 
     TODO: Write get_raw abstract method without crashing sequence compilation
     """
+
+    sweep_validator = None
+
     def __init__(self, element, config_name, var_type, *args, **kwargs):
         """
         Constructor for 'SequenceParameter' class
