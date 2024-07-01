@@ -66,10 +66,8 @@ class SequenceParameter(Parameter):
                     "Parameter holds a QUA variable, you cant set it") 
         if value is None:
             return self.get_raw()
-        if isinstance(value, (int, float, ndarray)):
-            self.set(value)
         else:
-            raise ValueError("Value to be set must be int, float or np.ndarray")
+            self.set(value)
 
     def reset(self) -> None:
         """

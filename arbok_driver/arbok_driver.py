@@ -89,7 +89,8 @@ class ArbokDriver(Instrument):
             ### In the first step all variables of all sequences are declared
             for _, sequence in self.submodules.items():
                 sequence.qua_declare_sweep_vars()
-                sequence.recursive_qua_generation(seq_type = 'declare')
+                sequence.recursive_qua_generation(
+                    seq_type = 'declare', skip_duplicates = True)
 
             ### An infinite loop starting with a pause is defined to sync the
             ### client with the QMs
@@ -100,7 +101,8 @@ class ArbokDriver(Instrument):
 
                     ### The sequences are run in the order they were added
                     ### Before_sweep methods are run before the sweep loop
-                    sequence.recursive_qua_generation(seq_type = 'before_sweep')
+                    sequence.recursive_qua_generation(
+                        seq_type = 'before_sweep', skip_duplicates = True)
 
                     ### The sweep loop is defined for each sequence recursively
                     sequence.recursive_sweep_generation(
@@ -180,7 +182,8 @@ class ArbokDriver(Instrument):
             dataset = datasaver.dataset
         return dataset
 
-    def run_local_simulation(self, duration: int, nr_controllers: int = 1):
+    def run_local_simulation(self, qua_program,  duration: int,
+        nr_controllers: int = 1, plot = True):
         """
         Simulates the given program of the sequence for `duration` cycles
         TODO: Move to SequenceBase and add checks if OPX is connected
@@ -196,13 +199,15 @@ class ArbokDriver(Instrument):
                 "No QMM found! Connect an OPX via `connect_OPX`")
         simulated_job = self.qmm.simulate(
             self.sample.config,
-            self.get_qua_program(simulate = True),
-            SimulationConfig(duration=duration))
+            qua_program,
+            SimulationConfig(duration=duration)
+        )
 
         samples = simulated_job.get_simulated_samples()
-        for i in range(nr_controllers):
-            con_samples = getattr(samples, f'con{i+1}')
-            utils.plot_qmm_simulation_results(con_samples)
+        if plot:
+            for i in range(nr_controllers):
+                con_samples = getattr(samples, f'con{i+1}')
+                utils.plot_qmm_simulation_results(con_samples)
         return simulated_job
 
     def ask_raw(self, cmd: str) -> str:

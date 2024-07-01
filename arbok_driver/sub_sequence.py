@@ -28,6 +28,7 @@ class SubSequence(SequenceBase):
             **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(parent, name, sample, param_config, **kwargs)
+        self.parent.add_subsequence(self)
 
     @property
     def parent_sequence(self):
@@ -39,7 +40,7 @@ class SubSequence(SequenceBase):
         if isinstance(self.parent, Sequence):
             return self.parent
         elif isinstance(self.parent, SubSequence):
-            return self._parent_sequence.find_parent_sequence()
+            return self.parent.find_parent_sequence()
         else:
             raise ValueError("Parent sequence must be of type Sequence")
 
@@ -47,12 +48,12 @@ class SubSequence(SequenceBase):
         """Returns the path of subsequences up to the parent sequence"""
         if path is None:
             path = ""
-        if isinstance(self._parent_sequence, Sequence):
-            return f"{self._parent_sequence.name}__{self.name}__{path}"
-        elif self._parent_sequence is None:
+        if isinstance(self.parent, Sequence):
+            return f"{self.parent.name}__{self.name}__{path}"
+        elif self.parent is None:
             return f"{self.name}__{path}"
         else:
-            return self._parent_sequence.get_sequence_path(f"{self.name}__{path}")
+            return self.parent.get_sequence_path(f"{self.name}__{path}")
 
     def __getattr__(self, key: str) -> Any:
         """Returns parameter from self. If parameter is not found in self, 

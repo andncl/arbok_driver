@@ -167,6 +167,7 @@ class ReadSequence(SubSequence):
         self.add_parameter(
             parameter_class = GettableParameter,
             name = observable.full_name,
+            register_name = observable.full_name,
             sequence = self,
             vals = Arrays(shape = (1,))
         )
