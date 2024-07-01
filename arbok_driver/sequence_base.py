@@ -283,7 +283,6 @@ class SequenceBase(InstrumentModule):
                 scale = 1
                 if element in self.sample.divider_config:
                     scale = self.sample.divider_config[element]['division']
-                    param_dict['validator'] = Numbers(-1/scale, 1/scale)
                 new_param_dict = {'value' : value, 'scale' : scale, 'label' : f"{element}: {param_dict['label']}", 'type' : param_dict['type']}
                 new_param_dict.update(param_dict) # ensure overrides take precedence
                 del new_param_dict['elements']
