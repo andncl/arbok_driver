@@ -63,7 +63,8 @@ class Observable(ObservableBase):
         self.element_name = element_name
         self.element = element
         self.name = f"{self.element_name}_{observable_name}"
-        self.full_name = f"{self.readout.sequence.name}__{self.readout.name}__{self.name}"
+        self.full_name = f"{self.readout.sequence.short_name}"
+        self.full_name += f"__{self.readout.name}__{self.name}"
         self.signal = self.readout.signal
         self.qm_elements = list(set(self.signal.readout_elements.values()))
 
@@ -95,7 +96,8 @@ class AbstractObservable(ObservableBase):
 
         self.signal = getattr(self.readout.sequence, signal)
         self.qm_elements = list(set(self.signal.readout_elements.values()))
-        self.full_name = f"{self.readout.sequence.name}__{self.signal.name}__{self.name}"
+        self.full_name = f"{self.readout.sequence.short_name}"
+        self.full_name += f"__{self.signal.name}__{self.name}"
         self.signal.observables[self.full_name] = self
         setattr(self.signal, self.name, self)
         logging.debug(

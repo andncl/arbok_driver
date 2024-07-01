@@ -12,6 +12,7 @@ class SubSequence(SequenceBase):
     """
     def __init__(
             self,
+            parent,
             name: str,
             sample: Sample,
             param_config: dict | None = None,
@@ -26,36 +27,33 @@ class SubSequence(SequenceBase):
             param_config (dict): Dictionary containing all device parameters
             **kwargs: Arbitrary keyword arguments.
         """
-        super().__init__(name, sample, param_config, **kwargs)
+        super().__init__(parent, name, sample, param_config, **kwargs)
+        self.parent.add_subsequence(self)
 
     @property
     def parent_sequence(self):
         """Returns parent (sub) sequence"""
         return self.find_parent_sequence()
 
-    @parent_sequence.setter
-    def parent_sequence(self, parent):
-        self._parent_sequence = parent
-
     def find_parent_sequence(self):
         """Recursively searches the parent sequence"""
-        if isinstance(self._parent_sequence, Sequence):
-            return self._parent_sequence
-        elif self._parent_sequence is None:
-            return self
+        if isinstance(self.parent, Sequence):
+            return self.parent
+        elif isinstance(self.parent, SubSequence):
+            return self.parent.find_parent_sequence()
         else:
-            return self._parent_sequence.find_parent_sequence()
+            raise ValueError("Parent sequence must be of type Sequence")
 
     def get_sequence_path(self, path: str = None) -> str:
         """Returns the path of subsequences up to the parent sequence"""
         if path is None:
             path = ""
-        if isinstance(self._parent_sequence, Sequence):
-            return f"{self._parent_sequence.name}__{self.name}__{path}"
-        elif self._parent_sequence is None:
+        if isinstance(self.parent, Sequence):
+            return f"{self.parent.name}__{self.name}__{path}"
+        elif self.parent is None:
             return f"{self.name}__{path}"
         else:
-            return self._parent_sequence.get_sequence_path(f"{self.name}__{path}")
+            return self.parent.get_sequence_path(f"{self.name}__{path}")
 
     def __getattr__(self, key: str) -> Any:
         """Returns parameter from self. If parameter is not found in self, 
