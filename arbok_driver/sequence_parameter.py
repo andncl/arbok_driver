@@ -34,6 +34,7 @@ class SequenceParameter(Parameter):
         self.var_type = var_type
         self.input_stream = None
         self.can_be_parameterized = False
+        self.sweep_validator = None
 
     @property
     def sequence_path(self) -> str:
@@ -65,10 +66,8 @@ class SequenceParameter(Parameter):
                     "Parameter holds a QUA variable, you cant set it") 
         if value is None:
             return self.get_raw()
-        if isinstance(value, (int, float, ndarray)):
-            self.set(value)
         else:
-            raise ValueError("Value to be set must be int, float or np.ndarray")
+            self.set(value)
 
     def reset(self) -> None:
         """

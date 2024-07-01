@@ -7,7 +7,7 @@ import warnings
 
 import numpy as np
 
-from qcodes.instrument import Instrument
+from qcodes.instrument import InstrumentModule
 from qcodes.validators import Arrays, Numbers, Ints
 
 from qm import SimulationConfig, generate_qua_script, qua
@@ -18,12 +18,13 @@ from .sample import Sample
 from .sequence_parameter import SequenceParameter
 from . import utils
 
-class SequenceBase(Instrument):
+class SequenceBase(InstrumentModule):
     """
     Class describing a subsequence of a QUA programm (e.g Init, Control, Read). 
     """
     def __init__(
             self,
+            parent,
             name: str,
             sample: Sample,
             sequence_config: Optional[dict | None] = None,
@@ -39,12 +40,14 @@ class SequenceBase(Instrument):
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
         """
-        super().__init__(name, **kwargs)
+        super().__init__(parent, name, **kwargs)
+        self.parent.add_submodule(self.name, self)
+        setattr(self.parent, self.short_name, self)
+
         self.sample = sample
         self.elements = self.sample.elements
         self.sequence_config = sequence_config
 
-        self._parent_sequence = None
         self._sub_sequences = []
         self._gettables = []
         self._qua_program_as_str = None
@@ -89,6 +92,10 @@ class SequenceBase(Instrument):
         """
         return self._gettables
 
+    def add_subsequence(self, new_sequence) -> None:
+        """Adds a subsequence to self"""
+        self._sub_sequences.append(new_sequence)
+
     def add_qc_params_from_config(self, config):
         """ 
         Creates QCoDeS parameters for all entries of the config 
@@ -119,25 +126,6 @@ class SequenceBase(Instrument):
         if self._qua_program_as_str is None:
             self.get_qua_program()
         return self._qua_program_as_str
-
-    def add_subsequence(self, new_sequence) -> None:
-        """
-        Adds a subsequence to the entire programm. Subsequences are added as 
-        QCoDeS 'Submodules'. Sequences are executed in order of them being added.
-
-        Args:
-            new_sequence (Sequence): Subsequence to be added
-            verbose (bool): Flag to trigger debug printouts
-        """
-        new_sequence.parent_sequence = self
-        if new_sequence.name not in self.submodules.keys():
-            self.add_submodule(new_sequence.name, new_sequence)
-            self._sub_sequences.append(new_sequence)
-        else:
-            warnings.warn(
-                f"{new_sequence.name} already in subsequences, sequence added again"
-                )
-            self._sub_sequences.append(new_sequence)
 
     def get_qua_program(self, simulate = False):
         """
@@ -219,14 +207,14 @@ class SequenceBase(Instrument):
         """
         if len(sweeps) == 0:
             ### this condition gets triggered if we arrive at the innermost loop
-            self.recursive_qua_generation('before_sequence')
+            self.recursive_qua_generation(
+                'before_sequence', skip_duplicates = True)
             self.recursive_qua_generation('sequence')
-            self.recursive_qua_generation('after_sequence')
+            self.recursive_qua_generation(
+                'after_sequence', skip_duplicates = True)
             return
         new_sweeps = sweeps[:-1]
         current_sweep = sweeps[-1]
-        # if self.parent_sequence is self and len(sweeps) == len(self.sweeps):
-        #     self.qua_before_sweep()
         logging.debug("Adding qua loop for %s",
             [par.name for par in current_sweep.parameters])
 
@@ -235,13 +223,15 @@ class SequenceBase(Instrument):
             )
         return
 
-    def recursive_qua_generation(self, seq_type: str):
+    def recursive_qua_generation(self, seq_type: str, skip_duplicates = False):
         """
         Recursively runs all QUA code stored in submodules of the given sequence
         Differentiates between 'declare', 'stream' and `sequence`.
 
         Args:
             seq_type (str): Type of qua code containing method to look for
+            skip_duplicates (bool): Flag to skip duplicate calls of the same
+                given subsequence. Default is False
         """
         method_name = f"qua_{seq_type}"
         if hasattr(self, method_name):
@@ -256,12 +246,17 @@ class SequenceBase(Instrument):
             return
 
         ### If the given seqeunce has subsequences, run the recursion of those
-        for subsequence in self._sub_sequences:
-            if not subsequence.submodules:
-                if hasattr(subsequence, method_name):
-                    getattr(subsequence, method_name)()
+        if skip_duplicates:
+            sequence_list = set(self.sub_sequences)
+        else:
+            sequence_list = self.sub_sequences
+        for sub_sequence in sequence_list:
+            if not sub_sequence.submodules:
+                if hasattr(sub_sequence, method_name):
+                    getattr(sub_sequence, method_name)()
             else:
-                subsequence.recursive_qua_generation(seq_type)
+                sub_sequence.recursive_qua_generation(
+                    seq_type, skip_duplicates = skip_duplicates)
 
     def reset(self) -> None:
         """
@@ -333,6 +328,7 @@ class SequenceBase(Instrument):
             appl_dict.update(param_dict)
             self.add_parameter(
                 name  = param_name,
+                register_name = f"{self.short_name}__{param_name}",
                 config_name = cfg_name,
                 unit = appl_dict["unit"],
                 initial_value = appl_dict["value"],

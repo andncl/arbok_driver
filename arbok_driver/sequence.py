@@ -18,6 +18,7 @@ class Sequence(SequenceBase):
     """Class describing a Sequence in an OPX driver"""
     def __init__(
             self,
+            parent,
             name: str,
             sample: Sample,
             sequence_config: dict | None = None,
@@ -32,8 +33,8 @@ class Sequence(SequenceBase):
                 their initial values and units0
             **kwargs: Key word arguments for InstrumentModule 
         """
-        super().__init__(name, sample, sequence_config)
-        self.driver = None
+        super().__init__(parent, name, sample, sequence_config)
+        self.driver = parent
         self.parent_sequence = self
         self.stream_mode = "pause_each"
         self._input_stream_parameters = []
