@@ -159,14 +159,6 @@ class Sequence(SequenceBase):
         for sweep in self.sweeps:
             for param, _ in sweep.config_to_register.items():
                 self._setpoints_for_gettables += (param,)
-            for param, setpoints in sweep.config.items():
-                param.vals = Arrays(
-                    min_value = -1/param.scale,
-                    max_value = 1/param.scale,
-                    shape = (len(setpoints),)
-                    )
-                logging.debug(
-                    "Changing vals for %s to %s", param.name, param.vals)
         print(
             f"Declared {len(self.sweeps)}-dimensional parameter sweep"
             f" of size {self.sweep_size} {[s.length for s in self.sweeps]}"
