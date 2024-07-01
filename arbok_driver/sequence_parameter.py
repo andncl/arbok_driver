@@ -9,6 +9,8 @@ from qcodes.validators import Arrays
 from qm import qua
 
 class SequenceParameter(Parameter):
+    sweep_validator = None
+    
     """
     A parameter wrapper that adds the respective element as attribute
 
@@ -34,7 +36,6 @@ class SequenceParameter(Parameter):
         self.var_type = var_type
         self.input_stream = None
         self.can_be_parameterized = False
-        self.sweep_validator = None
 
     @property
     def sequence_path(self) -> str:
