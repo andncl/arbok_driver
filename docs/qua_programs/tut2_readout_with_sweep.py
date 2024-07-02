@@ -1,5 +1,5 @@
 
-# Single QUA script generated at 2024-06-19 16:02:16.369845
+# Single QUA script generated at 2024-06-28 14:43:55.603324
 # QUA library version: 1.1.7
 
 from qm.qua import *
@@ -19,7 +19,6 @@ with program() as prog:
         pause()
         assign(v1, 10)
         with for_(v10,0,(v10<9),(v10+1)):
-            assign(v1, (v1+10))
             align()
             align()
             measure("measure", "readout_element", None, integration.full("x", v3, ""), integration.full("y", v4, ""))
@@ -45,6 +44,7 @@ with program() as prog:
             assign(v2, (v2+1))
             r1 = declare_stream()
             save(v2, r1)
+            assign(v1, (v1+10))
     with stream_processing():
         r1.buffer(1).save("dummy_squence_shots")
         r2.buffer(9).save("dummy_readout__qubit1__reference__sensor1_I_buffer")
