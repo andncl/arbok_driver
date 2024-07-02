@@ -5,7 +5,10 @@ $topLevelDir = git rev-parse --show-toplevel
 Push-Location "$topLevelDir/.git/hooks"
 
 # Create a symbolic link
-New-Item -ItemType SymbolicLink -Path 'pre-commit' -Target '../../tools/github.hooks/microsoft/pre-commit'
-
-# Return to the original directory
+# New-Item -ItemType SymbolicLink -Path 'pre-commit' -Target '../../tools/github.hooks/microsoft/pre-commit'
+# hard copy
+cp '..\..\tools\github.hooks\microsoft\pre-commit' .
+# need to set the file to executable
+# The following tests executable ()
+Test-Path $PSHOME\pwsh.exe, .\pre-commit
 Pop-Location
