@@ -15,7 +15,10 @@ class SequenceParameter(Parameter):
     TODO: Write get_raw abstract method without crashing sequence compilation
     """
 
+    validator = None
     sweep_validator = None
+    unit = ''
+    qua_type = None
 
     def __init__(self, element, config_name, var_type, *args, **kwargs):
         """

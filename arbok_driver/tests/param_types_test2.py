@@ -131,3 +131,22 @@ square_conf2 = {
 square_pulse2 = SquarePulse(dummy_sequence, 'square_pulse2', dummy_sample, square_conf2)
 if square_pulse2.vHome_gate_1.unit != 'v label 3':
     raise Exeception('unit override error')
+
+no_type = {
+    'amplitude2': {
+        'value': 0.5,
+        'unit': 'v label 2'
+    },
+    'vHome': {
+        'unit': 'v label 3',
+        "label": 'Default voltage point during the sequence',
+        'elements': {
+            'gate_1': 0,
+            'gate_2': 0,
+            'gate_3': 0,
+            'gate_4': 0,
+        }
+    },
+}
+
+square_pulse3 = SquarePulse(dummy_sequence, 'no_type', dummy_sample, no_type)
