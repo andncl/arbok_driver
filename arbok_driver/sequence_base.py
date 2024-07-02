@@ -287,14 +287,18 @@ class SequenceBase(InstrumentModule):
                 scale = 1
                 if element in self.sample.divider_config:
                     scale = self.sample.divider_config[element]['division']
-                new_param_dict = {'value' : value, 'scale' : scale, 'label' : f"{element}: {param_dict['label']}", 'type' : param_dict['type']}
+                new_param_dict = {'value' : value, 'scale' : scale, 
+                    'label' : f"{element}: {param_dict['label']}", 
+                    'type' : param_dict['type']}
                 new_param_dict.update(param_dict) # ensure overrides take precedence
                 del new_param_dict['elements']
                 self._add_param(f'{param_name}_{element}', cfg_name, new_param_dict)
         elif 'value' in param_dict:
             # set defaults and merge in changes
-            appl_dict = {'element' : None, 'scale' : 1, 'validator' : param_dict['type'].validator, 'qua_type' : param_dict['type'].qua_type,
-                            'unit' : param_dict['type'].unit, 'label' : param_dict['type'].label}
+            appl_dict = {'element' : None, 'scale' : 1, 
+                'validator' : param_dict['type'].validator, 
+                'qua_type' : param_dict['type'].qua_type,
+                'unit' : param_dict['type'].unit, 'label' : param_dict['type'].label}
             appl_dict.update(param_dict) # ensure overrides take precedence
             self.add_parameter(
                 name  = param_name,
