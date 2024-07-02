@@ -280,6 +280,8 @@ class SequenceBase(InstrumentModule):
         logging.debug("Adding %s to %s", param_name, self.name)
         if 'type' not in param_dict:
             param_dict['type'] = SequenceParameter
+        if 'label' not in param_dict:
+            param_dict['label'] = param_name
         if 'elements' in param_dict:
             for element, value in param_dict['elements'].items():
                 scale = 1
