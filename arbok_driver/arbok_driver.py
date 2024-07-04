@@ -61,7 +61,10 @@ class ArbokDriver(Instrument):
         Args:
             host_ip (str): Ip address of the OPX
         """
-        self.qmm = QuantumMachinesManager(host = host_ip)
+        if self.qmm == None:
+            self.qmm = QuantumMachinesManager(host = host_ip)
+        if self.opx != None:
+            self.opx.close()
         self.opx = self.qmm.open_qm(self.sample.config)
 
     def add_sequence(self, new_sequence: Sequence):
