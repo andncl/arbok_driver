@@ -1,0 +1,4 @@
+#!/bin/sh
+echo
+exec powershell.exe -ExecutionPolicy RemoteSigned -File "$(git rev-parse --show-toplevel)\tools\git.hooks\microsoft\pre-commit.ps1"
+exit
