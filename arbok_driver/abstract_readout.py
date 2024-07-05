@@ -47,11 +47,12 @@ class AbstractReadout(ABC):
 
     def qua_save_variables(self):
         """Saves the qua variables of all observables in this readout"""
-        for observable_name, observable in self.observables.items():
-            logging.debug(
-                "Saving variables of observable %s on abstract readout %s",
-                observable_name, self.name)
-            qua.save(observable.qua_var, observable.qua_stream)
+        if self.save_results:
+            for observable_name, observable in self.observables.items():
+                logging.debug(
+                    "Saving variables of observable %s on abstract readout %s",
+                    observable_name, self.name)
+                qua.save(observable.qua_var, observable.qua_stream)
 
     def qua_save_streams(self):
         """Saves acquired results to qua stream"""
@@ -70,8 +71,7 @@ class AbstractReadout(ABC):
     def qua_measure_and_save(self):
         """Measures ans saves the result of the given readout"""
         self.qua_measure()
-        if self.save_results:
-            self.qua_save_variables()
+        self.qua_save_variables()
 
     def _find_observable_from_path(self, attr_path: str) -> ObservableBase:
         """
