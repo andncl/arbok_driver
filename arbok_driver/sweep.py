@@ -10,13 +10,14 @@ from .sequence_parameter import SequenceParameter
 
 class Sweep:
     """ Class characterizing a parameter sweep along one axis in the OPX """
-    def __init__(self, param_dict: dict, register_all = False):
+    def __init__(self, parent_sequence, param_dict: dict, register_all = False):
         """ Constructor class of Sweep class
         
         Args: 
             param_dict (dict): Dict with parameters as keys and arrays as
                 setpoints for sweep
         """
+        self.parent_sequence = parent_sequence
         self._param_dict = param_dict
         self._config_to_register = None
         self._parameters = None
@@ -255,12 +256,8 @@ class Sweep:
 
         ### Declaring sweep index variable and respective loop for sweep
         sweep_idx_var = qua.declare(int)
-        with qua.for_(
-                        var = sweep_idx_var,
-                        init = 0,
-                        cond = sweep_idx_var < self.length,
-                        update = sweep_idx_var + 1
-            ):
+        qua.assign(sweep_idx_var, 0)
+        with qua.while_(sweep_idx_var < self.length):
             for param in self.parameters:
                 if not param.can_be_parameterized:
                     qua.assign(
@@ -272,8 +269,15 @@ class Sweep:
 
             ### After the sequence the parameter variable is incremented by step
             for param, sss in parameters_sss.items():
-                if param.can_be_parameterized:
-                    qua.assign(param.qua_var, param.qua_var + sss['step'])
+                def step_variable():
+                    if param.can_be_parameterized:
+                        if param == self.parameters[0]:
+                            qua.assign(sweep_idx_var, sweep_idx_var + 1)
+                        qua.assign(param.qua_var, param.qua_var + sss['step'])
+                if self.parent_sequence.sweeps[0] == self:
+                    self.parent_sequence.qua_check_step_requirements(step_variable)
+                else:
+                    step_variable()
 
     def _qua_explicit_array_loop(self, next_action):
         """Runs a qua for loop from explicitly defined qua arrays"""
