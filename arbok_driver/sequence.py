@@ -47,6 +47,7 @@ class Sequence(SequenceBase):
         self.shot_tracker_qua_var = None
         self.shot_tracker_qua_stream = None
         self._qua_input_stream = None
+        self._step_requirements = []
 
     @property
     def sweeps(self) -> list:
@@ -75,6 +76,11 @@ class Sequence(SequenceBase):
     def input_stream_parameters(self) -> list:
         """Registered input stream parameters"""
         return self._input_stream_parameters
+
+    @property
+    def step_requirements(self) -> list:
+        """Registered input stream parameters"""
+        return self._step_requirements
 
     @input_stream_parameters.setter
     def input_stream_parameters(self, parameters: list) -> None:
@@ -106,6 +112,7 @@ class Sequence(SequenceBase):
         Qua code to be executed before the sweep loop but after the qua.pause
         statement that aligns the measurement results
         """
+        qua.assign(self.shot_tracker_qua_var, 0)
         stream_params = self.input_stream_parameters
         int_params = [p for p in stream_params if p.var_type == int]
         bool_params = [p for p in stream_params if p.var_type == bool]
@@ -128,6 +135,12 @@ class Sequence(SequenceBase):
         """
         Qua code to be executed after the sequence loop and the code it contains
         """
+        qua.align()
+        self.qua_check_step_requirements(self.qua_increment_shot_tracker)
+        qua.align()
+
+    def qua_increment_shot_tracker(self):
+        """Increments the shot tracker variable by one and saves it to stream"""
         qua.assign(
             self.shot_tracker_qua_var,
             self.shot_tracker_qua_var + 1
@@ -154,7 +167,7 @@ class Sequence(SequenceBase):
         self._sweeps = []
         for sweep_dict in args:
             logging.debug("Adding parameter sweep for %s", sweep_dict.keys())
-            self._sweeps.append(Sweep(sweep_dict))
+            self._sweeps.append(Sweep(self, sweep_dict))
         self._setpoints_for_gettables = ()
         for sweep in self.sweeps:
             for param, _ in sweep.config_to_register.items():
@@ -321,6 +334,38 @@ class Sequence(SequenceBase):
                 name = parameter.full_name
             )
 
+    def qua_check_step_requirements(
+        self, action: callable, requirements_list: list = None):
+        """
+        Checks if the qua variables corresponding to the given save requirements
+        are true and save results to GettableParameters. Otherwise continue
+        without saving.
+        This is useful for feedback sequences or conditional operations.
+        """
+        if requirements_list is None:
+            requirements_list = self.step_requirements
+        if len(requirements_list) == 0:
+            action()
+        else:
+            with qua.if_(requirements_list[0]):
+                self.qua_check_step_requirements(action, requirements_list[1:])
+
+    def find_parameter_from_sub_sequence(self, attr_path: str) -> SequenceParameter:
+        """Returns the parameter from a given path"""
+        keyword_list = attr_path.split(".")
+        current_attr = self
+        for attr in keyword_list:
+            try:
+                current_attr = getattr(current_attr, attr)
+            except AttributeError as exc:
+                raise AttributeError(
+                    f"Attribute {attr} not found in {self.name}"
+                    ) from exc
+        if callable(current_attr):
+            return current_attr()
+        else:
+            return current_attr
+
     def reshape_results_from_sweeps(self, results: np.ndarray) -> np.ndarray:
         """
         Reshapes the results array to the shape of the setpoints from sweeps
@@ -333,6 +378,9 @@ class Sequence(SequenceBase):
         """
         return results.reshape(tuple((reversed(s.length) for s in self.sweeps)))
 
+    def add_step_requirement(self, requirement) -> None:
+        """Adds a bool qua variable as a step requirement for the sequence"""
+        self._step_requirements.append(requirement)
     def plot_current_histograms(self, gettables: list = None, bins: int = 50):
         """
         Plots current histograms for all gettables
