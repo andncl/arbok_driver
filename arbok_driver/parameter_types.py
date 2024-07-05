@@ -40,7 +40,7 @@ class Frequency(SequenceParameter):
     qua_type = int
     """ Default: 'qua.fixed' """
     validator = Numbers()
-    sweep_validator = MultiTypeOr(Numbers(), Arrays(valid_types = [float]))
+    sweep_validator = MultiTypeOr(Numbers(), Arrays(valid_types = [int]))
     """ Default: Numbers """
 
 class Amplitude(SequenceParameter):
