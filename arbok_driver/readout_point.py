@@ -85,10 +85,9 @@ class ReadoutPoint(ABC):
     def qua_measure_and_save(self):
         """Measures and saves qua variables"""
         self.qua_measure()
-        self._qua_save_vars()
+        self.qua_save_variables()
 
-
-    def _qua_save_vars(self):
+    def qua_save_variables(self):
         """Saves streams after measurement"""
         if not self.save_values:
             logging.debug("Values of point %s will not be saved.", self.name)

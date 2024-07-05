@@ -45,6 +45,7 @@ class GettableParameter(ParameterWithSetpoints):
         self.batch_size = 0
         self.result_nr = 0
         self.batch_counter = None
+        self.nr_registered_results = 0
 
     def set_raw(self, *args, **kwargs) -> None:
         """Empty abstract `set_raw` method. Parameter not meant to be set"""
@@ -97,39 +98,34 @@ class GettableParameter(ParameterWithSetpoints):
         """
         batch_count, old_count = 0, 0
         last_result_nr = self.result_nr
+        time_per_shot = 0
         shot_timing = "Calculate timing...\n"
         total_results = "Total results: ..."
         t0 = time.time()
         try:
-            while last_result_nr == self.result_nr:
-                lg.info(
-                    "Waiting: %s/%s results are in",
-                    batch_count, self.batch_size
-                )
+            while batch_count < self.batch_size:
                 shot_count_result = self.batch_counter.fetch_all()
                 if shot_count_result is not None:
-                    self.result_nr, batch_count = divmod(
-                        shot_count_result[0], self.batch_size)
-                    total_results = f"Total results: {shot_count_result[0]}"
+                    batch_count = shot_count_result[0]
+                    total_nr_results = batch_count + self.nr_registered_results
+                    total_results = f"Total results: {total_nr_results}"
                 if progress_bar is not None:
                     bar_title = "[cyan]Batch progress "
                     bar_title += f"{batch_count}/{self.batch_size}\n"
-                    if batch_count > old_count:
-                        time_per_shot = 1e3*(time.time()-t0)/(batch_count-old_count)
-                        shot_timing = f"{time_per_shot:.1f} ms per shot\n"
-                        
-                    t0 = time.time()
+                    if batch_count > 0:
+                        time_per_shot = 1e3*(time.time()-t0)/(batch_count)
+                    shot_timing = f"{time_per_shot:.1f} ms per shot\n"
                     progress_bar[1].update(
                         progress_bar[0],
                         completed = batch_count,
                         description = bar_title + shot_timing + total_results
                     )
                     progress_bar[1].refresh()
-                    old_count = batch_count
         except KeyboardInterrupt as exc:
             raise KeyboardInterrupt('Measurement interrupted by user') from exc
         if progress_bar is not None:
             progress_bar[1].update(progress_bar[0], completed = batch_count)
+        self.nr_registered_results += self.batch_size
 
     def _fetch_opx_buffer(self):
         """
