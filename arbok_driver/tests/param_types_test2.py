@@ -126,11 +126,17 @@ square_conf2 = {
         'qua_type': qua.fixed,
         'validator': Numbers()
     },
+    'amplitude3': {
+        'value': 0.5,
+        'unit': 'v label 2'
+    },
 }
 
 square_pulse2 = SquarePulse(dummy_sequence, 'square_pulse2', dummy_sample, square_conf2)
 if square_pulse2.vHome_gate_1.unit != 'v label 3':
     raise Exeception('unit override error')
+if square_pulse2.amplitude3.unit != 'v label 2':
+    raise Exeception('unit override 2 error')
 
 no_type = {
     'amplitude2': {
