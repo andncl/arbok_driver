@@ -37,7 +37,7 @@ class Voltage(SequenceParameter):
 class Frequency(SequenceParameter):
     unit = 'Hz'
     """ Default: 'Hz' """
-    qua_type = qua.fixed
+    qua_type = int
     """ Default: 'qua.fixed' """
     validator = Numbers()
     sweep_validator = MultiTypeOr(Numbers(), Arrays(valid_types = [float]))
