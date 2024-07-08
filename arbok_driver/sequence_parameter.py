@@ -18,7 +18,7 @@ class SequenceParameter(Parameter):
     validator = None
     sweep_validator = None
     unit = ''
-    qua_type = None
+    qua_type = int
 
     def __init__(self, element, config_name, var_type, *args, **kwargs):
         """
