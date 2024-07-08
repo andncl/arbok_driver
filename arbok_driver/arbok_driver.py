@@ -53,7 +53,7 @@ class ArbokDriver(Instrument):
         self._sequences = []
         self.submodules = {}
 
-    def connect_opx(self, host_ip: str):
+    def connect_opx(self, host_ip: str, port: int = None, log_level: str = None):
         """
         Creates QuantumMachinesManager and opens a quantum machine on it with
         the given IP address
@@ -61,10 +61,8 @@ class ArbokDriver(Instrument):
         Args:
             host_ip (str): Ip address of the OPX
         """
-        if self.qmm == None:
-            self.qmm = QuantumMachinesManager(host = host_ip)
-        if self.opx != None:
-            self.opx.close()
+        self.qmm = QuantumMachinesManager(
+            host = host_ip, port = port, log_level = log_level)
         self.opx = self.qmm.open_qm(self.sample.config)
 
     def add_sequence(self, new_sequence: Sequence):
