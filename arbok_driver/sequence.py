@@ -25,25 +25,46 @@ class Sequence(SequenceBase):
             ) -> None:
         """
         Constructor method for Sequence
-        
+
         Args:
             name (str): Name of the sequence
             sample (Sample): Sample object describing the device in use
             sequence_config (dict): Config containing all sequence params and
                 their initial values and units0
-            **kwargs: Key word arguments for InstrumentModule 
+            **kwargs: Key word arguments for InstrumentModule
         """
         super().__init__(parent, name, sample, sequence_config)
         self.driver = parent
         self.parent_sequence = self
-        self._input_stream_parameters = []
-        self._sweeps = []
+        self._init_vars()
+        self._reset_sweeps_setpoints()
+
+    def _init_vars(self) -> None:
+        """
+        Put variables into a reasonable init state
+        """
         self._gettables = []
         self._sweep_size = 1
-        self._setpoints_for_gettables = ()
         self.shot_tracker_qua_var = None
         self.shot_tracker_qua_stream = None
         self._step_requirements = []
+        self._input_stream_parameters = []
+
+    def _reset_sweeps_setpoints(self) -> None:
+        """
+        Reset _sweeps and _setpoints_foir_gettables
+        """
+        self._sweeps = []
+        self._setpoints_for_gettables = ()
+
+    def reset(self) -> None:
+        """
+        On reset, call super to reset then,
+        reset local params, sweeps and gettables
+        """
+        super().reset()
+        self._reset_sweeps_setpoints()
+        self._init_vars()
 
     @property
     def sweeps(self) -> list:
@@ -82,7 +103,7 @@ class Sequence(SequenceBase):
     def input_stream_parameters(self, parameters: list) -> None:
         """
         Setter for input stream parameters
-            
+
         Raises:
             TypeError: If not all parameters are of type SequenceParameter
             ValueError: If not all parameters are unique
@@ -113,7 +134,7 @@ class Sequence(SequenceBase):
         int_params = [p for p in stream_params if p.var_type == int]
         bool_params = [p for p in stream_params if p.var_type == bool]
         fixed_params = [p for p in stream_params if p.var_type == qua.fixed]
-                
+
         if int_params:
             qua.advance_input_stream(self._qua_int_input_stream)
             for i, param in enumerate(int_params):
@@ -148,23 +169,22 @@ class Sequence(SequenceBase):
         self.shot_tracker_qua_stream.buffer(1).save(self.name + "_shots")
 
     def set_sweeps(self, *args) -> None:
-        """ 
-        Sets the given sweeps from its dict type arguments. Each argument 
+        """
+        Sets the given sweeps from its dict type arguments. Each argument
         creates one sweep axis. Each dict key, value pair is sweept concurrently
         along this axis.
 
         Args:
-            *args (dict): Arguments of type dict with SequenceParameters as keys 
-                and np arrays as setpoints. All values (arrays) must have same 
+            *args (dict): Arguments of type dict with SequenceParameters as keys
+                and np arrays as setpoints. All values (arrays) must have same
                 length!
         """
         if not all(isinstance(sweep_dict, dict) for sweep_dict in args):
             raise TypeError("All arguments need to be of type dict")
-        self._sweeps = []
+        self._reset_sweeps_setpoints()
         for sweep_dict in args:
             logging.debug("Adding parameter sweep for %s", sweep_dict.keys())
             self._sweeps.append(Sweep(self, sweep_dict))
-        self._setpoints_for_gettables = ()
         for sweep in self.sweeps:
             for param, _ in sweep.config_to_register.items():
                 self._setpoints_for_gettables += (param,)
@@ -176,7 +196,7 @@ class Sequence(SequenceBase):
     def register_gettables(self, *args) -> None:
         """
         Registers GettableParameters that will be retreived during measurement
-        
+
         Args:
             *args (GettableParameter): Parameters to be measured
         """
@@ -188,11 +208,11 @@ class Sequence(SequenceBase):
     def insert_single_value_input_streams(self, value_dict: dict) -> None:
         """
         Compresses all input streams to single array stream
-        
+
         Args:
             value_dict (dict): Dictionary containing all input stream parameters
                 (SequenceParameters)and their values
-        
+
         Raises:
             KeyError: If not all input stream parameters that were added to the
                 input_stream_parameters attribute are given in value_dict
@@ -213,7 +233,7 @@ class Sequence(SequenceBase):
                 fixed_vals.append(float(value_dict[param]*param.scale))
             elif param.var_type == bool:
                 bool_vals.append(bool(value_dict[param]))
-            else:   
+            else:
                 raise ValueError(
                     f"Parameter {param.name} has invalid type {param.var_type}"
                     )
@@ -248,7 +268,7 @@ class Sequence(SequenceBase):
     def _check_given_gettables(self, gettables: list) -> None:
         """
         Check validity of given gettables
-        
+
         Args:
             gettables (list): List of GettableParameters
 
@@ -272,7 +292,7 @@ class Sequence(SequenceBase):
             return
         for qua_type in [bool, int, qua.fixed]:
             self._qua_declare_input_stream_type(qua_type)
-    
+
     def _qua_declare_input_stream_type(
         self, type: int | bool | qua.fixed) -> None:
         length = 0
@@ -305,9 +325,9 @@ class Sequence(SequenceBase):
     def advance_input_streams(self, new_value_dict: dict) -> None:
         """
         Advances all input streams by one step with the new given values
-        
+
         Args:
-            new_value_dict (dict): Dictionary containing all parameters and 
+            new_value_dict (dict): Dictionary containing all parameters and
                 their new values
         """
         if Counter(new_value_dict.keys()) != Counter(self.input_stream_parameters):
@@ -356,10 +376,10 @@ class Sequence(SequenceBase):
     def reshape_results_from_sweeps(self, results: np.ndarray) -> np.ndarray:
         """
         Reshapes the results array to the shape of the setpoints from sweeps
-        
+
         Args:
             results (np.ndarray): Results array
-        
+
         Returns:
             np.ndarray: Reshaped results array
         """
@@ -368,10 +388,11 @@ class Sequence(SequenceBase):
     def add_step_requirement(self, requirement) -> None:
         """Adds a bool qua variable as a step requirement for the sequence"""
         self._step_requirements.append(requirement)
+
     def plot_current_histograms(self, gettables: list = None, bins: int = 50):
         """
         Plots current histograms for all gettables
-        
+
         Args:
             gettables (list, GettableParameter): Parameter or list of parameters
                 to plot histograms for
@@ -384,7 +405,7 @@ class Sequence(SequenceBase):
             gettable_list = [gettables]
         else:
             raise ValueError(
-                f"""gettables must be of type GettableParameter or list with 
+                f"""gettables must be of type GettableParameter or list with
                 Gettable parameters is: {type(gettables)}"""
                 )
         fig, ax = plt.subplots(

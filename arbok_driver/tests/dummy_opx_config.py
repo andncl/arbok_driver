@@ -1,5 +1,18 @@
 import numpy as np
 
+opx_scale = 2
+divider_config = {
+    'gate_1': {
+        'division': 1*opx_scale,
+    },
+    'gate_2': {
+        'division': 1*opx_scale,
+    },
+    'readout_element': {
+        'division': 1*opx_scale
+    }
+}
+
 unit_ramp_samples = np.linspace(0, 0.5, 20).tolist()
 
 dummy_qua_config = {
