@@ -2,7 +2,7 @@
 QCoDeS compatible driver for the OPX+ from Quantum Machines
 Arbok is taylored for routines using the Quantum Machines OPX(+) quantum control hardware.
 
-## Installation 
+## Installation
 To install the arbok python module locally follow the steps below
 
 ### 1) Clone github repository
@@ -13,7 +13,7 @@ git clone https://github.com/andncl/arbok_driver.git
 ### 2) Prepare conda environment
 We create an empty conda environment to avoid interference with other python packages and to manage package dependencies for measurements. Remember to fix the python version as shown below when creating the environment, since some of the modules are not yet compatible with the latest 3.12.
 ```bash
-conda create --name <your_env_name> python=3.11.8
+conda create --name <your_env_name> python=3.11
 conda activate <your_env_name>
 conda install pip
 ```
@@ -23,9 +23,26 @@ conda install pip
 ```bash
 pip install -e .
 ```
-**Do not forget the dot after '-e' **. Arbok should now install 
+**Do not forget the dot after '-e' **. Arbok should now install
 all its requirements automatically. If you need additional
 packages, install them in your new environment called <your_env_name>
+
+### 4) Install git hooks
+These hooks strip jupyter notebook outputs before committing.
+#### Linux
+Run the following to install pre-commit to .git/hooks :
+```
+./tools/git.hooks/setupLinux.sh
+```
+#### Microsoft
+Copy pre-commit from this location :
+```
+./tools/git.hooks/Microsoft/pre-commit
+```
+To this location :
+```
+.git/hooks/
+```
 
 ### Optional 1) Adding your environment to ipykernel
 
