@@ -36,17 +36,13 @@ class Sequence(SequenceBase):
         super().__init__(parent, name, sample, sequence_config)
         self.driver = parent
         self.parent_sequence = self
-        self.stream_mode = "pause_each"
         self._input_stream_parameters = []
-        # self._input_stream
-        self.nr_input_stream_types = {int: 0, bool: 0, qua.fixed: 0}
         self._sweeps = []
         self._gettables = []
         self._sweep_size = 1
         self._setpoints_for_gettables = ()
         self.shot_tracker_qua_var = None
         self.shot_tracker_qua_stream = None
-        self._qua_input_stream = None
         self._step_requirements = []
 
     @property
@@ -285,7 +281,6 @@ class Sequence(SequenceBase):
                 length += 1
                 param.qua_var = qua.declare(param.var_type)
                 param.qua_sweeped = True
-        self.nr_input_stream_types[type] = length
         if length > 0:
             input_stream = qua.declare_input_stream(
                 type,
