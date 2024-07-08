@@ -36,14 +36,35 @@ class Sequence(SequenceBase):
         super().__init__(parent, name, sample, sequence_config)
         self.driver = parent
         self.parent_sequence = self
-        self._input_stream_parameters = []
-        self._sweeps = []
+        self._init_vars()
+        self._reset_sweeps_setpoints()
+
+    def _init_vars(self) -> None:
+        """
+        Put variables into a reasonable init state
+        """
         self._gettables = []
         self._sweep_size = 1
-        self._setpoints_for_gettables = ()
         self.shot_tracker_qua_var = None
         self.shot_tracker_qua_stream = None
         self._step_requirements = []
+        self._input_stream_parameters = []
+
+    def _reset_sweeps_setpoints(self) -> None:
+        """
+        Reset _sweeps and _setpoints_foir_gettables
+        """
+        self._sweeps = []
+        self._setpoints_for_gettables = ()
+
+    def reset(self) -> None:
+        """
+        On reset, call super to reset then,
+        reset local params, sweeps and gettables
+        """
+        super().reset()
+        self._reset_sweeps_setpoints()
+        self._init_vars()
 
     @property
     def sweeps(self) -> list:
@@ -160,11 +181,10 @@ class Sequence(SequenceBase):
         """
         if not all(isinstance(sweep_dict, dict) for sweep_dict in args):
             raise TypeError("All arguments need to be of type dict")
-        self._sweeps = []
+        self._reset_sweeps_setpoints()
         for sweep_dict in args:
             logging.debug("Adding parameter sweep for %s", sweep_dict.keys())
             self._sweeps.append(Sweep(self, sweep_dict))
-        self._setpoints_for_gettables = ()
         for sweep in self.sweeps:
             for param, _ in sweep.config_to_register.items():
                 self._setpoints_for_gettables += (param,)
