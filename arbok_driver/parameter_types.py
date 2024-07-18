@@ -74,3 +74,12 @@ class Radian(SequenceParameter):
         Numbers(min_value = -1, max_value = 1),
         Arrays(valid_types = [float])
         )
+
+class Pi(SequenceParameter):
+    unit = 'pi'
+    qua_type = qua.fixed
+    validator = Numbers(min_value = -2, max_value = 2)
+    sweep_validator = MultiTypeOr(
+        Numbers(min_value = -2, max_value = 2),
+        Arrays(valid_types = [float])
+        )
