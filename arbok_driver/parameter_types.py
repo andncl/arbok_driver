@@ -69,8 +69,17 @@ class Int(Time):
 class Radian(SequenceParameter):
     unit = 'pi'
     qua_type = qua.fixed
-    validator = Numbers(min_value = -1, max_value = 1)
+    validator = Numbers(min_value = -2*np.pi, max_value = 2*np.pi)
     sweep_validator = MultiTypeOr(
-        Numbers(min_value = -1, max_value = 1),
+        Numbers(min_value = -2*np.pi, max_value = 2*np.pi),
+        Arrays(valid_types = [float])
+        )
+
+class Pi(SequenceParameter):
+    unit = 'pi'
+    qua_type = qua.fixed
+    validator = Numbers(min_value = -2, max_value = 2)
+    sweep_validator = MultiTypeOr(
+        Numbers(min_value = -2, max_value = 2),
         Arrays(valid_types = [float])
         )
