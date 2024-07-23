@@ -28,6 +28,7 @@ class SequenceBase(InstrumentModule):
             name: str,
             sample: Sample,
             sequence_config: Optional[dict | None] = None,
+            check_step_requirements: Optional[bool] = False,
             **kwargs
             ):
         """
@@ -47,6 +48,7 @@ class SequenceBase(InstrumentModule):
         self.sample = sample
         self.elements = self.sample.elements
         self.sequence_config = sequence_config
+        self.check_step_requirements = check_step_requirements
 
         self._sub_sequences = []
         self._gettables = []
@@ -165,6 +167,10 @@ class SequenceBase(InstrumentModule):
             if not simulate:
                 qua.pause()
 
+            ### Check requirements are set to True if the sequence is simulated
+            if simulate:
+                for qua_var in self.parent_sequence.step_requirements:
+                    qua.assign(qua_var, True)
             ### The sequences are run in the order they were added
             ### Before_sweep methods are run before the sweep loop
             self.recursive_qua_generation(seq_type = 'before_sweep')
@@ -251,12 +257,26 @@ class SequenceBase(InstrumentModule):
         else:
             sequence_list = self.sub_sequences
         for sub_sequence in sequence_list:
-            if not sub_sequence.submodules:
-                if hasattr(sub_sequence, method_name):
-                    getattr(sub_sequence, method_name)()
-            else:
-                sub_sequence.recursive_qua_generation(
-                    seq_type, skip_duplicates = skip_duplicates)
+            def next_recursion_step():
+                if not sub_sequence.submodules:
+                    if hasattr(sub_sequence, method_name):
+                        getattr(sub_sequence, method_name)()
+                else:
+                    sub_sequence.recursive_qua_generation(
+                        seq_type = seq_type,
+                        skip_duplicates = skip_duplicates
+                    )
+            # print(self.name, self.check_step_requirements)
+            # print('requirements', self.parent_sequence.step_requirements)
+            next_recursion_step()
+            # print(self.name, self.check_step_requirements)
+            # if self.check_step_requirements:
+            #     self.parent_sequence.qua_check_step_requirements(
+            #         next_recursion_step
+            #     )
+            # else:
+            #     next_recursion_step()
+
 
     def reset(self) -> None:
         """
