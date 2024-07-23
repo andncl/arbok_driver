@@ -43,6 +43,10 @@ To this location :
 ```
 .git/hooks/
 ```
+Like so :
+```
+cp .\tools\git.hooks\microsoft\pre-commit .\.git\hooks\
+```
 
 ### Optional 1) Adding your environment to ipykernel
 
