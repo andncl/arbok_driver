@@ -110,10 +110,12 @@ class Sweep:
         self._config_to_register = {}
         for i, parameter in enumerate(self._param_dict.keys()):
             self._parameters.append(parameter)
-            while parameter.remove_validator(): # remove validators and setup the sweep_validator
+            ### Remove scalar validators and setup the sweep_validator
+            while parameter.remove_validator():
                 pass
             parameter.add_validator(parameter.sweep_validator)
             parameter.validate(self._param_dict[parameter])
+            ### Usually not all params are registered (issue with live plotting)
             if self.register_all:
                 self._config_to_register[parameter] = self.config[parameter]
             elif i == 0:
@@ -129,7 +131,7 @@ class Sweep:
                         f"or numpy.ndarray, is:  {type(value)}")
             if isinstance(self.config[parameter], int):
                 parameter.input_stream = True
-                parameter.add_stream_param_to_sequence()
+                #parameter.add_stream_param_to_sequence()
         if all(param.input_stream is not None for param in self.parameters):
             self._inputs_are_streamed = True
         else:
@@ -235,9 +237,21 @@ class Sweep:
             logging.debug(
                 "Assigning %s with length %s (input stream)",
                 param.name, self.length)
-        with qua.for_each_(
-            self.qua_variables, self.input_streams):
+
+        sweep_idx_var = qua.declare(int)
+        qua.assign(sweep_idx_var, 0)
+        with qua.while_(sweep_idx_var < self.length):
+            for param in self.parameters:
+                qua.assign(
+                    param.qua_var, param.input_stream[sweep_idx_var])
             next_action()
+
+            def step_counter():
+                qua.assign(sweep_idx_var, sweep_idx_var + 1)
+            if self.parent_sequence.sweeps[0] == self:
+                self.parent_sequence.qua_check_step_requirements(step_counter)
+            else:
+                step_counter()
 
     def _qua_parmetrized_loop(self, next_action: callable) -> None:
         """
