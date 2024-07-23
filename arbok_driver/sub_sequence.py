@@ -16,6 +16,7 @@ class SubSequence(SequenceBase):
             name: str,
             sample: Sample,
             param_config: dict | None = None,
+            check_step_requirements: bool = False,
             **kwargs
             ):
         """
@@ -27,7 +28,8 @@ class SubSequence(SequenceBase):
             param_config (dict): Dictionary containing all device parameters
             **kwargs: Arbitrary keyword arguments.
         """
-        super().__init__(parent, name, sample, param_config, **kwargs)
+        super().__init__(
+            parent, name, sample, param_config, check_step_requirements, **kwargs)
         self.parent.add_subsequence(self)
 
     @property
@@ -49,11 +51,11 @@ class SubSequence(SequenceBase):
         if path is None:
             path = ""
         if isinstance(self.parent, Sequence):
-            return f"{self.parent.name}__{self.name}__{path}"
+            return f"{self.parent.short_name}__{self.short_name}__{path}"
         elif self.parent is None:
-            return f"{self.name}__{path}"
+            return f"{self.short_name}__{path}"
         else:
-            return self.parent.get_sequence_path(f"{self.name}__{path}")
+            return self.parent.get_sequence_path(f"{self.short_name}__{path}")
 
     def __getattr__(self, key: str) -> Any:
         """Returns parameter from self. If parameter is not found in self, 
