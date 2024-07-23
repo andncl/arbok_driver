@@ -63,12 +63,8 @@ class SequenceParameter(Parameter):
         Returns:
             float|int|np.ndarray: Parameter value if no input value is given
         """
-        if self.qua_sweeped:
-            if value is None:
-                return self.qua_var
-            else:
-                raise ValueError(
-                    "Parameter holds a QUA variable, you cant set it") 
+        if self.qua_var is not None:
+            return self.qua_var
         if value is None:
             return self.get_raw()
         else:
