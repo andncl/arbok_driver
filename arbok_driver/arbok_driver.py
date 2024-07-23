@@ -53,7 +53,7 @@ class ArbokDriver(Instrument):
         self._sequences = []
         self.submodules = {}
 
-    def connect_opx(self, host_ip: str, port: int = None, log_level: str = None):
+    def connect_opx(self, host_ip: str, **kwargs):
         """
         Creates QuantumMachinesManager and opens a quantum machine on it with
         the given IP address
@@ -62,7 +62,7 @@ class ArbokDriver(Instrument):
             host_ip (str): Ip address of the OPX
         """
         self.qmm = QuantumMachinesManager(
-            host = host_ip, port = port, log_level = log_level)
+            host = host_ip, **kwargs)
         self.opx = self.qmm.open_qm(self.sample.config)
 
     def add_sequence(self, new_sequence: Sequence):
@@ -113,7 +113,7 @@ class ArbokDriver(Instrument):
                     sequence.recursive_qua_generation(seq_type = 'stream')
         return qua_program
 
-    def run(self, qua_program):
+    def run(self, qua_program, **kwargs):
         """
         Sends the qua program for execution to the OPX and sets the programs 
         result handles 
@@ -121,7 +121,7 @@ class ArbokDriver(Instrument):
         Args:
             qua_program (program): QUA program to be executed
         """
-        self.qm_job = self.opx.execute(qua_program)
+        self.qm_job = self.opx.execute(qua_program, **kwargs)
         self.result_handles = self.qm_job.result_handles
 
     def _register_qc_params_in_measurement(self, measurement: Measurement):
@@ -184,7 +184,7 @@ class ArbokDriver(Instrument):
         return dataset
 
     def run_local_simulation(self, qua_program,  duration: int,
-        nr_controllers: int = 1, plot = True):
+        nr_controllers: int = 1, plot = True, **kwargs):
         """
         Simulates the given program of the sequence for `duration` cycles
         TODO: Move to SequenceBase and add checks if OPX is connected
@@ -201,7 +201,8 @@ class ArbokDriver(Instrument):
         simulated_job = self.qmm.simulate(
             self.sample.config,
             qua_program,
-            SimulationConfig(duration=duration)
+            SimulationConfig(duration=duration),
+            **kwargs
         )
 
         samples = simulated_job.get_simulated_samples()
