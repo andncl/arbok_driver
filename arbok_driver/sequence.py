@@ -148,6 +148,14 @@ class Sequence(SequenceBase):
             for i, param in enumerate(fixed_params):
                 qua.assign(param.qua_var, self._qua_fixed_input_stream[i])
 
+    def qua_before_sequence(self, simulate: bool = False):
+        """
+        Qua code to be executed before the inner sequence
+        """
+        if simulate:
+            for qua_var in self.step_requirements:
+                qua.assign(qua_var, True)
+
     def qua_after_sequence(self):
         """
         Qua code to be executed after the sequence loop and the code it contains
@@ -304,7 +312,7 @@ class Sequence(SequenceBase):
         if length > 0:
             input_stream = qua.declare_input_stream(
                 type,
-                name = f"{self.name}_{type.__name__}_input_stream",
+                name = f"{self.short_name}_{type.__name__}_input_stream",
                 size = length
             )
             setattr(self, f"_qua_{type.__name__}_input_stream", input_stream)
@@ -387,6 +395,7 @@ class Sequence(SequenceBase):
 
     def add_step_requirement(self, requirement) -> None:
         """Adds a bool qua variable as a step requirement for the sequence"""
+        logging.debug('Adding step requirement: %s', requirement)
         self._step_requirements.append(requirement)
 
     def plot_current_histograms(self, gettables: list = None, bins: int = 50):
