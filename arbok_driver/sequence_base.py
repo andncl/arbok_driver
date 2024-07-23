@@ -266,17 +266,7 @@ class SequenceBase(InstrumentModule):
                         seq_type = seq_type,
                         skip_duplicates = skip_duplicates
                     )
-            # print(self.name, self.check_step_requirements)
-            # print('requirements', self.parent_sequence.step_requirements)
             next_recursion_step()
-            # print(self.name, self.check_step_requirements)
-            # if self.check_step_requirements:
-            #     self.parent_sequence.qua_check_step_requirements(
-            #         next_recursion_step
-            #     )
-            # else:
-            #     next_recursion_step()
-
 
     def reset(self) -> None:
         """
