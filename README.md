@@ -28,24 +28,14 @@ all its requirements automatically. If you need additional
 packages, install them in your new environment called <your_env_name>
 
 ### 4) Install git hooks
-These hooks strip jupyter notebook outputs before committing.
-#### Linux
-Run the following to install pre-commit to .git/hooks :
+Install the git hook so that your notebooks are stripped before committing.
+### To do this with Microsoft :
+```
+.\tools\git.hooks\setupMicrosoft.ps1
+```
+### To do this with Linux :
 ```
 ./tools/git.hooks/setupLinux.sh
-```
-#### Microsoft
-Copy pre-commit from this location :
-```
-./tools/git.hooks/Microsoft/pre-commit
-```
-To this location :
-```
-.git/hooks/
-```
-Like so :
-```
-cp .\tools\git.hooks\microsoft\pre-commit .\.git\hooks\
 ```
 
 ### Optional 1) Adding your environment to ipykernel
