@@ -173,6 +173,7 @@ def _create_recursive_measurement_loop(
             logging.debug("calling inner function")
             inner_function(*args, **kwargs)
 
+        sequence.get_pause_id()
         ### Program is resumed and all gettables are fetched when ready
         sequence.driver.qm_job.resume()
         logging.debug("Job resumed, Fetching gettables")

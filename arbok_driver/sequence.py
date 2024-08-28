@@ -38,6 +38,7 @@ class Sequence(SequenceBase):
         self.parent_sequence = self
         self._init_vars()
         self._reset_sweeps_setpoints()
+        self.pause_id = None
 
     def _init_vars(self) -> None:
         """
@@ -65,6 +66,18 @@ class Sequence(SequenceBase):
         super().reset()
         self._reset_sweeps_setpoints()
         self._init_vars()
+
+    def get_pause_id(self):
+        """
+        On pause get the pause id which will indicate the reason for pausing
+        """
+        if self.pause_id is None:
+            self.pause_id = getattr(
+                self.driver.qm_job.result_handles,
+                f"{self.name}_pause_id"
+            )
+        pid = self.pause_id.fetch_all()[0]
+        return pid
 
     @property
     def sweeps(self) -> list:
@@ -120,6 +133,8 @@ class Sequence(SequenceBase):
 
     def qua_declare(self):
         """Contains raw QUA code to declare variables"""
+        self.pause_id_qua_var = qua.declare(int, value = -1) # pause ID variable
+        self.pause_id_qua_stream = qua.declare_stream()
         self.shot_tracker_qua_var = qua.declare(int, value = 0)
         self.shot_tracker_qua_stream = qua.declare_stream()
         self._qua_declare_input_streams()
@@ -166,6 +181,7 @@ class Sequence(SequenceBase):
 
     def qua_increment_shot_tracker(self):
         """Increments the shot tracker variable by one and saves it to stream"""
+        qua.assign(self.pause_id_qua_var, -1)
         qua.assign(
             self.shot_tracker_qua_var,
             self.shot_tracker_qua_var + 1
@@ -174,6 +190,7 @@ class Sequence(SequenceBase):
 
     def qua_stream(self):
         """Contains raw QUA code to define streams"""
+        self.pause_id_qua_stream.buffer(1).save(self.name + "_pause_id")
         self.shot_tracker_qua_stream.buffer(1).save(self.name + "_shots")
 
     def set_sweeps(self, *args) -> None:

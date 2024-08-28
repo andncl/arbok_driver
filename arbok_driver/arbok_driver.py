@@ -97,6 +97,8 @@ class ArbokDriver(Instrument):
             ### client with the QMs
             for _, sequence in self.submodules.items():
                 with qua.infinite_loop_():
+                    # indicate that we are pausing at the outermost iteration level
+                    qua.save(sequence.pause_id_qua_var, sequence.pause_id_qua_stream)
                     if not simulate or not self.no_pause:
                         qua.pause()
 
@@ -115,9 +117,9 @@ class ArbokDriver(Instrument):
 
     def run(self, qua_program, **kwargs):
         """
-        Sends the qua program for execution to the OPX and sets the programs 
-        result handles 
-        
+        Sends the qua program for execution to the OPX and sets the programs
+        result handles
+
         Args:
             qua_program (program): QUA program to be executed
         """
@@ -163,12 +165,12 @@ class ArbokDriver(Instrument):
                 file.write(generate_qua_script(qua_program))
 
     def run_infinite_average(self, measurement: Measurement, shots: int):
-        """ 
+        """
         Runs QCoDeS measurement and returns the resulting dataset
-        
+
         Args:
             measurement (Measurement): qcodes measurement object
-            shots (int): amount of repetitions to be performed for averaging  
+            shots (int): amount of repetitions to be performed for averaging
         Returns:
             dataset: QCoDeS dataset
         """
