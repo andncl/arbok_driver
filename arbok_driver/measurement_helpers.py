@@ -173,7 +173,15 @@ def _create_recursive_measurement_loop(
             logging.debug("calling inner function")
             inner_function(*args, **kwargs)
 
-        sequence.get_pause_id()
+        pid = sequence.get_pause_id()
+        if pid != -1: # handle a callback
+            if pid < 0 or pid > len(sequence.callback_list)-1:
+                raise ValueError(f"unknown pause id {pid}")
+            sequence.callback_list[pid].process(pid)
+            sequence.driver.qm_job.resume()
+            return _create_recursive_measurement_loop(sequence, datasaver,
+                sweeps_list_temp, res_args_dict, progress_bars, progress_tracker,
+                    *args, inner_function, **kwargs)
         ### Program is resumed and all gettables are fetched when ready
         sequence.driver.qm_job.resume()
         logging.debug("Job resumed, Fetching gettables")

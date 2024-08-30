@@ -13,9 +13,11 @@ from .sequence_parameter import SequenceParameter
 from .sample import Sample
 from .sequence_base import SequenceBase
 from .sweep import Sweep
+from .qua_callback import QuaCallback
 
 class Sequence(SequenceBase):
     """Class describing a Sequence in an OPX driver"""
+
     def __init__(
             self,
             parent,
@@ -44,6 +46,7 @@ class Sequence(SequenceBase):
         """
         Put variables into a reasonable init state
         """
+        self.callback_list = []
         self._gettables = []
         self._sweep_size = 1
         self.shot_tracker_qua_var = None
@@ -78,6 +81,26 @@ class Sequence(SequenceBase):
             )
         pid = self.pause_id.fetch_all()[0]
         return pid
+
+    def add_callback(self, callback_instance, pause_id_qua_var, pause_id_qua_stream):
+        """
+        Add a class to the callback list and set its qua pause id
+
+        Args :
+            callback_instance A class instance which inherits from QuaCallback
+        """
+        print("Sequence::add_callback")
+        if not issubclass(type(callback_instance), QuaCallback):
+            raise TypeError(type(callback_instance), " should inherit QuaCallback")
+        print("Sequence::add_callback 0")
+        if callback_instance not in self.callback_list:
+            print("Sequence::add_callback appending")
+            self.callback_list.append(callback_instance)
+            callback_instance.id = len(self.callback_list) - 1
+            print("Sequence::add_callback 1")
+            callback_instance.pause_id_qua_var = pause_id_qua_var
+            print("Sequence::add_callback 2")
+            callback_instance.pause_id_qua_stream = pause_id_qua_stream
 
     @property
     def sweeps(self) -> list:
@@ -138,6 +161,9 @@ class Sequence(SequenceBase):
         self.shot_tracker_qua_var = qua.declare(int, value = 0)
         self.shot_tracker_qua_stream = qua.declare_stream()
         self._qua_declare_input_streams()
+        for cb in self.callback_list:
+            cb.pause_id_qua_var = self.pause_id_qua_var
+            cb.pause_id_qua_stream = self.pause_id_qua_stream
 
     def qua_before_sweep(self):
         """

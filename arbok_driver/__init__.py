@@ -13,3 +13,4 @@ from .signal import Signal
 from .sub_sequence import SubSequence
 from .sweep import Sweep
 from . import utils
+from .qua_callback import QuaCallback
