@@ -156,7 +156,7 @@ class Sequence(SequenceBase):
 
     def qua_declare(self):
         """Contains raw QUA code to declare variables"""
-        self.pause_id_qua_var = qua.declare(int, value = -1) # pause ID variable
+        self.pause_id_qua_var = qua.declare(int, value = -2) # pause ID variable
         self.pause_id_qua_stream = qua.declare_stream()
         self.shot_tracker_qua_var = qua.declare(int, value = 0)
         self.shot_tracker_qua_stream = qua.declare_stream()

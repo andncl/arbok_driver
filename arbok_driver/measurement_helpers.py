@@ -121,11 +121,11 @@ def _get_result_arguments(
         register_all: bool = False) -> dict:
     """
     Generates a list of parameters that are varied in the sweep and a dict
-    
+
     Args:
         sweep_list (list[dict]): List of dictionairies with params as keys and
             np.ndarrays as settables. Each list entry creates one sweep axis.
-            If you want to sweep params concurrently enter more entries into 
+            If you want to sweep params concurrently enter more entries into
             their sweep dict
         register_all (bool): If True, all settables will be registered in the
             measurement. If False, only the first settable of each axis will be
@@ -174,29 +174,33 @@ def _create_recursive_measurement_loop(
             inner_function(*args, **kwargs)
 
         pid = sequence.get_pause_id()
-        if pid != -1: # handle a callback
-            if pid < 0 or pid > len(sequence.callback_list)-1:
+        if pid > -1: # handle a callback
+            if pid > len(sequence.callback_list)-1:
                 raise ValueError(f"unknown pause id {pid}")
             sequence.callback_list[pid].process(pid)
             sequence.driver.qm_job.resume()
             return _create_recursive_measurement_loop(sequence, datasaver,
                 sweeps_list_temp, res_args_dict, progress_bars, progress_tracker,
                     *args, inner_function, **kwargs)
+
         ### Program is resumed and all gettables are fetched when ready
         sequence.driver.qm_job.resume()
-        logging.debug("Job resumed, Fetching gettables")
         result_args_temp = []
-        for gettable in sequence.gettables:
-            result_args_temp.append(
-                (
-                    gettable,
-                    gettable.get_raw(
-                        progress_bar = (
-                            progress_bars['batch_progress'], progress_tracker,
+        if pid == -2:
+            logging.debug("Job started, First time through,not fetching gettables")
+        else:
+            logging.debug("Job resumed, Fetching gettables")
+            for gettable in sequence.gettables:
+                result_args_temp.append(
+                    (
+                        gettable,
+                        gettable.get_raw(
+                            progress_bar = (
+                                progress_bars['batch_progress'], progress_tracker,
+                            )
                         )
                     )
                 )
-            )
 
         ### Retreived results are added to the datasaver
         result_args_temp += list(res_args_dict.values())
@@ -205,6 +209,7 @@ def _create_recursive_measurement_loop(
         progress_tracker.refresh()
         return
 
+    logging.debug('main measurement loop')
     ### The first axis will be popped from the list and iterated over
     sweeps_list_temp = copy.copy(sweeps_list_temp)
     sweep_dict = sweeps_list_temp.pop(0)
