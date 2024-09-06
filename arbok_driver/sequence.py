@@ -97,12 +97,9 @@ class Sequence(SequenceBase):
             raise TypeError(type(callback_instance), " should inherit QuaCallback")
         print("Sequence::add_callback 0")
         if callback_instance not in self.callback_list:
-            print("Sequence::add_callback appending")
             self.callback_list.append(callback_instance)
             callback_instance.id = len(self.callback_list) - 1
-            print("Sequence::add_callback 1")
             callback_instance.pause_id_qua_var = pause_id_qua_var
-            print("Sequence::add_callback 2")
             callback_instance.pause_id_qua_stream = pause_id_qua_stream
 
     @property
