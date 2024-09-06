@@ -166,6 +166,7 @@ class SequenceBase(InstrumentModule):
         with qua.infinite_loop_():
             if not simulate:
                 qua.pause()
+            qua.assign(self.pause_id_qua_var, -1)
 
             ### Check requirements are set to True if the sequence is simulated
             if simulate:

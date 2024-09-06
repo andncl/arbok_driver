@@ -97,11 +97,11 @@ class ArbokDriver(Instrument):
             ### client with the QMs
             for _, sequence in self.submodules.items():
                 with qua.infinite_loop_():
-                    # indicate that we are pausing at the outermost iteration level
                     qua.save(sequence.pause_id_qua_var, sequence.pause_id_qua_stream)
+                    # indicate that we are pausing at the outermost iteration level
                     if not simulate or not self.no_pause:
                         qua.pause()
-
+                    qua.assign(sequence.pause_id_qua_var, -1)
                     ### The sequences are run in the order they were added
                     ### Before_sweep methods are run before the sweep loop
                     sequence.recursive_qua_generation(

@@ -51,3 +51,4 @@ class QuaCallback:
         qua.assign(self.pause_id_qua_var, self.id)
         qua.save(self.pause_id_qua_var, self.pause_id_qua_stream)
         qua.pause()
+        qua.assign(self.pause_id_qua_var, -1)

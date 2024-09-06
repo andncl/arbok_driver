@@ -174,33 +174,31 @@ def _create_recursive_measurement_loop(
             inner_function(*args, **kwargs)
 
         pid = sequence.get_pause_id()
-        if pid > -1: # handle a callback
+        while pid == -2:
+            sequence.first_pass = False
+            sequence.driver.qm_job.resume()
+            pid = sequence.get_pause_id()
+        while pid > -1: # handle a callback
             if pid > len(sequence.callback_list)-1:
                 raise ValueError(f"unknown pause id {pid}")
             sequence.callback_list[pid].process(pid)
             sequence.driver.qm_job.resume()
-            return _create_recursive_measurement_loop(sequence, datasaver,
-                sweeps_list_temp, res_args_dict, progress_bars, progress_tracker,
-                    *args, inner_function, **kwargs)
+            pid = sequence.get_pause_id()
 
         ### Program is resumed and all gettables are fetched when ready
-        sequence.driver.qm_job.resume()
         result_args_temp = []
-        if pid == -2:
-            logging.debug("Job started, First time through,not fetching gettables")
-        else:
-            logging.debug("Job resumed, Fetching gettables")
-            for gettable in sequence.gettables:
-                result_args_temp.append(
-                    (
-                        gettable,
-                        gettable.get_raw(
-                            progress_bar = (
-                                progress_bars['batch_progress'], progress_tracker,
-                            )
+        logging.debug("Job resumed, Fetching gettables")
+        for gettable in sequence.gettables:
+            result_args_temp.append(
+                (
+                    gettable,
+                    gettable.get_raw(
+                        progress_bar = (
+                            progress_bars['batch_progress'], progress_tracker,
                         )
                     )
                 )
+        sequence.driver.qm_job.resume()
 
         ### Retreived results are added to the datasaver
         result_args_temp += list(res_args_dict.values())

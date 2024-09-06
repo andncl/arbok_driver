@@ -7,6 +7,7 @@ import numpy as np
 from qm import qua
 from qcodes.validators import Arrays, Numbers
 import matplotlib.pyplot as plt
+import time
 
 from .gettable_parameter import GettableParameter
 from .sequence_parameter import SequenceParameter
@@ -79,6 +80,8 @@ class Sequence(SequenceBase):
                 self.driver.qm_job.result_handles,
                 f"{self.name}_pause_id"
             )
+        while not self.driver.qm_job.is_paused():
+            time.sleep(0.001)
         pid = self.pause_id.fetch_all()[0]
         return pid
 
@@ -207,7 +210,6 @@ class Sequence(SequenceBase):
 
     def qua_increment_shot_tracker(self):
         """Increments the shot tracker variable by one and saves it to stream"""
-        qua.assign(self.pause_id_qua_var, -1)
         qua.assign(
             self.shot_tracker_qua_var,
             self.shot_tracker_qua_var + 1
