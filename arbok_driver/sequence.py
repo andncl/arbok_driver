@@ -92,10 +92,8 @@ class Sequence(SequenceBase):
         Args :
             callback_instance A class instance which inherits from QuaCallback
         """
-        print("Sequence::add_callback")
         if not issubclass(type(callback_instance), QuaCallback):
             raise TypeError(type(callback_instance), " should inherit QuaCallback")
-        print("Sequence::add_callback 0")
         if callback_instance not in self.callback_list:
             self.callback_list.append(callback_instance)
             callback_instance.id = len(self.callback_list) - 1
