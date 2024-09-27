@@ -103,7 +103,7 @@ class GettableParameter(ParameterWithSetpoints):
         total_results = "Total results: ..."
         t0 = time.time()
         try:
-            while batch_count < self.batch_size:
+            while batch_count < self.batch_size or not self.qm_job.is_paused():
                 shot_count_result = self.batch_counter.fetch_all()
                 if shot_count_result is not None:
                     batch_count = shot_count_result[0]
