@@ -49,6 +49,8 @@ class Sequence(SequenceBase):
         self.shot_tracker_qua_stream = None
         self._step_requirements = []
         self._input_stream_parameters = []
+        self._input_stream_type_shapes = {'int': 0, 'bool': 0, 'qua.fixed': 0}
+        self.debug_input_streams = False
 
     def _reset_sweeps_setpoints(self) -> None:
         """
@@ -135,18 +137,38 @@ class Sequence(SequenceBase):
         bool_params = [p for p in stream_params if p.var_type == bool]
         fixed_params = [p for p in stream_params if p.var_type == qua.fixed]
 
+        index = qua.declare(int) if self.debug_input_streams else None
+
         if int_params:
-            qua.advance_input_stream(self._qua_int_input_stream)
-            for i, param in enumerate(int_params):
-                qua.assign(param.qua_var, self._qua_int_input_stream[i])
+            self._qua_advance_assign_save_input_streams(
+                'int', int_params, self._qua_int_input_stream, index)
         if bool_params:
-            qua.advance_input_stream(self._qua_bool_input_stream)
-            for i, param in enumerate(bool_params):
-                qua.assign(param.qua_var, self._qua_bool_input_stream[i])
+            self._qua_advance_assign_save_input_streams(
+                'bool', bool_params, self._qua_bool_input_stream, index)
         if fixed_params:
-            qua.advance_input_stream(self._qua_fixed_input_stream)
-            for i, param in enumerate(fixed_params):
-                qua.assign(param.qua_var, self._qua_fixed_input_stream[i])
+            self._qua_advance_assign_save_input_streams(
+                'fixed', fixed_params, self._qua_fixed_input_stream, index)
+
+    def _qua_advance_assign_save_input_streams(
+        self, var_type, input_params, input_stream, index = None):
+        """
+        Takes the given paramters to stream and the respective input stream and
+        advances the input stream, assigns the values to the parameters and
+        and saves the values to the respective output streams if debug flag
+
+        Args:
+            input_params (list): List of values to be streamed
+            input_stream (qua stream): Input stream to advance
+            index (qua variable): Index variable for debug output
+        """
+        qua.advance_input_stream(input_stream)
+        for i, param in enumerate(input_params):
+            qua.assign(param.qua_var, input_stream[i])
+        if self.debug_input_streams:
+            input_stream_out = qua.declare_stream()
+            setattr(self, f"debug_{var_type}_input_stream", input_stream_out)
+            with qua.for_(index, 0, index < len(input_params), index + 1):
+                qua.save(input_stream[index], input_stream_out)
 
     def qua_before_sequence(self, simulate: bool = False):
         """
@@ -175,6 +197,14 @@ class Sequence(SequenceBase):
     def qua_stream(self):
         """Contains raw QUA code to define streams"""
         self.shot_tracker_qua_stream.buffer(1).save(self.name + "_shots")
+        if self.debug_input_streams:
+            for var_type in ['int', 'bool', 'fixed']:
+                stream_name = f"debug_{var_type}_input_stream"
+                if hasattr(self, stream_name):
+                    stream = getattr(self, stream_name)
+                    stream.buffer(
+                        self._input_stream_type_shapes[var_type]).save_all(
+                            stream_name)
 
     def set_sweeps(self, *args) -> None:
         """
@@ -227,11 +257,13 @@ class Sequence(SequenceBase):
             ValueError: If the given value_dict contains invalid types
         """
         if Counter(value_dict.keys()) != Counter(self.input_stream_parameters):
+        #if set(value_dict.keys()) != set(self.input_stream_parameters):
             raise KeyError(
                 "Given value dict must contain all input stream parameters"
                 f"given are: {[p.name for p in value_dict.keys()]}."
                 "\n Required are: "
                 f"{[p.name for p in self.input_stream_parameters]}"
+                f"{len(value_dict)}/{len(self.input_stream_parameters)}"
                 )
         int_vals, bool_vals, fixed_vals = [], [], []
         for param in self.input_stream_parameters:
@@ -247,17 +279,17 @@ class Sequence(SequenceBase):
                     )
         if int_vals:
             self.driver.qm_job.insert_input_stream(
-                name = f"{self.name}_int_input_stream",
+                name = f"{self.short_name}_int_input_stream",
                 data = int_vals
             )
         if bool_vals:
             self.driver.qm_job.insert_input_stream(
-                name = f"{self.name}_bool_input_stream",
+                name = f"{self.short_name}_bool_input_stream",
                 data = bool_vals
             )
         if fixed_vals:
             self.driver.qm_job.insert_input_stream(
-                name = f"{self.name}_fixed_input_stream",
+                name = f"{self.short_name}_fixed_input_stream",
                 data = fixed_vals
             )
 
@@ -316,6 +348,7 @@ class Sequence(SequenceBase):
                 size = length
             )
             setattr(self, f"_qua_{type.__name__}_input_stream", input_stream)
+            self._input_stream_type_shapes[type.__name__] = length
 
     def get_sequence_path(self):
         """Returns its name since sequence is the top level sequence"""
