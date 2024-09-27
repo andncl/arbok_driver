@@ -11,11 +11,15 @@ from .sequence_parameter import SequenceParameter
 class Sweep:
     """ Class characterizing a parameter sweep along one axis in the OPX """
     def __init__(self, parent_sequence, param_dict: dict, register_all = False):
-        """ Constructor class of Sweep class
-        
-        Args: 
+        """
+        Constructor class of Sweep class
+
+        Args:
+            paret_sequence (SequenceBase): Parent sequence of the sweep
             param_dict (dict): Dict with parameters as keys and arrays as
                 setpoints for sweep
+            register_all (bool): Whether all parameters should be registered in
+                the QCoDeS measurement
         """
         self.parent_sequence = parent_sequence
         self._param_dict = param_dict
