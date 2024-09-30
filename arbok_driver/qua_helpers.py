@@ -129,9 +129,9 @@ def _calculate_sticky_pulse_amplitude(
     """
     target_v, origin_v = 0, 0
     for point, param in target_points.items():
-        target_v += param()*to_volt_signs[point]
+        target_v += param()*(to_volt_signs[point])
     for point, param in origin_points.items():
-        origin_v += param()*from_volt_signs[point]
+        origin_v += param()*(from_volt_signs[point])
 
 
     return target_v - origin_v
