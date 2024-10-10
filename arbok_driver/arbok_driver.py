@@ -212,6 +212,12 @@ class ArbokDriver(Instrument):
                 utils.plot_qmm_simulation_results(con_samples)
         return simulated_job
 
+    def get_idn(self):
+        """
+        Overload the get_idn method as we don't have one.
+        """
+        return None
+
     def ask_raw(self, cmd: str) -> str:
         """Abstract method from qcodes Instrument"""
         raise NotImplementedError
