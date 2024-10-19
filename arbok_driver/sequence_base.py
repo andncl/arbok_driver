@@ -1,6 +1,7 @@
 """ Module containing BaseSequence class """
 
 import copy
+from hmac import new
 from typing import Optional
 import logging
 import warnings
@@ -301,10 +302,12 @@ class SequenceBase(InstrumentModule):
                     'value' : value,
                     'scale' : scale,
                     'label' : f"{element}: {param_dict['label']}",
-                    'type' : param_dict['type']
                     }
-                new_param_dict.update(param_dict) # ensure overrides take precedence
+                param_dict_copy = copy.deepcopy(param_dict)
+                del param_dict_copy['label']
+                new_param_dict.update(param_dict_copy) # ensure overrides take precedence
                 del new_param_dict['elements']
+
                 self._add_param(f'{param_name}_{element}', cfg_name, new_param_dict)
         elif 'value' in param_dict:
             # set defaults and merge in changes
@@ -314,7 +317,6 @@ class SequenceBase(InstrumentModule):
                 'validator' : param_dict['type'].validator,
                 'qua_type' : param_dict['type'].qua_type,
                 'unit' : param_dict['type'].unit,
-                'label' : param_dict['type'].label
                 }
             appl_dict.update(param_dict) # ensure overrides take precedence
             self.add_parameter(
