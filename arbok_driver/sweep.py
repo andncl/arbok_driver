@@ -363,6 +363,7 @@ class Sweep:
                     f"\n\tYour input array of length {len(param.get())} "
                     f"for {param.name} will be parametrized with\n\t"
                     f"start {start}, step {step}, stop {stop}"
-                    f" of length {length_of_array}. \n\tCheck output!"
+                    f" of length {length_of_array}. \n\tCheck output!",
+                    category=ResourceWarning
                     )
         return parameters_sss

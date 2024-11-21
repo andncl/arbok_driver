@@ -54,6 +54,11 @@ class SequenceParameter(Parameter):
     def __call__(self,
                  value: Optional[float | int | ndarray] = None
                  ) -> Optional[float | int | ndarray]:
+        return self.call_method(value)
+
+    def call_method(self,
+                 value: Optional[float | int | ndarray] = None
+                 ) -> Optional[float | int | ndarray]:
         """
         Method being executed when SequenceParameter is called.
         

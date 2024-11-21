@@ -36,10 +36,8 @@ def arbok_go(
         no_play_tolerance (optional, float): tolerance for not playing a pulse
     """
     if isinstance(duration, SequenceParameter):
-        if duration.qua_sweeped:
-            duration = duration.qua_var
-        else:
-            duration = int(duration())
+        duration = duration()
+
     from_volt = _check_voltage_point_input(from_volt)
     to_volt = _check_voltage_point_input(to_volt)
     from_volt_signs = {point: 1 for point in from_volt}
