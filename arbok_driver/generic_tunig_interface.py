@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import numpy as np
 from rich.progress import Progress
+from rich import print
 from .gettable_parameter import GettableParameter
 from .observable import ObservableBase
 
@@ -107,17 +108,19 @@ class GenericTuningInterface:
 
     def run_parameter_set(
         self, input_params: list, progress_bar = None
-        ) -> (np.ndarray, dict, dict):
+        ) -> (float, dict, dict):
         """
         Runs the given parameter set an returns the current values for
         singlet and triplet init
 
         Args:
-            params (list): List of parameters to run
+            input_params (list): List of parameters to run
+            progress_bar (Optional): Progress bar to update
 
         Returns:
-            tuple: Current values for even and odd parity initialization
-            float: Associated cost to the used parameter set
+            float: Reward/cost of the parameter set
+            dict: All measured observables for the parameter set
+            dict: All parameters of the parameter set
         """
         input_param_dict = {}
         if isinstance(input_params, list) or isinstance(input_params, np.ndarray):
@@ -128,22 +131,19 @@ class GenericTuningInterface:
         else:
             raise ValueError(
                 f"Input params must be list or dict. Are {type(input_params)}")
-
         self.sequence.insert_single_value_input_streams(input_param_dict)
         self.program.qm_job.resume()
 
         observable_results = {}
         for i, (tag, obs) in enumerate(self.observables.items()):
-            if i == 0:
-                progress_bar = progress_bar
-            else:
+            if i > 0:
                 progress_bar = None
             observable_results[tag] = obs.get_raw(progress_bar = progress_bar)
         cost = self.get_cost(observable_results)
         saved_params = {}
         for param_name, value in zip(self.parameter_dict.keys(), input_param_dict.values()):
             saved_params[param_name] = value
-        return float(cost), observable_results, saved_params #input_param_dict
+        return float(cost), observable_results, saved_params
 
     def run_cross_entropy_sampler(
             self, populations: list, select_frac: float = 0.3,
@@ -153,7 +153,14 @@ class GenericTuningInterface:
 
         Args:
             populations (list): List of population sizes for each iteration
-            select_frac (float): Fraction of best parameters
+            select_frac (float): Fraction of best parameters to select for
+                generation of new bounds
+            sampling_params_to_plot (list): List of tuples containing parameter
+                names to plot during the sampling process
+
+        Returns:
+            xr.Dataset: Dataset containing all observables, parameters and
+                rewards
         """
         all_rewards = []
         all_obs = {name: [] for name in self.observables.keys()}
@@ -164,7 +171,7 @@ class GenericTuningInterface:
         data_index = 0
         for population in populations:
             ### Sampling parameter sets and saving bounds
-            print(current_bounds)
+            print('Current bounds:\n', current_bounds)
             for param_name, bounds in current_bounds.items():
                 all_bounds[param_name].append(bounds)
             sobol_samples = sobol_sampling(population, current_bounds)
@@ -207,7 +214,6 @@ class GenericTuningInterface:
                 sampling_params_to_plot,
                 )
         ### Compressing data into xarray dataset and adding metadata
-
         dataset = dataset.assign_attrs(populations = populations)
         dataset = dataset.assign_attrs(bounds = bounds)
         return dataset
@@ -272,20 +278,6 @@ class GenericTuningInterface:
         nr_samples = int(np.ceil(select_frac*population))
         sorted_dataset = dataset.sortby(dataset.rewards)
         best_indices = sorted_dataset.index[-nr_samples:]
-        #print('best_erwards: ', best_rewards)
-        print('best_indices: ', best_indices)
-
-        # hist_data = np.histogram(dataset.rewards, bins = 30)
-        # last_reward_threshold = None
-        # if last_reward_threshold is None:
-        #     reward_threshold = np.mean(hist_data[1])
-        # else:
-        #     reward_threshold = np.mean([last_reward_threshold, hist_data[1][-1]])
-
-        # best_rewards = dataset.rewards.where(
-        #     dataset.rewards > reward_threshold, drop= True).squeeze()
-        # best_indices = best_rewards.index
-        # print('best rewards: ', np.array(best_rewards))
 
         new_bounds = {}
         for par_name in dataset.parameters:
@@ -310,7 +302,6 @@ class GenericTuningInterface:
                     dataset[par1_name].sel(index = best_indices).to_numpy(),
                     dataset[par2_name].sel(index = best_indices).to_numpy(),
                     color = 'red',
-                    #label = f'params with reward > {reward_threshold:.2}\n(max: {hist_data[1][-1]:.2})'
                     )
                 axs[i].plot(
                     [param_bounds1[0], param_bounds1[1], param_bounds1[1], param_bounds1[0], param_bounds1[0]],
@@ -318,7 +309,6 @@ class GenericTuningInterface:
                     '-k')
                 axs[i].set_xlabel(par1_name)
                 axs[i].set_ylabel(par2_name)
-                #axs[i].legend()
             fig.tight_layout()
             fig.show()
         return new_bounds#, reward_threshold
@@ -367,5 +357,4 @@ def sobol_sampling(num_samples: int, bound_dict: dict):
         l_bound = config[0]
         u_bound = config[1]
         sobol_samples[:,i] = l_bound + (u_bound - l_bound) * sobol_samples[:,i]
-        #sobol_sampled_params[param]  = scaled_samples
     return sobol_samples
