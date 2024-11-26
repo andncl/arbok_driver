@@ -1,15 +1,10 @@
 """ Module containing BaseSequence class """
 
 import copy
-from hmac import new
 from typing import Optional
 import logging
-import warnings
-
-import numpy as np
 
 from qcodes.instrument import InstrumentModule
-from qcodes.validators import Arrays, Numbers, Ints
 
 from qm import SimulationConfig, generate_qua_script, qua
 from qm.QuantumMachinesManager import QuantumMachinesManager
@@ -398,6 +393,43 @@ class SequenceBase(InstrumentModule):
                 element_dict[element][key] = param
         return element_dict
 
+    def add_subsequences_from_dict(
+            self,
+            subsequence_dict: dict,
+            insert_sequences_into_name_space: bool = False) -> None:
+        """
+        Adds subsequences to the sequence from a given dictionary
+
+        Args:
+            subsequence_dict (dict): Dictionary containing the subsequences
+        """
+        for name, seq_conf  in subsequence_dict.items():
+            if 'sequence' in seq_conf:
+                subsequence = seq_conf['sequence']
+                if 'config' in seq_conf:
+                    sub_seq_conf = seq_conf['config']
+                    if not isinstance(sub_seq_conf, dict):
+                        raise ValueError(
+                            "Subsequence config must be of type dict,"
+                            f" is {type(sub_seq_conf)}")
+                else:
+                    sub_seq_conf = None
+                if 'kwargs' in seq_conf:
+                    kwargs = seq_conf['kwargs']
+                    if not isinstance(kwargs, dict):
+                        raise ValueError(
+                            f"Kwargs must be of type dict, is {type(kwargs)}")
+                else:
+                    kwargs = {}
+                _ = self._add_subsequence(
+                    name, subsequence, sub_seq_conf,
+                    insert_sequences_into_name_space, **kwargs)
+
+            else:
+                seq_instance = self._add_subsequence(
+                    name, 'default', None, insert_sequences_into_name_space)
+                seq_instance.add_subsequences_from_dict(
+                    seq_conf, insert_sequences_into_name_space)
 
     def find_parameters(self, key: str, elements: list = None) -> dict:
         """

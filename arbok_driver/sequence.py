@@ -5,13 +5,13 @@ from collections import Counter
 
 import numpy as np
 from qm import qua
-from qcodes.validators import Arrays, Numbers
-import matplotlib.pyplot as plt
+from qcodes.validators import Arrays
 
 from .gettable_parameter import GettableParameter
 from .sequence_parameter import SequenceParameter
 from .sample import Sample
 from .sequence_base import SequenceBase
+from .sub_sequence import SubSequence
 from .sweep import Sweep
 
 class Sequence(SequenceBase):
@@ -257,7 +257,6 @@ class Sequence(SequenceBase):
             ValueError: If the given value_dict contains invalid types
         """
         if Counter(value_dict.keys()) != Counter(self.input_stream_parameters):
-        #if set(value_dict.keys()) != set(self.input_stream_parameters):
             raise KeyError(
                 "Given value dict must contain all input stream parameters"
                 f"given are: {[p.name for p in value_dict.keys()]}."
@@ -431,45 +430,28 @@ class Sequence(SequenceBase):
         logging.debug('Adding step requirement: %s', requirement)
         self._step_requirements.append(requirement)
 
-    def plot_current_histograms(self, gettables: list = None, bins: int = 50):
-        """
-        Plots current histograms for all gettables
-
-        Args:
-            gettables (list, GettableParameter): Parameter or list of parameters
-                to plot histograms for
-            bins (int): Number of bins for histogram
-        """
-        gettable_list = []
-        if gettables is None:
-            gettable_list = self.gettables
-        elif isinstance(gettables, GettableParameter):
-            gettable_list = [gettables]
-        else:
-            raise ValueError(
-                f"""gettables must be of type GettableParameter or list with
-                Gettable parameters is: {type(gettables)}"""
-                )
-        fig, ax = plt.subplots(
-            len(self.gettables),
-            figsize = (5, 3*len(self.gettables))
+    def _add_subsequence(
+        self,
+        name: str,
+        subsequence: SubSequence | str,
+        sequence_config: dict = None,
+        insert_sequences_into_name_space: dict = None,
+        **kwargs) -> None:
+        """Adds a subsequence to the sequence"""
+        if subsequence == 'default':
+            subsequence = SubSequence
+        if not issubclass(subsequence, SubSequence):
+            raise TypeError(
+                "Subsequence must be of type SubSequence or str: 'default'")
+        seq_instance = subsequence(
+            parent = self,
+            name = name,
+            sample = self.sample,
+            sequence_config = sequence_config,
+            **kwargs
             )
-
-        ALPHA = 0.8
-        for i, gettable in enumerate(gettable_list):
-            current_gettable = getattr(
-                gettable.instrument, f"{gettable.name}")
-            current_vals = np.array(current_gettable.get_all(), dtype = float)
-            ax[i].hist(
-                current_vals,
-                bins = bins,
-                label = current_gettable.name,
-                alpha = ALPHA,
-                color = 'black'
-                )
-            ax[i].set_xlabel("SET read current histogram")
-            ax[i].set_ylabel("counts")
-            ax[i].grid()
-            ax[i].legend()
-        fig.tight_layout()
-        return fig, ax
+        setattr(self, name, seq_instance)
+        if insert_sequences_into_name_space is not None:
+            name_space = insert_sequences_into_name_space
+            name_space[name] = seq_instance
+        return seq_instance

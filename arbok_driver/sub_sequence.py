@@ -3,7 +3,6 @@ import logging
 from typing import Any
 
 from .sample import Sample
-from .sequence import Sequence
 from .sequence_base import SequenceBase
 
 class SubSequence(SequenceBase):
@@ -15,7 +14,7 @@ class SubSequence(SequenceBase):
             parent,
             name: str,
             sample: Sample,
-            param_config: dict | None = None,
+            sequence_config: dict | None = None,
             check_step_requirements: bool = False,
             **kwargs
             ):
@@ -29,7 +28,7 @@ class SubSequence(SequenceBase):
             **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(
-            parent, name, sample, param_config, check_step_requirements, **kwargs)
+            parent, name, sample, sequence_config, check_step_requirements, **kwargs)
         self.parent.add_subsequence(self)
 
     @property
@@ -39,9 +38,9 @@ class SubSequence(SequenceBase):
 
     def find_parent_sequence(self):
         """Recursively searches the parent sequence"""
-        if isinstance(self.parent, Sequence):
+        if self.parent.__class__.__name__ == 'Sequence':
             return self.parent
-        elif isinstance(self.parent, SubSequence):
+        elif self.parent.__class__.__name__ == 'SubSequence':
             return self.parent.find_parent_sequence()
         else:
             raise ValueError("Parent sequence must be of type Sequence")
@@ -50,12 +49,38 @@ class SubSequence(SequenceBase):
         """Returns the path of subsequences up to the parent sequence"""
         if path is None:
             path = ""
-        if isinstance(self.parent, Sequence):
+        if self.parent.__class__.__name__ == 'Sequence':
             return f"{self.parent.short_name}__{self.short_name}__{path}"
         elif self.parent is None:
             return f"{self.short_name}__{path}"
         else:
             return self.parent.get_sequence_path(f"{self.short_name}__{path}")
+
+    def _add_subsequence(
+        self,
+        name: str,
+        subsequence: SequenceBase | str,
+        sequence_config: dict = None,
+        insert_sequences_into_name_space: dict = None,
+        **kwargs) -> None:
+        """Adds a subsequence to the sequence"""
+        if subsequence == 'default':
+            subsequence = SubSequence
+        if not issubclass(subsequence, SubSequence):
+            raise TypeError(
+                "Subsequence must be of type SubSequence or str: 'default'")
+        seq_instance = subsequence(
+            parent = self,
+            name = name,
+            sample = self.sample,
+            sequence_config = sequence_config,
+            **kwargs
+            )
+        setattr(self, name, seq_instance)
+        if insert_sequences_into_name_space is not None:
+            name_space = insert_sequences_into_name_space
+            name_space[name] = seq_instance
+        return seq_instance
 
     def __getattr__(self, key: str) -> Any:
         """Returns parameter from self. If parameter is not found in self, 
