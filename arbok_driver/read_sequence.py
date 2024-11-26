@@ -13,7 +13,7 @@ class ReadSequence(SubSequence):
         parent,
         name,
         sample,
-        seq_config,
+        sequence_config,
         available_abstract_readouts = None,
         available_readout_points = None
         ):
@@ -28,8 +28,8 @@ class ReadSequence(SubSequence):
                 available abstract readouts with method name as key and abstract
                 readout class as value
         """
-        super().__init__(parent, name, sample, seq_config)
-        self.seq_config = seq_config
+        super().__init__(parent, name, sample, sequence_config)
+        self.seq_config = sequence_config
         self.available_abstract_readouts = available_abstract_readouts
         self.available_readout_points = available_readout_points
 
