@@ -32,7 +32,7 @@ class GenericTuningInterface:
     def get_cost(self, obserbables: dict) -> float:
         """Takes all measured observables and returns the cost"""
 
-    def add_parameters(self, parameter_dicts: dict):
+    def add_parameters(self, parameter_dicts: dict, verbose: bool = False):
         """
         Adds parameters to be streamed to the QUA program.
         Parameters that depend on each other are added in the folowing way;
@@ -51,7 +51,8 @@ class GenericTuningInterface:
             for i, (parameter, factor) in enumerate(param_conf['qua_vars'].items()):
                 if i == 0:
                     self.input_stream_params.append(parameter)
-                    print(f"Adding input stream for {parameter.name} ({name})")
+                    if verbose:
+                        print(f"Adding input stream for {parameter.name} ({name})")
                 else:
                     master_param = self.input_stream_params[-1]
                     def call(
@@ -64,9 +65,10 @@ class GenericTuningInterface:
                         else:
                             return par(x)*factor
                     parameter.call_method = call
-                    print(
-                        f"\tAdding {parameter.name} to {master_param.name}"
-                        f"  input stream (factor: {factor}) ({name})")
+                    if verbose:
+                        print(
+                            f"\tAdding {parameter.name} to {master_param.name}"
+                            f"  input stream (factor: {factor}) ({name})")
             self.bounds[name] = param_conf['bounds']
 
         self.sequence.input_stream_parameters = self.input_stream_params
@@ -310,7 +312,7 @@ class GenericTuningInterface:
                 axs[i].set_xlabel(par1_name)
                 axs[i].set_ylabel(par2_name)
             fig.tight_layout()
-            fig.show()
+            plt.show()
         return new_bounds#, reward_threshold
 
     def _merge_data_into_xarray(self, index, all_rewards, all_obs, all_params):
