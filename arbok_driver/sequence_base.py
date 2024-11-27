@@ -1,6 +1,7 @@
 """ Module containing BaseSequence class """
 
 import copy
+from os import pathsep
 from typing import Optional
 import logging
 
@@ -469,6 +470,26 @@ class SequenceBase(InstrumentModule):
         """Returns parameter with a certain key for a given element"""
         parameter = getattr(self, f"{key}_{element}")
         return parameter
+    
+    def find_parameter_from_str_path(self, path: str):
+        """
+        Returns the parameter from the given path
+
+        Args:
+            path (str): Path to the parameter
+
+        Returns:
+            SequenceParameter: Parameter at the given path
+        """
+        if isinstance(path, str):
+            path = path.split('__')
+        if not isinstance(path, list):
+            raise ValueError(
+                f"path has to be of type list or str, is {type(path)}")
+        if len(path) == 1:
+            return getattr(self, path[0])
+        else:
+            return getattr(self, path[0]).find_parameter_from_str_path(path[1:])
 
     def ask_raw(self, *args):
         """Overwrites abstract method"""
