@@ -274,6 +274,16 @@ class SequenceBase(InstrumentModule):
         for sub in self.sub_sequences:
             sub.reset()
 
+    def remove_subsequences(self) -> None:
+        """Removes all subsequences from the sequence"""
+        while len(self.sub_sequences) > 0:
+            sub = self._sub_sequences.pop()
+            sub.remove_subsequences()
+            delattr(self, sub.short_name)
+            if sub.short_name in globals():
+                del globals()[sub.short_name]
+        self._sub_sequences = []
+
     def _add_param(self, param_name: str, cfg_name: str, param_dict):
         """
         Adds parameter based on the given parameter configuration
@@ -396,7 +406,7 @@ class SequenceBase(InstrumentModule):
     def add_subsequences_from_dict(
             self,
             subsequence_dict: dict,
-            insert_sequences_into_name_space: bool = False) -> None:
+            insert_sequences_into_name_space: dict = None) -> None:
         """
         Adds subsequences to the sequence from a given dictionary
 

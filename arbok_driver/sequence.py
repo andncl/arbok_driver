@@ -249,7 +249,7 @@ class Sequence(SequenceBase):
 
         Args:
             value_dict (dict): Dictionary containing all input stream parameters
-                (SequenceParameters)and their values
+                (SequenceParameters) and their values
 
         Raises:
             KeyError: If not all input stream parameters that were added to the
