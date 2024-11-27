@@ -1,5 +1,6 @@
 """Module containing sequence class"""
 import math
+import copy
 import logging
 from collections import Counter
 
@@ -38,6 +39,7 @@ class Sequence(SequenceBase):
         self.parent_sequence = self
         self._init_vars()
         self._reset_sweeps_setpoints()
+        parent.add_sequence(self)
 
     def _init_vars(self) -> None:
         """
@@ -242,6 +244,49 @@ class Sequence(SequenceBase):
         self._gettables = list(args)
         self._configure_gettables()
         self.sweeps.reverse()
+
+    def get_qua_code(self, simulate = False) -> qua.program:
+        """
+        Compiles all qua code from its sequences and writes their loops
+        
+        Args:
+            simulate (bool): True if the program is meant to be simulated
+
+        Reterns:
+            qua_program: Program from qm context manager
+        """
+        ### In the first step all variables of all sub-sequences are declared
+        self.qua_declare_sweep_vars()
+        self.recursive_qua_generation(
+            seq_type = 'declare', skip_duplicates = True)
+
+        ### An infinite loop starting with a pause is defined to sync the
+        ### client with the QMs
+        with qua.infinite_loop_():
+            if not simulate or not self.no_pause:
+                qua.pause()
+
+            ### Check requirements are set to True if the sequence is simulated
+            if simulate:
+                for qua_var in self.parent_sequence.step_requirements:
+                    qua.assign(qua_var, True)
+
+            ### The sequences are run in the order they were added
+            ### Before_sweep methods are run before the sweep loop
+            self.recursive_qua_generation(
+                seq_type = 'before_sweep', skip_duplicates = True)
+
+            ### The sweep loop is defined for each sequence recursively
+            self.recursive_sweep_generation(
+                copy.copy(self.sweeps))
+        with qua.stream_processing():
+            self.recursive_qua_generation(seq_type = 'stream')
+
+    def compile_qua_and_run(self) -> None:
+        """Compiles the QUA code and runs it"""
+        qua_program = self.get_qua_program()
+        self.driver.run(qua_program)
+        print('QUA program compiled and is running')
 
     def insert_single_value_input_streams(self, value_dict: dict) -> None:
         """
