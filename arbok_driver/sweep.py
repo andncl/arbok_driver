@@ -148,6 +148,7 @@ class Sweep:
             2) Checks if all sweep setpoint arrays have same lengths
             3) Checks if all input streams have the same dimension
         """
+        self._param_dict = self._convert_str_keys_to_param(self._param_dict)
         param_types_valid = []
         for param in self._param_dict.keys():
             param_types_valid.append(
@@ -189,6 +190,25 @@ class Sweep:
                         f" same as static sweep array ({self._length})"
                     )
             self._length = param_streams[0]
+
+    def _convert_str_keys_to_param(self, param_dict: dict) -> dict:
+        """
+        Converts string keys to SequenceParameter objects
+
+        Args:
+            param_dict (dict): Dict with string keys
+
+        Returns:
+            dict: Dict with SequenceParameter keys
+        """
+        new_dict = {}
+        for key, value in param_dict.items():
+            if isinstance(key, str):
+                new_key = self.parent_sequence.find_parameter_from_str_path(key)
+                new_dict[new_key] = value
+            else:
+                new_dict[key] = value
+        return new_dict
 
     def _check_if_parametrizable(self) -> bool:
         """
