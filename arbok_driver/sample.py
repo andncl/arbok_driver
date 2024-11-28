@@ -25,19 +25,24 @@ class Sample():
     def master_config_path(self):
         """
         Getter for master_config.
-        Returns the current configuration dictionary.
+
+        Returns:
+            str: The current configuration dictionary.
         """
         return self._master_config_path
 
     @master_config_path.setter
     def master_config_path(self, config_path):
         """
-        Setter for master_config.
+        Setter for master_config_path.
         Validates and sets the configuration path as a string.
 
-        :param config_path: A dictionary containing configuration data.
-        :raises ValueError: If the config is not a dictionary.
+        Args:
+            config_path (str): A dictionary containing configuration data.
+
+        Raises:
+            ValueError: If the config is not a string.
         """
         if not isinstance(config_path, str):
-            raise ValueError("master_config must be a str.")
+            raise ValueError("master_config_path must be a str.")
         self._master_config_path = config_path
