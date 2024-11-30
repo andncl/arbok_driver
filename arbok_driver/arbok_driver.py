@@ -22,7 +22,6 @@ class ArbokDriver(Instrument):
             self,
             name: str,
             sample: Sample,
-            param_config: Union[dict, None] = None,
             **kwargs
             ) -> None:
         """
@@ -31,7 +30,6 @@ class ArbokDriver(Instrument):
         Args:
             name (str): Name of the instrument
             sample (Sample): Sample class describing phyical device
-            param_config (dict): Dictionary containing all device parameters
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
         """
@@ -42,18 +40,23 @@ class ArbokDriver(Instrument):
         self.qm_job = None
         self.result_handles = None
         self.no_pause = False
+        self._sequences = []
         self.add_parameter('iteration', get_cmd = None, set_cmd =None)
 
     @property
-    def sequences(self):
+    def sequences(self) -> list:
         """Sequences to be run within program uploaded to the OPX"""
         return self._sequences
 
-    def reset_sequences(self):
+    def reset_sequences(self) -> None:
+        """
+        Resets all sequences in the program
+        TODO: delete instances of those sequences
+        """
         self._sequences = []
         self.submodules = {}
 
-    def connect_opx(self, host_ip: str, **kwargs):
+    def connect_opx(self, host_ip: str, **kwargs) -> None:
         """
         Creates QuantumMachinesManager and opens a quantum machine on it with
         the given IP address
@@ -73,45 +76,6 @@ class ArbokDriver(Instrument):
             new_sequence (Sequence): Sequence to be added
         """
         self._sequences.append(new_sequence)
-        new_sequence.driver = self
-        self.add_submodule(new_sequence.name, new_sequence)
-
-    def get_qua_program(self, simulate = False) -> qua.program:
-        """
-        Compiles all qua code from its sequences and writes their loops
-        
-        Args:
-            simulate (bool): True if the program is meant to be simulated
-
-        Reterns:
-            qua_program: Program from qm context manager
-        """
-        with qua.program() as qua_program:
-            ### In the first step all variables of all sequences are declared
-            for _, sequence in self.submodules.items():
-                sequence.qua_declare_sweep_vars()
-                sequence.recursive_qua_generation(
-                    seq_type = 'declare', skip_duplicates = True)
-
-            ### An infinite loop starting with a pause is defined to sync the
-            ### client with the QMs
-            for _, sequence in self.submodules.items():
-                with qua.infinite_loop_():
-                    if not simulate or not self.no_pause:
-                        qua.pause()
-
-                    ### The sequences are run in the order they were added
-                    ### Before_sweep methods are run before the sweep loop
-                    sequence.recursive_qua_generation(
-                        seq_type = 'before_sweep', skip_duplicates = True)
-
-                    ### The sweep loop is defined for each sequence recursively
-                    sequence.recursive_sweep_generation(
-                        copy.copy(sequence.sweeps))
-            with qua.stream_processing():
-                for _, sequence in self.submodules.items():
-                    sequence.recursive_qua_generation(seq_type = 'stream')
-        return qua_program
 
     def run(self, qua_program, **kwargs):
         """
