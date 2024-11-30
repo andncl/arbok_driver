@@ -38,6 +38,14 @@ class GettableParameter(ParameterWithSetpoints):
         self.label = ""
 
         self.sequence = sequence
+        self.reset_measuerement_attributes()
+
+    def set_raw(self, *args, **kwargs) -> None:
+        """Empty abstract `set_raw` method. Parameter not meant to be set"""
+        raise NotImplementedError("GettableParameters are not meant to be set")
+
+    def reset_measuerement_attributes(self):
+        """Resets all job specific attributes"""
         self.qm_job = None
         self.buffer = None
         self.buffer_val = None
@@ -46,10 +54,6 @@ class GettableParameter(ParameterWithSetpoints):
         self.result_nr = 0
         self.batch_counter = None
         self.nr_registered_results = 0
-
-    def set_raw(self, *args, **kwargs) -> None:
-        """Empty abstract `set_raw` method. Parameter not meant to be set"""
-        raise NotImplementedError("GettableParameters are not meant to be set")
 
     def get_raw(self, progress_bar = None) -> np.ndarray:
         """ 
