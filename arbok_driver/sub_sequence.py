@@ -40,7 +40,7 @@ class SubSequence(SequenceBase):
         """Recursively searches the parent sequence"""
         if self.parent.__class__.__name__ == 'Sequence':
             return self.parent
-        elif isinstance(self.parent, SubSequence): #self.parent.__class__.__name__ == 'SubSequence':
+        elif isinstance(self.parent, SubSequence):
             return self.parent.find_parent_sequence()
         else:
             raise ValueError(
