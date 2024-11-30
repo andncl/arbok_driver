@@ -40,10 +40,12 @@ class SubSequence(SequenceBase):
         """Recursively searches the parent sequence"""
         if self.parent.__class__.__name__ == 'Sequence':
             return self.parent
-        elif self.parent.__class__.__name__ == 'SubSequence':
+        elif isinstance(self.parent, SubSequence): #self.parent.__class__.__name__ == 'SubSequence':
             return self.parent.find_parent_sequence()
         else:
-            raise ValueError("Parent sequence must be of type Sequence")
+            raise ValueError(
+                "Parent sequence must be of type Sequence"
+                f"Is of type {self.parent.__class__.__name__}")
 
     def get_sequence_path(self, path: str = None) -> str:
         """Returns the path of subsequences up to the parent sequence"""
