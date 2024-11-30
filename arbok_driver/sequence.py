@@ -5,7 +5,7 @@ import logging
 from collections import Counter
 
 import numpy as np
-from qm import qua
+from qm import qua, generate_qua_script
 from qcodes.validators import Arrays
 
 from .gettable_parameter import GettableParameter
@@ -69,6 +69,11 @@ class Sequence(SequenceBase):
         super().reset()
         self._reset_sweeps_setpoints()
         self._init_vars()
+
+    def reset_registered_gettables(self) -> None:
+        """Resets gettables to prepare for new measurement"""
+        for gettable in self.gettables:
+            gettable.reset_measuerement_attributes()
 
     @property
     def sweeps(self) -> list:
@@ -228,6 +233,10 @@ class Sequence(SequenceBase):
         for sweep in self.sweeps:
             for param, _ in sweep.config_to_register.items():
                 self._setpoints_for_gettables += (param,)
+
+        ### Gettables are registered again to update their setpoints
+        ### This is necessary if sweeps of different shape have been set
+        #self.register_gettables(self._gettables)
         print(
             f"Declared {len(self.sweeps)}-dimensional parameter sweep"
             f" of size {self.sweep_size} {[s.length for s in self.sweeps]}"
@@ -282,9 +291,13 @@ class Sequence(SequenceBase):
         with qua.stream_processing():
             self.recursive_qua_generation(seq_type = 'stream')
 
-    def compile_qua_and_run(self) -> None:
+    def compile_qua_and_run(self, save_path: str = None) -> None:
         """Compiles the QUA code and runs it"""
+        self.reset_registered_gettables()
         qua_program = self.get_qua_program()
+        if save_path:
+            with open(save_path, 'w', encoding="utf-8") as file:
+                file.write(generate_qua_script(qua_program))
         self.driver.run(qua_program)
         print('QUA program compiled and is running')
 
