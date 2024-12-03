@@ -4,7 +4,11 @@ class Sample():
     """
     Class describing the used sample by its config and the used sequence. 
     """
-    def __init__(self, name: str, opx_config: dict, divider_config: dict):
+    def __init__(
+            self, name: str,
+            opx_config: dict,
+            divider_config: dict,
+            param_config = None,):
         """
         Constructor class for 'Sample' class.
 
@@ -15,5 +19,6 @@ class Sample():
         """
         self.name = name
         self.config = opx_config
+        self.param_config = param_config
         self.divider_config = divider_config
         self.elements = list(self.config['elements'].keys())
