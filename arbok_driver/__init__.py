@@ -1,4 +1,5 @@
 from .abstract_readout import AbstractReadout
+from .experiment import Experiment
 from .gettable_parameter import GettableParameter
 from .generic_tunig_interface import GenericTuningInterface
 from .measurement_helpers import (
