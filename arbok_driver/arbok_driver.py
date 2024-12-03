@@ -1,13 +1,16 @@
 import copy
 from typing import Union
 
-from qm import qua, SimulationConfig, generate_qua_script
+import numpy as np
+
+from qm import SimulationConfig, generate_qua_script
 from qm.quantum_machines_manager import QuantumMachinesManager
 
 from qcodes.instrument import Instrument
 from qcodes.parameters import Parameter
-from qcodes.dataset import Measurement
+from qcodes.dataset import Measurement, load_or_create_experiment
 
+from .measurement_helpers import create_measurement_loop
 from .sequence import Sequence
 from .sample import Sample
 from . import utils
@@ -189,6 +192,46 @@ class ArbokDriver(Instrument):
     def write_raw(self, cmd: str) -> str:
         """Abstract method from qcodes Instrument"""
         raise NotImplementedError
+
+    def add_sequence_and_create_qc_measurement(
+        self,
+        measurement_name: str,
+        arbok_experiment,
+        iterations: str,
+        sweeps: dict,
+        gettables = 'all'
+        ):
+        """
+        Adds a sequence to the arbok_driver based on the arbok_experiment and
+        creates a QCoDeS measurement and experiment. Returns the sequence and
+        the measurement loop function
+
+        Args:
+            measurement_name (str): Name of the measurement
+            arbok_experiment (ArbokExperiment): Experiment to be run
+            iterations (int): Amount of repetitions to be performed
+            sweeps (list): List of sweep parameters
+        """
+        experiment = load_or_create_experiment(
+            arbok_experiment.name, self.sample.name)
+        meas = Measurement(exp = experiment, name = measurement_name)
+        ### Below is a workaround to add a parameter config to the sample
+        ### This will be changed in the future
+        seq = Sequence(
+            parent = self,
+            name = measurement_name,
+            sample = self.sample,
+            sequence_config = self.sample.param_config
+            )
+        seq.add_subsequences_from_dict(arbok_experiment.sequences)
+        seq.set_sweeps(*sweeps)
+        ### TODO: parity_read is hardcoded. This should be optional or automated
+        seq.register_gettables(*seq.parity_read.gettables)
+        sweep_list = [{self.iteration: np.arange(iterations)}]
+        @create_measurement_loop(sequence = seq, measurement=meas, sweep_list=sweep_list)
+        def run_loop():
+            pass
+        return run_loop, seq
 
 class ShotNumber(Parameter):
     """ Parameter that keeps track of averaging during measurement """
