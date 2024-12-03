@@ -21,7 +21,7 @@ dependencies = [
     "plottr",
     "ipython",
     "scipy",
-    "qm-qua == 1.1.7",
+    "qm-qua == 1.2.1",
     "qcodes == 0.43",
     "qualang_tools == 0.17.6",
     "qcodes-contrib-drivers == 0.18",
