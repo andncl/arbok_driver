@@ -51,6 +51,18 @@ class SequenceParameter(Parameter):
         """Returns the full name of the parameter"""
         return self.sequence_path
 
+    def convert_to_real_units(self, value):
+        """
+        Converts the value of the parameter to real units
+
+        Args:
+            value (float|int): Value to be converted
+
+        Returns:
+            float|int: Converted value
+        """
+        return value
+
     def __call__(self,
                  value: Optional[float | int | ndarray] = None
                  ) -> Optional[float | int | ndarray]:
@@ -105,9 +117,8 @@ class SequenceParameter(Parameter):
 
         self.qua_var = qua.declare(self.var_type)
         if self.can_be_parameterized:
-            self.set(np.array(setpoints))
+            pass
         elif self.input_stream is None:
-            self.set(np.array(setpoints))
             self.qua_sweep_arr = qua.declare(
                 self.var_type, value = setpoints*self.scale
             )
