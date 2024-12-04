@@ -198,14 +198,15 @@ class ArbokDriver(Instrument):
         ### This will be changed in the future
         seq = Sequence(
             parent = self,
-            name = measurement_name,
+            name = measurement_name.replace(' ', '_'),
             sample = self.sample,
             sequence_config = self.sample.param_config
             )
         seq.add_subsequences_from_dict(arbok_experiment.sequences)
         seq.set_sweeps(*sweeps)
         ### TODO: parity_read is hardcoded. This should be optional or automated
-        seq.register_gettables(*seq.parity_read.gettables)
+        if gettables == 'all':
+            seq.register_gettables(*seq.parity_read.gettables)
         sweep_list = [{self.iteration: np.arange(iterations)}]
         @create_measurement_loop(sequence = seq, measurement=meas, sweep_list=sweep_list)
         def run_loop():
