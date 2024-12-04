@@ -129,27 +129,6 @@ class ArbokDriver(Instrument):
             else:
                 file.write(generate_qua_script(qua_program))
 
-    def run_infinite_average(self, measurement: Measurement, shots: int):
-        """ 
-        Runs QCoDeS measurement and returns the resulting dataset
-        
-        Args:
-            measurement (Measurement): qcodes measurement object
-            shots (int): amount of repetitions to be performed for averaging  
-        Returns:
-            dataset: QCoDeS dataset
-        """
-        self._register_qc_params_in_measurement(measurement)
-        with measurement.run() as datasaver:
-            for shot in range(shots):
-                self.iteration.set(shot)
-                add_result_args = ((self.iteration, self.iteration.get()),)
-                for gettable in self.gettables:
-                    add_result_args += ((gettable, gettable.get_raw(),),)
-                datasaver.add_result(*add_result_args)
-            dataset = datasaver.dataset
-        return dataset
-
     def run_local_simulation(self, qua_program,  duration: int,
         nr_controllers: int = 1, plot = True, **kwargs):
         """
