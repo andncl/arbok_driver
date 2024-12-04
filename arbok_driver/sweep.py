@@ -121,11 +121,16 @@ class Sweep:
             parameter.validate(self._param_dict[parameter])
             ### Usually not all params are registered (issue with live plotting)
             if self.register_all:
-                self._config_to_register[parameter] = self.config[parameter]
+                setpoints = parameter.convert_to_real_units(
+                    self.config[parameter])
+                self._config_to_register[parameter] = setpoints*parameter.scale
+                parameter.set(setpoints)
             elif i == 0:
                 value = self.config[parameter]
+                setpoints = parameter.convert_to_real_units(self.config[parameter])
                 if isinstance(value, (list, np.ndarray)):
-                    self._config_to_register[parameter] = value
+                    parameter.set(setpoints)
+                    self._config_to_register[parameter] = setpoints*parameter.scale
                 elif isinstance(value, int):
                     ### creates a mock set of values (stream array indices)
                     self._config_to_register[parameter] = np.arange(value)
@@ -372,7 +377,7 @@ class Sweep:
         for param in self.parameters:
             if param.can_be_parameterized:
                 start, stop, step = self._parameterize_sweep_array(
-                    param, param.get_raw())
+                    param, self.config[param]*param.scale)
                 parameters_sss[param] = {
                     'start': start,
                     'stop': stop,
@@ -380,7 +385,7 @@ class Sweep:
                     }
                 length_of_array = len(np.arange(start, stop, step))
                 warnings.warn(
-                    f"\n\tYour input array of length {len(param.get())} "
+                    f"\n\tYour input array of length {length_of_array} "
                     f"for {param.name} will be parametrized with\n\t"
                     f"start {start}, step {step}, stop {stop}"
                     f" of length {length_of_array}. \n\tCheck output!",
