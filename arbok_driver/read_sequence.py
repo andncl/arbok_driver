@@ -47,6 +47,7 @@ class ReadSequence(SubSequence):
             self._add_readout_groups_from_config(
                 self.seq_config["readout_groups"])
             self._add_gettables_from_readouts()
+        self.parent_sequence.add_available_gettables(self._gettables)
 
     @property
     def abstract_readouts(self):
