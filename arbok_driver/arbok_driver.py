@@ -6,16 +6,17 @@ import numpy as np
 from qm import SimulationConfig, generate_qua_script
 from qm.quantum_machines_manager import QuantumMachinesManager
 
-from qcodes.instrument import Instrument
-from qcodes.parameters import Parameter
-from qcodes.dataset import Measurement, load_or_create_experiment
+import qcodes as qc
+# from qcodes.instrument import Instrument
+# from qcodes.parameters import Parameter
+# import qcodes.dataset import as qc Measurement, load_or_create_experiment
 
 from .measurement_helpers import create_measurement_loop
 from .sequence import Sequence
 from .sample import Sample
 from . import utils
 
-class ArbokDriver(Instrument):
+class ArbokDriver(qc.Instrument):
     """
     Class containing all functionality to manage and run modular sequences on a 
     physical OPX instrument
@@ -91,7 +92,8 @@ class ArbokDriver(Instrument):
         self.qm_job = self.opx.execute(qua_program, **kwargs)
         self.result_handles = self.qm_job.result_handles
 
-    def _register_qc_params_in_measurement(self, measurement: Measurement):
+    def _register_qc_params_in_measurement(
+            self, measurement: qc.dataset.Measurement):
         """
         Configures QCoDeS measurement object from the arbok program
         
@@ -128,27 +130,6 @@ class ArbokDriver(Instrument):
                     ))
             else:
                 file.write(generate_qua_script(qua_program))
-
-    def run_infinite_average(self, measurement: Measurement, shots: int):
-        """ 
-        Runs QCoDeS measurement and returns the resulting dataset
-        
-        Args:
-            measurement (Measurement): qcodes measurement object
-            shots (int): amount of repetitions to be performed for averaging  
-        Returns:
-            dataset: QCoDeS dataset
-        """
-        self._register_qc_params_in_measurement(measurement)
-        with measurement.run() as datasaver:
-            for shot in range(shots):
-                self.iteration.set(shot)
-                add_result_args = ((self.iteration, self.iteration.get()),)
-                for gettable in self.gettables:
-                    add_result_args += ((gettable, gettable.get_raw(),),)
-                datasaver.add_result(*add_result_args)
-            dataset = datasaver.dataset
-        return dataset
 
     def run_local_simulation(self, qua_program,  duration: int,
         nr_controllers: int = 1, plot = True, **kwargs):
@@ -199,7 +180,8 @@ class ArbokDriver(Instrument):
         arbok_experiment,
         iterations: str,
         sweeps: dict,
-        gettables = 'all'
+        gettables = None,
+        gettable_keywords = None
         ):
         """
         Adds a sequence to the arbok_driver based on the arbok_experiment and
@@ -211,29 +193,43 @@ class ArbokDriver(Instrument):
             arbok_experiment (ArbokExperiment): Experiment to be run
             iterations (int): Amount of repetitions to be performed
             sweeps (list): List of sweep parameters
+            gettables (str): Gettables to be registered in the measurement
+            gettable_keywords (dict): Keywords to search for gettable parameters
         """
-        experiment = load_or_create_experiment(
+        experiment = qc.dataset.load_or_create_experiment(
             arbok_experiment.name, self.sample.name)
-        meas = Measurement(exp = experiment, name = measurement_name)
+        meas = qc.dataset.Measurement(exp = experiment, name = measurement_name)
         ### Below is a workaround to add a parameter config to the sample
         ### This will be changed in the future
         seq = Sequence(
             parent = self,
-            name = measurement_name,
+            name = measurement_name.replace(' ', '_'),
             sample = self.sample,
             sequence_config = self.sample.param_config
             )
         seq.add_subsequences_from_dict(arbok_experiment.sequences)
         seq.set_sweeps(*sweeps)
-        ### TODO: parity_read is hardcoded. This should be optional or automated
-        seq.register_gettables(*seq.parity_read.gettables)
+
+        if gettables is not None and gettable_keywords is not None:
+            raise ValueError(
+                "Please provide gettables OR gettable_keywords, not both")
+        elif gettables is not None:
+            ### Registering all gettables
+            seq.register_gettables(*gettables)
+        elif gettable_keywords is not None:
+            ### Finding all gettables with the given keywords
+            seq.register_gettables(keywords=gettable_keywords)
+        else:
+            ### Registers all available gettables if both are None
+            seq.register_gettables(*seq.available_gettables)
+
         sweep_list = [{self.iteration: np.arange(iterations)}]
         @create_measurement_loop(sequence = seq, measurement=meas, sweep_list=sweep_list)
         def run_loop():
             pass
         return run_loop, seq
 
-class ShotNumber(Parameter):
+class ShotNumber(qc.Parameter):
     """ Parameter that keeps track of averaging during measurement """
     def __init__(self, name, instrument):
         super().__init__(name, instrument = instrument)

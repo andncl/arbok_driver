@@ -8,13 +8,22 @@ from qcodes.validators import (
 from .sequence_parameter import SequenceParameter
 
 class Time(SequenceParameter):
-    unit = 'cycles'
+    """
+    Cycles sequence parameter. Parameter values and sweeps are given in units of 
+    FPGA cycles (4 ns). The parameter is converted to seconds before being
+    registered to a measurement.
+    """
+    unit = 's'
     """ Default: 'cycles' """
     qua_type = int
     """ Default: int """
     validator = Ints()
-    sweep_validator = MultiTypeOr(Ints(), Arrays(valid_types = [int]))
+    sweep_validator = None
+    ### TODO: Implement validator. User should only be able to set ints (cycles)
     """ Default: Numbers """
+
+    def convert_to_real_units(self, value):
+        return np.array(np.array(value)*4e-9)
 
 class String(SequenceParameter):
     unit = 'N/A'
@@ -72,15 +81,6 @@ class Radian(SequenceParameter):
     validator = Numbers(min_value = -2*np.pi, max_value = 2*np.pi)
     sweep_validator = MultiTypeOr(
         Numbers(min_value = -2*np.pi, max_value = 2*np.pi),
-        Arrays(valid_types = [float])
-        )
-
-class Pi(SequenceParameter):
-    unit = 'pi'
-    qua_type = qua.fixed
-    validator = Numbers(min_value = -2, max_value = 2)
-    sweep_validator = MultiTypeOr(
-        Numbers(min_value = -2, max_value = 2),
         Arrays(valid_types = [float])
         )
 

@@ -9,6 +9,7 @@ from qm import qua, generate_qua_script
 from qcodes.validators import Arrays
 
 from .gettable_parameter import GettableParameter
+from .observable import ObservableBase
 from .sequence_parameter import SequenceParameter
 from .sample import Sample
 from .sequence_base import SequenceBase
@@ -52,6 +53,7 @@ class Sequence(SequenceBase):
         self._step_requirements = []
         self._input_stream_parameters = []
         self._input_stream_type_shapes = {'int': 0, 'bool': 0, 'qua.fixed': 0}
+        self._available_gettables = []
         self.debug_input_streams = False
 
     def _reset_sweeps_setpoints(self) -> None:
@@ -107,6 +109,11 @@ class Sequence(SequenceBase):
     def step_requirements(self) -> list:
         """Registered input stream parameters"""
         return self._step_requirements
+
+    @property
+    def available_gettables(self) -> list:
+        """List of all available gettables from all sub sequences"""
+        return self._available_gettables
 
     @input_stream_parameters.setter
     def input_stream_parameters(self, parameters: list) -> None:
@@ -242,17 +249,47 @@ class Sequence(SequenceBase):
             f" of size {self.sweep_size} {[s.length for s in self.sweeps]}"
         )
 
-    def register_gettables(self, *args) -> None:
+    def register_gettables(self, *args, keywords: str | list | tuple = None
+                           ) -> None:
         """
-        Registers GettableParameters that will be retreived during measurement
+        Registers GettableParameters that will be retreived during measurement.
+        Gettable parameters can be given as arguments or automatically seached
+        by keywords. 
 
         Args:
             *args (GettableParameter): Parameters to be measured
+            keywords (str | list): Keywords to find gettables by name
         """
-        self._check_given_gettables(args)
-        self._gettables = list(args)
+        gettables = list(args)
+        if keywords is not None:
+            if isinstance(keywords, str) or isinstance(keywords, tuple):
+                keywords = [keywords]
+            if isinstance(keywords, list):
+                for keyword in keywords:
+                    gettables.extend(self._find_gettables_from_keyword(keyword))
+            else:
+                raise TypeError(
+                    f"Keywords must be of type str or list. Is {type(keywords)}")
+        ### Remove duplicates
+        gettables = list(set(gettables))
+        self._check_given_gettables(gettables)
+        self._gettables = list(gettables)
         self._configure_gettables()
         self.sweeps.reverse()
+
+    def _find_gettables_from_keyword(self, keyword: str | tuple) -> list:
+        """Returns all gettables that contain the given keyword"""
+        if isinstance(keyword, str):
+            keyword = (keyword,)
+        if not isinstance(keyword, tuple):
+            raise TypeError(
+                "Keyword must be of type str or tuple."
+                f" Is {type(keyword)}")
+        gettables = []
+        for gettable in self.available_gettables:
+            if all([sub_key in gettable.name for sub_key in keyword]):
+                gettables.append(gettable)
+        return gettables
 
     def get_qua_code(self, simulate = False) -> qua.program:
         """
@@ -350,6 +387,15 @@ class Sequence(SequenceBase):
                 data = fixed_vals
             )
 
+    def add_available_gettables(self, gettables: list) -> None:
+        """
+        Adds given gettables to the list of all gettables
+
+        Args:
+            gettables (list): List of GettableParameters
+        """
+        self._available_gettables.extend(gettables)
+
     def _configure_gettables(self) -> None:
         """
         Configures all gettables to be measured. Sets batch_size, can_resume,
@@ -373,6 +419,15 @@ class Sequence(SequenceBase):
             TypeError: If not all gettables are of type GettableParameter
             AttributeError: If not all gettables belong to self
         """
+        ### Replace observables with their gettables if present
+        gettables_without_observabels = []
+        for gettable in gettables:
+            if isinstance(gettable, ObservableBase):
+                gettables_without_observabels.append(gettable.gettable)
+            else:
+                gettables_without_observabels.append(gettable)
+        gettables = gettables_without_observabels
+        ### Check if gettables are of type GettableParameter and belong to self
         all_gettable_parameters = all(
             isinstance(gettable, GettableParameter) for gettable in gettables)
         all_gettables_from_self = all(
