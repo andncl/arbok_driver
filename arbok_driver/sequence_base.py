@@ -7,8 +7,7 @@ import logging
 
 from qcodes.instrument import InstrumentModule
 
-from qm import SimulationConfig, generate_qua_script, qua
-from qm.QuantumMachinesManager import QuantumMachinesManager
+from qm import SimulationConfig, generate_qua_script, qua, QuantumMachinesManager
 from qm.simulate.credentials import create_credentials
 
 from .sample import Sample
