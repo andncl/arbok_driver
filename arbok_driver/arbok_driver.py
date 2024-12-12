@@ -181,7 +181,8 @@ class ArbokDriver(qc.Instrument):
         iterations: str,
         sweeps: dict,
         gettables = None,
-        gettable_keywords = None
+        gettable_keywords = None,
+        sweep_list: list = None
         ):
         """
         Adds a sequence to the arbok_driver based on the arbok_experiment and
@@ -223,8 +224,11 @@ class ArbokDriver(qc.Instrument):
             ### Registers all available gettables if both are None
             seq.register_gettables(*seq.available_gettables)
 
-        sweep_list = [{self.iteration: np.arange(iterations)}]
-        @create_measurement_loop(sequence = seq, measurement=meas, sweep_list=sweep_list)
+        sweep_list_arg = [{self.iteration: np.arange(iterations)}]
+        if sweep_list is not None:
+            sweep_list_arg.extend(sweep_list)
+
+        @create_measurement_loop(sequence = seq, measurement=meas, sweep_list=sweep_list_arg)
         def run_loop():
             pass
         return run_loop, seq
