@@ -17,7 +17,8 @@ class AbstractReadout(ABC):
         name: str,
         sequence: ReadSequence,
         attr_name: str,
-        save_results: bool = True
+        save_results: bool = True,
+        params: dict = {}
     ):
         """
         Constructor method of `AbstractReadout`
@@ -28,12 +29,17 @@ class AbstractReadout(ABC):
             attr_name (str): Name of the attribute as which the readout will be
                 added in the signal
             save_results (bool, optional): Whether to save the results
+            params (dict, optional): Parameters to be added to the read sequence
         """
         self.name = name
         self.sequence = sequence
         self.attr_name = attr_name
         self.save_results = save_results
         self.observables = {}
+
+        ### Parameters are added to the sequence with the readout prefix
+        params = [f'{self.name}_{key}' for key in params]
+        self.sequence.add_qc_params_from_config(params)
 
     def qua_declare_variables(self):
         """Declares all necessary qua variables for readout"""
