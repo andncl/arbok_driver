@@ -38,7 +38,7 @@ class SubSequence(SequenceBase):
 
     def find_parent_sequence(self):
         """Recursively searches the parent sequence"""
-        if self.parent.__class__.__name__ == 'Sequence':
+        if self.parent.__class__.__name__ == 'Measurement':
             return self.parent
         elif isinstance(self.parent, SubSequence):
             return self.parent.find_parent_sequence()
@@ -51,7 +51,7 @@ class SubSequence(SequenceBase):
         """Returns the path of subsequences up to the parent sequence"""
         if path is None:
             path = ""
-        if self.parent.__class__.__name__ == 'Sequence':
+        if self.parent.__class__.__name__ == 'Measurement':
             return f"{self.parent.short_name}__{self.short_name}__{path}"
         elif self.parent is None:
             return f"{self.short_name}__{path}"

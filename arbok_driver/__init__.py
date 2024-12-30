@@ -9,7 +9,7 @@ from .observable import Observable, AbstractObservable, ObservableBase
 from .arbok_driver import ArbokDriver
 from .read_sequence import ReadSequence
 from .sample import Sample
-from .sequence import Sequence
+from .measurement import Measurement
 from .sequence_parameter import SequenceParameter
 from .signal import Signal
 from .sub_sequence import SubSequence

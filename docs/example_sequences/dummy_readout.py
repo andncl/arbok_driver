@@ -10,6 +10,7 @@ class DummyReadout(ReadSequence):
     """
     def __init__(
             self,
+            parent,
             name: str,
             sample: Sample,
             sequence_config: dict,
@@ -23,7 +24,7 @@ class DummyReadout(ReadSequence):
             sequence_config (dict): Dict configuring sequence
         """
         super().__init__(
-            name, sample, sequence_config,
+            parent, name, sample, sequence_config,
             {'difference': Difference},
             {'average': Average}
             )
