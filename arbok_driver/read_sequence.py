@@ -157,7 +157,6 @@ class ReadSequence(SubSequence):
                     sequence = self,
                     save_results = save_results,
                     params = params,
-                    **readout_conf["args"],
                 )
                 readout_group[readout_name] = abstract_readout
                 self._abstract_readouts[readout_name] = abstract_readout
