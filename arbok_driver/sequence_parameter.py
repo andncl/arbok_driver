@@ -132,7 +132,7 @@ class SequenceParameter(Parameter):
     def add_stream_param_to_sequence(self):
         """Adds input stream to sequence"""
         if self.input_stream is not None:
-            sequence = self.instrument.parent_sequence
+            sequence = self.instrument.measurement
             sequence.add_input_stream_parameter(self)
         else:
             raise ValueError(

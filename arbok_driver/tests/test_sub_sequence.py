@@ -20,7 +20,7 @@ def test_parent_child_sequence_behaviour(
     """Tests the behaviour of nested sub sequences"""
     assert parent_sub_sequence.sub_seq1.par2.get() == 10
     assert parent_sub_sequence.sub_seq2.vHome_P1.get() == 0
-    assert parent_sub_sequence.sub_seq1.parent_sequence == parent_sub_sequence
+    assert parent_sub_sequence.sub_seq1.measurement == parent_sub_sequence
     with pytest.raises(KeyError):
         parent_sub_sequence.add_subsequence(sub_sequence_1)
         print(parent_sub_sequence.submodules)
@@ -59,10 +59,10 @@ def test_add_qc_params_from_config(sub_sequence_1) -> None:
             'par69': {'unit': 'cycles', 'toast': int(8)},
             })
 
-def test_find_parent_sequence(mock_program, dummy_sequence) -> None:
+def test_find_measurement(mock_program, dummy_sequence) -> None:
     """Tests if parent sequence is found from sub sequences"""
     mock_program.add_sequence(dummy_sequence)
-    parent = mock_program.dummy_sequence.parent_sequence
+    parent = mock_program.dummy_sequence.measurement
     assert parent == mock_program.dummy_sequence
-    parent = mock_program.dummy_sequence.dummy_parent_sub.parent_sequence
+    parent = mock_program.dummy_sequence.dummy_parent_sub.measurement
     assert parent == mock_program.dummy_sequence
