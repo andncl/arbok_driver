@@ -61,7 +61,7 @@ class AbstractReadout(ABC):
                 logging.debug(
                     "Saving streams of observable %s on abstract readout %s",
                     observable_name, self.name)
-                sweep_size = self.sequence.parent_sequence.sweep_size
+                sweep_size = self.sequence.measurement.sweep_size
                 buffer = observable.qua_stream.buffer(sweep_size)
                 buffer.save(f"{observable.full_name}_buffer")
         else:

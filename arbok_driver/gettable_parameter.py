@@ -80,8 +80,8 @@ class GettableParameter(ParameterWithSetpoints):
         Set up Gettable attributes from running OPX including measurement and 
         hardware specific values.
         """
-        self.sequence = self.sequence.parent_sequence
-        if not self.sequence.parent_sequence.driver.opx:
+        self.sequence = self.sequence.measurement
+        if not self.sequence.measurement.driver.opx:
             raise LookupError("Results cant be retreived without OPX connected")
         self.qm_job = self.sequence.driver.qm_job
         self.batch_counter = getattr(

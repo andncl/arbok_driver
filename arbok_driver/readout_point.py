@@ -112,7 +112,7 @@ class ReadoutPoint(ABC):
 
     def qua_save_streams(self):
         """Saves streams and buffers of streams"""
-        sweep_size = self.signal.sequence.parent_sequence.sweep_size
+        sweep_size = self.signal.sequence.measurement.sweep_size
         if not self.save_values:
             logging.debug("Values of point %s will not be streamed.", self.name)
             return
