@@ -38,8 +38,7 @@ class AbstractReadout(ABC):
         self.observables = {}
 
         ### Parameters are added to the sequence with the readout prefix
-        params = [f'{self.name}_{key}' for key in params]
-        self.sequence.add_qc_params_from_config(params)
+        self.add_qc_params_from_config(params)
 
     def qua_declare_variables(self):
         """Declares all necessary qua variables for readout"""
@@ -78,6 +77,54 @@ class AbstractReadout(ABC):
         """Measures ans saves the result of the given readout"""
         self.qua_measure()
         self.qua_save_variables()
+
+    def add_qc_params_from_config(self, param_dict: dict) -> None:
+        """
+        Adds the given parameters to the sequence with the readout prefix
+        
+        Args:
+            params (list): List of parameter names to be added to the sequence
+        """
+        full_params = {f'{self.name}__{k}': v for k, v in param_dict.items()}
+        self.sequence.add_qc_params_from_config(full_params)
+        for param_name, conf in param_dict.items():
+            if 'value' in conf:
+                parameter = getattr(self.sequence, f"{self.name}__{param_name}")
+                setattr(self, param_name, parameter)
+
+    def get_params_with_prefix(self, prefix: str) -> dict:
+        """
+        Finds the element parameters with the given prefix
+        
+        Args:
+            prefix (str): Prefix of the element parameters
+        
+        Returns:
+            dict: Dictionary with elemets as keys and parameters as values
+        """
+        all_params = self.sequence.parameters
+        full_prefix = f"{self.name}__{prefix}"
+        param_names = [x for x in all_params if full_prefix in x]
+        element_list = [x.split(prefix)[1].split('_')[1] for x in param_names]
+        return {e: all_params[p] for e, p in zip(element_list, param_names)}
+
+    def get_signals_and_observables(self, prefix: str) -> dict:
+        """
+        Returns observables found at the path given from the param storing it.
+        Works very similarly to `get_params_with_prefix`. First finds params
+        with the given prefix and then tries to find the observable from the
+        path stored in the parameter
+
+        Args:
+            prefix (str): Prefix of the element parameters
+        
+        Returns:
+            dict: Dictionary with signals as keys and observables
+        """
+        obs_dict = {}
+        for signal, obs in self.get_params_with_prefix(prefix).items():
+            obs_dict[signal] = self._find_observable_from_path(obs())
+        return obs_dict
 
     def _find_observable_from_path(self, attr_path: str) -> ObservableBase:
         """
