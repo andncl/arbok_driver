@@ -272,7 +272,7 @@ class Measurement(SequenceBase):
                 raise TypeError(
                     f"Keywords must be of type str or list. Is {type(keywords)}")
         ### Remove duplicates
-        gettables = list(set(gettables))
+        gettables = list(dict.fromkeys(gettables))
         self._check_given_gettables(gettables)
         self._gettables = list(gettables)
         self._configure_gettables()
