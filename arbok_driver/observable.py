@@ -66,7 +66,7 @@ class Observable(ObservableBase):
         self.full_name = f"{self.readout.sequence.short_name}"
         self.full_name += f"__{self.readout.name}__{self.name}"
         self.signal = self.readout.signal
-        self.qm_elements = list(set(self.signal.readout_elements.values()))
+        self.qm_elements = list(dict.fromkeys(self.signal.readout_elements.values()))
 
 class AbstractObservable(ObservableBase):
     """Observable class for AbstractRadouts"""
@@ -95,7 +95,7 @@ class AbstractObservable(ObservableBase):
         self.adc_trace = adc_trace
 
         self.signal = getattr(self.readout.sequence, signal)
-        self.qm_elements = list(set(self.signal.readout_elements.values()))
+        self.qm_elements = list(dict.fromkeys(self.signal.readout_elements.values()))
         self.full_name = f"{self.readout.sequence.short_name}"
         self.full_name += f"__{self.signal.name}__{self.name}"
         self.signal.observables[self.full_name] = self

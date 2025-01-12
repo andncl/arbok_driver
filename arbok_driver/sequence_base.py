@@ -249,7 +249,7 @@ class SequenceBase(InstrumentModule):
 
         ### If the given seqeunce has subsequences, run the recursion of those
         if skip_duplicates:
-            sequence_list = set(self.sub_sequences)
+            sequence_list = dict.fromkeys(self.sub_sequences)
         else:
             sequence_list = self.sub_sequences
         for sub_sequence in sequence_list:
