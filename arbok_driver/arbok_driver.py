@@ -7,12 +7,10 @@ from qm import SimulationConfig, generate_qua_script
 from qm.quantum_machines_manager import QuantumMachinesManager
 
 import qcodes as qc
-# from qcodes.instrument import Instrument
-# from qcodes.parameters import Parameter
-# import qcodes.dataset import as qc Measurement, load_or_create_experiment
 
 from .measurement_helpers import create_measurement_loop
-from .sequence import Sequence
+from .measurement import Measurement
+from .sequence_base import SequenceBase
 from .sample import Sample
 from . import utils
 
@@ -72,12 +70,12 @@ class ArbokDriver(qc.Instrument):
             host = host_ip, **kwargs)
         self.opx = self.qmm.open_qm(self.sample.config)
 
-    def add_sequence(self, new_sequence: Sequence):
+    def add_sequence(self, new_sequence: SequenceBase):
         """
-        Adds `Sequence` to the program and adds it as a QCoDeS sub-module
+        Adds a class which inherits `SequenceBase` to the program and adds it as a QCoDeS sub-module
         
         Args:
-            new_sequence (Sequence): Sequence to be added
+            new_sequence (SequenceBase): The instance which inherits SequenceBase to be added
         """
         self._sequences.append(new_sequence)
 
@@ -202,7 +200,7 @@ class ArbokDriver(qc.Instrument):
         meas = qc.dataset.Measurement(exp = experiment, name = measurement_name)
         ### Below is a workaround to add a parameter config to the sample
         ### This will be changed in the future
-        seq = Sequence(
+        seq = Measurement(
             parent = self,
             name = measurement_name.replace(' ', '_'),
             sample = self.sample,

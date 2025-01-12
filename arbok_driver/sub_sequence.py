@@ -32,16 +32,16 @@ class SubSequence(SequenceBase):
         self.parent.add_subsequence(self)
 
     @property
-    def parent_sequence(self):
+    def measurement(self):
         """Returns parent (sub) sequence"""
-        return self.find_parent_sequence()
+        return self.find_measurement()
 
-    def find_parent_sequence(self):
+    def find_measurement(self):
         """Recursively searches the parent sequence"""
-        if self.parent.__class__.__name__ == 'Sequence':
+        if self.parent.__class__.__name__ == 'Measurement':
             return self.parent
         elif isinstance(self.parent, SubSequence):
-            return self.parent.find_parent_sequence()
+            return self.parent.find_measurement()
         else:
             raise ValueError(
                 "Parent sequence must be of type Sequence"
@@ -51,7 +51,7 @@ class SubSequence(SequenceBase):
         """Returns the path of subsequences up to the parent sequence"""
         if path is None:
             path = ""
-        if self.parent.__class__.__name__ == 'Sequence':
+        if self.parent.__class__.__name__ == 'Measurement':
             return f"{self.parent.short_name}__{self.short_name}__{path}"
         elif self.parent is None:
             return f"{self.short_name}__{path}"
@@ -89,17 +89,17 @@ class SubSequence(SequenceBase):
         searches parent sequence"""
         if key in self.parameters:
             return self.parameters[key]
-        elif self.parent_sequence is None:
+        elif self.measurement is None:
             raise AttributeError(
                 f"Sub-sequence {self.name} does not have attribute {key}")
         else:
-            return self._return_parent_sequence_parameters(key)
+            return self._return_measurement_parameters(key)
 
-    def _return_parent_sequence_parameters(self, key: str) -> Any:
+    def _return_measurement_parameters(self, key: str) -> Any:
         """Returns attribute from parent sequence"""
         logging.debug("Searching parent sequence %s for parameter %s",
-                        self.parent_sequence.name, key)
-        if key in self.parent_sequence.parameters:
-            return self.parent_sequence.parameters[key]
+                        self.measurement.name, key)
+        if key in self.measurement.parameters:
+            return self.measurement.parameters[key]
         raise AttributeError(
-            f"Parameter {key} not found in {self.parent_sequence.name}")
+            f"Parameter {key} not found in {self.measurement.name}")

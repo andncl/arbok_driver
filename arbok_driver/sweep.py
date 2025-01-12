@@ -10,7 +10,7 @@ from .sequence_parameter import SequenceParameter
 
 class Sweep:
     """ Class characterizing a parameter sweep along one axis in the OPX """
-    def __init__(self, parent_sequence, param_dict: dict, register_all = False):
+    def __init__(self, measurement, param_dict: dict, register_all = False):
         """
         Constructor class of Sweep class
 
@@ -21,7 +21,7 @@ class Sweep:
             register_all (bool): Whether all parameters should be registered in
                 the QCoDeS measurement
         """
-        self.parent_sequence = parent_sequence
+        self.measurement = measurement
         self._param_dict = param_dict
         self._config_to_register = None
         self._parameters = None
@@ -209,7 +209,7 @@ class Sweep:
         new_dict = {}
         for key, value in param_dict.items():
             if isinstance(key, str):
-                new_key = self.parent_sequence.find_parameter_from_str_path(key)
+                new_key = self.measurement.find_parameter_from_str_path(key)
                 new_dict[new_key] = value
             else:
                 new_dict[key] = value
@@ -277,8 +277,8 @@ class Sweep:
 
             def step_counter():
                 qua.assign(sweep_idx_var, sweep_idx_var + 1)
-            if self.parent_sequence.sweeps[0] == self:
-                self.parent_sequence.qua_check_step_requirements(step_counter)
+            if self.measurement.sweeps[0] == self:
+                self.measurement.qua_check_step_requirements(step_counter)
             else:
                 step_counter()
 
@@ -317,8 +317,8 @@ class Sweep:
                         if param == self.parameters[0]:
                             qua.assign(sweep_idx_var, sweep_idx_var + 1)
                         qua.assign(param.qua_var, param.qua_var + sss['step'])
-                if self.parent_sequence.sweeps[0] == self:
-                    self.parent_sequence.qua_check_step_requirements(step_variable)
+                if self.measurement.sweeps[0] == self:
+                    self.measurement.qua_check_step_requirements(step_variable)
                 else:
                     step_variable()
 

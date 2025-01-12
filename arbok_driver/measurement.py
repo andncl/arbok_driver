@@ -1,4 +1,4 @@
-"""Module containing sequence class"""
+"""Module containing the Measurement class"""
 import math
 import copy
 import logging
@@ -16,8 +16,8 @@ from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
 from .sweep import Sweep
 
-class Sequence(SequenceBase):
-    """Class describing a Sequence in an OPX driver"""
+class Measurement(SequenceBase):
+    """Class describing a Measurement in an OPX driver"""
     def __init__(
             self,
             parent,
@@ -26,18 +26,19 @@ class Sequence(SequenceBase):
             sequence_config: dict | None = None,
             ) -> None:
         """
-        Constructor method for Sequence
+        Constructor method for Measurement
 
         Args:
-            name (str): Name of the sequence
+            name (str): Name of the measurement
             sample (Sample): Sample object describing the device in use
-            sequence_config (dict): Config containing all sequence params and
+            sequence_config (dict): Config containing all measurement params and
                 their initial values and units0
             **kwargs: Key word arguments for InstrumentModule
         """
+        print("Measrueement init")
         super().__init__(parent, name, sample, sequence_config)
         self.driver = parent
-        self.parent_sequence = self
+        self.measurement = self
         self._init_vars()
         self._reset_sweeps_setpoints()
         parent.add_sequence(self)
@@ -186,7 +187,7 @@ class Sequence(SequenceBase):
 
     def qua_before_sequence(self, simulate: bool = False):
         """
-        Qua code to be executed before the inner sequence
+        Qua code to be executed before the inner measurement
         """
         if simulate:
             for qua_var in self.step_requirements:
@@ -194,7 +195,7 @@ class Sequence(SequenceBase):
 
     def qua_after_sequence(self):
         """
-        Qua code to be executed after the sequence loop and the code it contains
+        Qua code to be executed after the measurement loop and the code it contains
         """
         qua.align()
         self.qua_check_step_requirements(self.qua_increment_shot_tracker)
@@ -293,7 +294,7 @@ class Sequence(SequenceBase):
 
     def get_qua_code(self, simulate = False) -> qua.program:
         """
-        Compiles all qua code from its sequences and writes their loops
+        Compiles all qua code from its sub-sequences and writes their loops
         
         Args:
             simulate (bool): True if the program is meant to be simulated
@@ -312,17 +313,17 @@ class Sequence(SequenceBase):
             if not simulate:
                 qua.pause()
 
-            ### Check requirements are set to True if the sequence is simulated
+            ### Check requirements are set to True if the measurement is simulated
             if simulate:
-                for qua_var in self.parent_sequence.step_requirements:
+                for qua_var in self.measurement.step_requirements:
                     qua.assign(qua_var, True)
 
-            ### The sequences are run in the order they were added
+            ### The sub-sequences are run in the order they were added
             ### Before_sweep methods are run before the sweep loop
             self.recursive_qua_generation(
                 seq_type = 'before_sweep', skip_duplicates = True)
 
-            ### The sweep loop is defined for each sequence recursively
+            ### The sweep loop is defined for each sub-sequence recursively
             self.recursive_sweep_generation(
                 copy.copy(self.sweeps))
         with qua.stream_processing():
@@ -431,7 +432,7 @@ class Sequence(SequenceBase):
         all_gettable_parameters = all(
             isinstance(gettable, GettableParameter) for gettable in gettables)
         all_gettables_from_self = all(
-            gettable.sequence.parent_sequence == self for gettable in gettables)
+            gettable.sequence.measurement == self for gettable in gettables)
         if not all_gettable_parameters:
             raise TypeError(
                 f"All args need to be GettableParameters, Are: {gettables}")
@@ -463,7 +464,7 @@ class Sequence(SequenceBase):
             self._input_stream_type_shapes[type.__name__] = length
 
     def get_sequence_path(self):
-        """Returns its name since sequence is the top level sequence"""
+        """Returns its name since Measurement is the top level"""
         return self.name
 
     def add_input_stream_parameter(self, parameter) -> None:
@@ -539,7 +540,7 @@ class Sequence(SequenceBase):
         return results.reshape(tuple((reversed(s.length) for s in self.sweeps)))
 
     def add_step_requirement(self, requirement) -> None:
-        """Adds a bool qua variable as a step requirement for the sequence"""
+        """Adds a bool qua variable as a step requirement for the measurement"""
         logging.debug('Adding step requirement: %s', requirement)
         self._step_requirements.append(requirement)
 
