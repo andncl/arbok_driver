@@ -38,7 +38,7 @@ class Measurement(SequenceBase):
         print("Measrueement init")
         super().__init__(parent, name, sample, sequence_config)
         self.driver = parent
-        self.parent_sequence = self
+        self.measurement = self
         self._init_vars()
         self._reset_sweeps_setpoints()
         parent.add_sequence(self)
@@ -315,7 +315,7 @@ class Measurement(SequenceBase):
 
             ### Check requirements are set to True if the measurement is simulated
             if simulate:
-                for qua_var in self.parent_sequence.step_requirements:
+                for qua_var in self.measurement.step_requirements:
                     qua.assign(qua_var, True)
 
             ### The sub-sequences are run in the order they were added
@@ -432,7 +432,7 @@ class Measurement(SequenceBase):
         all_gettable_parameters = all(
             isinstance(gettable, GettableParameter) for gettable in gettables)
         all_gettables_from_self = all(
-            gettable.sequence.parent_sequence == self for gettable in gettables)
+            gettable.sequence.measurement == self for gettable in gettables)
         if not all_gettable_parameters:
             raise TypeError(
                 f"All args need to be GettableParameters, Are: {gettables}")

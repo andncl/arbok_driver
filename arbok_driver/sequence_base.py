@@ -151,7 +151,7 @@ class SequenceBase(InstrumentModule):
         Args:
             simulate (bool): True if program is generated for simulation
         """
-        if self.parent_sequence is None:
+        if self.measurement is None:
             raise ReferenceError(
                 "The sub sequence {self.name} is not linked to a sequence")
         self.qua_declare_sweep_vars()
@@ -165,7 +165,7 @@ class SequenceBase(InstrumentModule):
 
             ### Check requirements are set to True if the sequence is simulated
             if simulate:
-                for qua_var in self.parent_sequence.step_requirements:
+                for qua_var in self.measurement.step_requirements:
                     qua.assign(qua_var, True)
             ### The sequences are run in the order they were added
             ### Before_sweep methods are run before the sweep loop
@@ -173,8 +173,8 @@ class SequenceBase(InstrumentModule):
 
             ### qua_sequence methods of sub_sequences are called recursively
             ### If parent sequence is present the sweep generation is added
-            if hasattr(self.parent_sequence, 'sweeps'):
-                self.recursive_sweep_generation(self.parent_sequence.sweeps)
+            if hasattr(self.measurement, 'sweeps'):
+                self.recursive_sweep_generation(self.measurement.sweeps)
             else:
                 self.recursive_qua_generation(seq_type = 'sequence')
 
@@ -190,7 +190,7 @@ class SequenceBase(InstrumentModule):
     def qua_declare_sweep_vars(self) -> None:
         """ Declares all sweep variables as QUA with their correct type """
         logging.debug("Start declaring QUA variables in %s", self.name)
-        for sweep in self.parent_sequence.sweeps:
+        for sweep in self.measurement.sweeps:
             for param, setpoints in sweep.config.items():
                 if isinstance(param, SequenceParameter):
                     logging.debug("Declaring %s as %s",
