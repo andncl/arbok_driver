@@ -508,5 +508,6 @@ class SequenceBase(InstrumentModule):
         """
         for param_name, param in self.parameters.items():
             if param.unit == unit:
+                print(f"Setting param {param_name} to {value}")
                 logging.debug("Setting param %s to %s", param_name, value)
                 param(value)
