@@ -310,7 +310,7 @@ class Measurement(SequenceBase):
         ### An infinite loop starting with a pause is defined to sync the
         ### client with the QMs
         with qua.infinite_loop_():
-            if not simulate or not self.no_pause:
+            if not simulate:
                 qua.pause()
 
             ### Check requirements are set to True if the measurement is simulated

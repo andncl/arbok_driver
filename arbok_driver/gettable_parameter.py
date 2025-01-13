@@ -1,8 +1,7 @@
 """ Module containing GettableParameter class """
 
-import warnings
 import time
-import logging as lg
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
 from qcodes.parameters import ParameterWithSetpoints
@@ -61,6 +60,7 @@ class GettableParameter(ParameterWithSetpoints):
         On its first call, the gettables attributes get configured regarding
         the given measurement and the underlying hardware.
         """
+        logging.debug("GettableParameter %s get_raw called", self.name)
         ### Setup is called on first get
         if self.buffer is None:
             self._set_up_gettable_from_program()
@@ -107,7 +107,12 @@ class GettableParameter(ParameterWithSetpoints):
         total_results = "Total results: ..."
         t0 = time.time()
         try:
+            # self.qm_job.resume()
             while batch_count < self.batch_size or not self.qm_job.is_paused():
+                logging.debug(
+                    "Waiting for buffer to fill (%s/%s), %s",
+                    batch_count, self.batch_size, self.qm_job.is_paused()
+                    )
                 shot_count_result = self.batch_counter.fetch_all()
                 if shot_count_result is not None:
                     batch_count = shot_count_result[0]
