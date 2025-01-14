@@ -42,7 +42,6 @@ def create_measurement_loop(
     Returns:
         qcodes.Dataset: Dataset of the measurement
     """
-    logging.debug("Creating measurement loop")
     sweep_lengths = [len(next(iter(dic.values()))) for dic in sweep_list]
     nr_sweep_list_points = np.prod(sweep_lengths)
     def decorator(func):

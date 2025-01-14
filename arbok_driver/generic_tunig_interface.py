@@ -105,7 +105,7 @@ class GenericTuningInterface:
         given host ip.
         """
         self.program.connect_opx(host_ip = host_ip)
-        self.qua_program = self.sequence.get_qua_program()
+        self.qua_program = self.program.get_qua_program()
         self.program.run(self.qua_program)
 
     def run_parameter_set(

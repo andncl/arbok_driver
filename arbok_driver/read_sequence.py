@@ -146,17 +146,12 @@ class ReadSequence(SubSequence):
                     save_results = readout_conf["save_results"]
                 else:
                     save_results = True
-                if "params" in readout_conf:
-                    params = readout_conf["params"]
-                else:
-                    params = {}
-
                 abstract_readout = ReadoutClass(
                     name = readout_name,
                     attr_name = readout_conf["name"],
                     sequence = self,
                     save_results = save_results,
-                    params = params,
+                    **readout_conf["args"],
                 )
                 readout_group[readout_name] = abstract_readout
                 self._abstract_readouts[readout_name] = abstract_readout
