@@ -72,11 +72,8 @@ class List(SequenceParameter):
     """ Default: Strings """
     sweep_validator = Sequence()
 
-class Int(SequenceParameter):
-    qua_type = int
-    """ Default: int """
-    validator = Ints()
-    sweep_validator = MultiTypeOr(Numbers(), Arrays(valid_types = [int]))
+class Int(Time):
+    unit = '#'
 
 class Radian(SequenceParameter):
     unit = 'pi'
