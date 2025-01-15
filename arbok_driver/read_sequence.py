@@ -213,4 +213,5 @@ class ReadSequence(SubSequence):
         qm_elements = []
         for _, signal in self.signals.items():
             qm_elements += signal.readout_elements.values()
-        return list(set(qm_elements))
+        # this is meant to be deterministic with non duplicates in the list.
+        return list(dict.fromkeys(qm_elements))
