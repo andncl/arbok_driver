@@ -174,7 +174,18 @@ class ArbokDriver(qc.Instrument):
 
     def create_measurement_from_experiment(
             self, name, experiment, qc_measurement_name = None) -> Measurement:
-        """Creates a QCoDeS measurement from an arbok experiment"""
+        """
+        Creates an arbok and QCoDeS measurement from an arbok experiment
+        
+        Args:
+            name (str): Name of the measurement (py. variable name compliant)
+            experiment (ArbokExperiment): Experiment to be run
+            qc_measurement_name (str): Name of the QCoDeS measurement
+                (as it will be saved in the database)
+
+        Returns:
+            measurement (arbok_driver.Measurement): Measurement instance
+        """
         measurement = Measurement(
             parent = self,
             name = name,
@@ -211,6 +222,7 @@ class ArbokDriver(qc.Instrument):
             sweeps (list): List of sweep parameters
             gettables (str): Gettables to be registered in the measurement
             gettable_keywords (dict): Keywords to search for gettable parameters
+            sweep_list (list): List of of sweep dicts for external instruments
         """
         meas = self.create_measurement_from_experiment(
             name = measurement_name, experiment = arbok_experiment)
