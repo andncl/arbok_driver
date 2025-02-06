@@ -554,11 +554,21 @@ class Measurement(SequenceBase):
     def _add_subsequence(
         self,
         name: str,
-        subsequence: SubSequence | str,
+        subsequence: SubSequence,
         sequence_config: dict = None,
         insert_sequences_into_name_space: dict = None,
-        **kwargs) -> None:
-        """Adds a subsequence to the sequence"""
+        **kwargs
+        ) -> None:
+        """
+        Adds a subsequence to the sequence
+        
+        Args:
+            name (str): Name of the subsequence
+            subsequence (SubSequence): Subsequence to be added
+            sequence_config (dict): Config containing all measurement params
+            insert_sequences_into_name_space (dict): Name space to insert the
+                subsequence into (e.g locals(), globals()) defaults to None
+        """
         if subsequence == 'default':
             subsequence = SubSequence
         if not issubclass(subsequence, SubSequence):
@@ -577,15 +587,32 @@ class Measurement(SequenceBase):
             name_space[name] = seq_instance
         return seq_instance
 
-    def get_qc_measurement(self, measurement_name: str
-                           )-> qc.dataset.Measurement:
-        """Creates a QCoDeS measurement from the given experiment"""
+    def get_qc_measurement(
+            self, measurement_name: str) -> qc.dataset.Measurement:
+        """
+        Creates a QCoDeS measurement from the given experiment
+        
+        Args:
+            measurement_name (str): Name of the QCoDeS measurement
+                (as it will be saved in the database)
+                
+        Returns:
+            qc_measurement (qc.dataset.Measurement): Measurement instance
+        """
         self.qc_measurement = qc.dataset.Measurement(
             exp = self.qc_experiment, name = measurement_name)
         return self.qc_measurement
 
     def get_measurement_loop_function(self, sweep_list_arg: list) -> callable:
-        """Returns the measurement loop function"""
+        """
+        Returns the measurement loop function
+        
+        Args:
+            sweep_list_arg (list): List of of sweep dicts for external instruments
+
+        Returns:
+            run_loop (callable): Measurement loop function
+        """
         if self.qc_experiment is None:
             raise ValueError("No QCoDeS experiment set")
         if self.qc_measurement is None:
