@@ -8,7 +8,6 @@ from qm.quantum_machines_manager import QuantumMachinesManager
 
 import qcodes as qc
 
-from .measurement_helpers import create_measurement_loop
 from .measurement import Measurement
 from .sequence_base import SequenceBase
 from .sample import Sample
@@ -20,6 +19,7 @@ class ArbokDriver(qc.Instrument):
     physical OPX instrument
     TODO: Add ask_raw and write_raw abstract methods
     """
+
     def __init__(
             self,
             name: str,
@@ -172,12 +172,29 @@ class ArbokDriver(qc.Instrument):
         """Abstract method from qcodes Instrument"""
         raise NotImplementedError
 
+    def create_measurement_from_experiment(
+            self, name, experiment, qc_measurement_name = None) -> Measurement:
+        """Creates a QCoDeS measurement from an arbok experiment"""
+        measurement = Measurement(
+            parent = self,
+            name = name,
+            sample = self.sample,
+            sequence_config = self.sample.param_config
+            )
+        if qc_measurement_name is None:
+            qc_measurement_name = experiment.name
+        measurement.qc_experiment = qc.dataset.load_or_create_experiment(
+            experiment.name, self.sample.name)
+        measurement.qc_measurement_name = qc_measurement_name
+        measurement.add_subsequences_from_dict(experiment.sequences)
+        return measurement
+
     def add_sequence_and_create_qc_measurement(
         self,
         measurement_name: str,
         arbok_experiment,
-        iterations: str,
-        sweeps: dict,
+        iterations: str = None,
+        sweeps: dict = None,
         gettables = None,
         gettable_keywords = None,
         sweep_list: list = None
@@ -195,46 +212,34 @@ class ArbokDriver(qc.Instrument):
             gettables (str): Gettables to be registered in the measurement
             gettable_keywords (dict): Keywords to search for gettable parameters
         """
-        experiment = qc.dataset.load_or_create_experiment(
-            arbok_experiment.name, self.sample.name)
-        meas = qc.dataset.Measurement(exp = experiment, name = measurement_name)
-        ### Below is a workaround to add a parameter config to the sample
-        ### This will be changed in the future
-        seq = Measurement(
-            parent = self,
-            name = measurement_name.replace(' ', '_'),
-            sample = self.sample,
-            sequence_config = self.sample.param_config
-            )
-        seq.add_subsequences_from_dict(arbok_experiment.sequences)
+        meas = self.create_measurement_from_experiment(
+            name = measurement_name, experiment = arbok_experiment)
+
         if sweeps is not None:
-            seq.set_sweeps(*sweeps)
+            meas.set_sweeps(*sweeps)
 
         if gettables is not None and gettable_keywords is not None:
             raise ValueError(
                 "Please provide gettables OR gettable_keywords, not both")
         elif gettables is not None:
             ### Registering all gettables
-            seq.register_gettables(*gettables)
+            meas.register_gettables(*gettables)
         elif gettable_keywords is not None:
             ### Finding all gettables with the given keywords
-            seq.register_gettables(keywords=gettable_keywords)
+            meas.register_gettables(keywords=gettable_keywords)
         else:
             ### Registers all available gettables if both are None
-            seq.register_gettables(*seq.available_gettables)
+            meas.register_gettables(*meas.available_gettables)
 
         if iterations is not None:
             sweep_list_arg = [{self.iteration: np.arange(iterations)}]
         else:
             sweep_list_arg = []
-
         if sweep_list is not None:
             sweep_list_arg.extend(sweep_list)
 
-        @create_measurement_loop(sequence = seq, measurement=meas, sweep_list=sweep_list_arg)
-        def run_loop():
-            pass
-        return run_loop, seq
+        run_loop = meas.get_measurement_loop_function(sweep_list_arg)
+        return run_loop, meas
 
 class ShotNumber(qc.Parameter):
     """ Parameter that keeps track of averaging during measurement """
