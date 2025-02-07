@@ -95,7 +95,7 @@ class GenericTuningInterface:
                     f"ObservableBase. Is {type(observable)}")
             self.observables[tag] = new_obs
 
-        if nr_shots is not None or nr_shots > 1:
+        if nr_shots is not None and nr_shots > 1:
             self.sequence.set_sweeps(
                 {self.sequence.iteration: np.arange(nr_shots)})
             
