@@ -35,7 +35,6 @@ class Measurement(SequenceBase):
                 their initial values and units0
             **kwargs: Key word arguments for InstrumentModule
         """
-        print("Measrueement init")
         super().__init__(parent, name, sample, sequence_config)
         self.driver = parent
         self.measurement = self
