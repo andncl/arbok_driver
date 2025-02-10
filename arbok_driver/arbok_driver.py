@@ -207,7 +207,8 @@ class ArbokDriver(qc.Instrument):
             sequence_config = self.sample.param_config
             )
         seq.add_subsequences_from_dict(arbok_experiment.sequences)
-        seq.set_sweeps(*sweeps)
+        if sweeps is not None:
+            seq.set_sweeps(*sweeps)
 
         if gettables is not None and gettable_keywords is not None:
             raise ValueError(
@@ -222,7 +223,11 @@ class ArbokDriver(qc.Instrument):
             ### Registers all available gettables if both are None
             seq.register_gettables(*seq.available_gettables)
 
-        sweep_list_arg = [{self.iteration: np.arange(iterations)}]
+        if iterations is not None:
+            sweep_list_arg = [{self.iteration: np.arange(iterations)}]
+        else:
+            sweep_list_arg = []
+
         if sweep_list is not None:
             sweep_list_arg.extend(sweep_list)
 
