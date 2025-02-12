@@ -6,8 +6,10 @@ from collections import Counter
 
 import numpy as np
 from qm import qua, generate_qua_script
+import qcodes as qc
 from qcodes.validators import Arrays
 
+from .measurement_helpers import create_measurement_loop
 from .gettable_parameter import GettableParameter
 from .observable import ObservableBase
 from .sequence_parameter import SequenceParameter
@@ -18,6 +20,10 @@ from .sweep import Sweep
 
 class Measurement(SequenceBase):
     """Class describing a Measurement in an OPX driver"""
+    qc_experiment = None
+    qc_measurement = None
+    qc_measurement_name = None
+
     def __init__(
             self,
             parent,
@@ -332,9 +338,11 @@ class Measurement(SequenceBase):
         """Compiles the QUA code and runs it"""
         self.reset_registered_gettables()
         qua_program = self.get_qua_program()
+        print('QUA program compiled')
         if save_path:
             with open(save_path, 'w', encoding="utf-8") as file:
                 file.write(generate_qua_script(qua_program))
+        print('QUA program saved')
         self.driver.run(qua_program)
         print('QUA program compiled and is running')
 
@@ -546,11 +554,21 @@ class Measurement(SequenceBase):
     def _add_subsequence(
         self,
         name: str,
-        subsequence: SubSequence | str,
+        subsequence: SubSequence,
         sequence_config: dict = None,
         insert_sequences_into_name_space: dict = None,
-        **kwargs) -> None:
-        """Adds a subsequence to the sequence"""
+        **kwargs
+        ) -> None:
+        """
+        Adds a subsequence to the sequence
+        
+        Args:
+            name (str): Name of the subsequence
+            subsequence (SubSequence): Subsequence to be added
+            sequence_config (dict): Config containing all measurement params
+            insert_sequences_into_name_space (dict): Name space to insert the
+                subsequence into (e.g locals(), globals()) defaults to None
+        """
         if subsequence == 'default':
             subsequence = SubSequence
         if not issubclass(subsequence, SubSequence):
@@ -568,3 +586,44 @@ class Measurement(SequenceBase):
             name_space = insert_sequences_into_name_space
             name_space[name] = seq_instance
         return seq_instance
+
+    def get_qc_measurement(
+            self, measurement_name: str) -> qc.dataset.Measurement:
+        """
+        Creates a QCoDeS measurement from the given experiment
+        
+        Args:
+            measurement_name (str): Name of the QCoDeS measurement
+                (as it will be saved in the database)
+                
+        Returns:
+            qc_measurement (qc.dataset.Measurement): Measurement instance
+        """
+        self.qc_measurement = qc.dataset.Measurement(
+            exp = self.qc_experiment, name = measurement_name)
+        return self.qc_measurement
+
+    def get_measurement_loop_function(self, sweep_list_arg: list) -> callable:
+        """
+        Returns the measurement loop function
+        
+        Args:
+            sweep_list_arg (list): List of of sweep dicts for external instruments
+
+        Returns:
+            run_loop (callable): Measurement loop function
+        """
+        if self.qc_experiment is None:
+            raise ValueError("No QCoDeS experiment set")
+        if self.qc_measurement is None:
+            _ = self.get_qc_measurement(self.qc_measurement_name)
+        if self.sweeps is None:
+            raise ValueError("No sweeps set")
+
+        @create_measurement_loop(
+            sequence = self,
+            measurement = self.qc_measurement,
+            sweep_list = sweep_list_arg)
+        def run_loop():
+            pass
+        return run_loop
