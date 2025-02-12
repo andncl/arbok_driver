@@ -10,6 +10,15 @@ from .sequence_parameter import SequenceParameter
 
 class Sweep:
     """ Class characterizing a parameter sweep along one axis in the OPX """
+
+    _config_to_register = None
+    _parameters = None
+    _length = None
+    _inputs_are_streamed = None
+    _input_streams = None
+    _can_be_parameterized = None
+    _snake_scan = False # Assume by default non snake scanning
+
     def __init__(self, measurement, param_dict: dict, register_all = False):
         """
         Constructor class of Sweep class
@@ -17,19 +26,14 @@ class Sweep:
         Args:
             paret_sequence (SequenceBase): Parent sequence of the sweep
             param_dict (dict): Dict with parameters as keys and arrays as
-                setpoints for sweep
+                setpoints for sweep. If snake_scan is present in the dict,
+                use it.
             register_all (bool): Whether all parameters should be registered in
                 the QCoDeS measurement
         """
         self.measurement = measurement
-        self._param_dict = param_dict
-        self._config_to_register = None
-        self._parameters = None
-        self._length = None
-        self._inputs_are_streamed = None
-        self._input_streams = None
-        self._can_be_parameterized = None
         self.register_all = register_all
+        self._config = param_dict
         self.configure_sweep()
         self._check_if_parametrizable()
 
@@ -91,7 +95,7 @@ class Sweep:
     @property
     def config(self) -> dict:
         """Config dict for parameter sweep. Keys are params, values setpoints"""
-        return self._param_dict
+        return self._config
 
     @property
     def config_to_register(self) -> list:
@@ -112,13 +116,13 @@ class Sweep:
         self.check_input_dict()
         self._parameters = []
         self._config_to_register = {}
-        for i, parameter in enumerate(self._param_dict.keys()):
+        for i, parameter in enumerate(self.config.keys()):
             self._parameters.append(parameter)
             ### Remove scalar validators and setup the sweep_validator
             while parameter.remove_validator():
                 pass
             parameter.add_validator(parameter.sweep_validator)
-            parameter.validate(self._param_dict[parameter])
+            parameter.validate(self.config[parameter])
             ### Usually not all params are registered (issue with live plotting)
             if self.register_all:
                 setpoints = parameter.convert_to_real_units(
@@ -153,9 +157,9 @@ class Sweep:
             2) Checks if all sweep setpoint arrays have same lengths
             3) Checks if all input streams have the same dimension
         """
-        self._param_dict = self._convert_str_keys_to_param(self._param_dict)
+        self._config = self._convert_str_keys_to_param(self._config)
         param_types_valid = []
-        for param in self._param_dict.keys():
+        for param in self.config.keys():
             param_types_valid.append(
              isinstance(param,(SequenceParameter, Parameter))
             )
@@ -173,7 +177,7 @@ class Sweep:
             else:
                 raise ValueError(
                         "Keys in sweep dictionairies must be of type int, list"
-                        f"or numpy.ndarray, is:  {type(values)}")
+                        f" or numpy.ndarray, is:  {type(values)}")
         ### checks if all setpoint arrays have the same length
         if param_arrays:
             list_iter = iter(param_arrays)

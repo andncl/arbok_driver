@@ -224,6 +224,7 @@ class ArbokDriver(qc.Instrument):
             gettable_keywords (dict): Keywords to search for gettable parameters
             sweep_list (list): List of of sweep dicts for external instruments
         """
+
         meas = self.create_measurement_from_experiment(
             name = measurement_name, experiment = arbok_experiment)
 
@@ -247,6 +248,7 @@ class ArbokDriver(qc.Instrument):
             sweep_list_arg = [{self.iteration: np.arange(iterations)}]
         else:
             sweep_list_arg = []
+
         if sweep_list is not None:
             sweep_list_arg.extend(sweep_list)
 

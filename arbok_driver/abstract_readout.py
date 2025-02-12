@@ -168,7 +168,7 @@ class AbstractReadout(ABC):
         qm_elements = []
         for _, obs in self.observables.items():
             qm_elements += obs.qm_elements
-        return list(set(qm_elements))
+        return list(dict.fromkeys(qm_elements))
 
     @abstractmethod
     def qua_measure(self):

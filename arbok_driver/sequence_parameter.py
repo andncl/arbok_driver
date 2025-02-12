@@ -19,6 +19,12 @@ class SequenceParameter(Parameter):
     sweep_validator = None
     unit = ''
     qua_type = int
+    input_stream = None
+    qua_sweeped = False
+    qua_sweep_arr = None
+    qua_var = None
+    value = None
+    can_be_parameterized = False
 
     def __init__(self, element, config_name, var_type, *args, **kwargs):
         """
@@ -33,13 +39,7 @@ class SequenceParameter(Parameter):
         super().__init__(*args, **kwargs)
         self.element = element
         self.config_name = config_name
-        self.qua_sweeped = False
-        self.qua_sweep_arr = None
-        self.qua_var = None
-        self.value = None
         self.var_type = var_type
-        self.input_stream = None
-        self.can_be_parameterized = False
 
     @property
     def sequence_path(self) -> str:
