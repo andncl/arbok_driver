@@ -249,6 +249,11 @@ class ArbokDriver(qc.Instrument):
         else:
             sweep_list_arg = []
 
+        if iterations is not None:
+            sweep_list_arg = [{self.iteration: np.arange(iterations)}]
+        else:
+            sweep_list_arg = []
+
         if sweep_list is not None:
             sweep_list_arg.extend(sweep_list)
 
