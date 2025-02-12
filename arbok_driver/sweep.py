@@ -169,7 +169,7 @@ class Sweep:
         )
         param_arrays = []
         param_streams = []
-        for values in self._param_dict.values():
+        for values in self._config.values():
             if isinstance(values, np.ndarray):
                 param_arrays.append(values)
             elif isinstance(values, int):
