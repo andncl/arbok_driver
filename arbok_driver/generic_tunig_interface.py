@@ -10,6 +10,8 @@ import xarray as xr
 import numpy as np
 from rich.progress import Progress
 from rich import print
+
+from arbok_driver import measurement
 from .gettable_parameter import GettableParameter
 from .observable import ObservableBase
 
@@ -20,7 +22,7 @@ class GenericTuningInterface:
     bounds = None
     input_stream_params = None
     program = None
-    sequence = None
+    measurement = None
     observables = None
     qua_program = None
 
@@ -71,7 +73,7 @@ class GenericTuningInterface:
                             f"  input stream (factor: {factor}) ({name})")
             self.bounds[name] = param_conf['bounds']
 
-        self.sequence.input_stream_parameters = self.input_stream_params
+        self.measurement.input_stream_parameters = self.input_stream_params
 
     def add_observales_and_sweeps(
             self, nr_shots: int = 500, **tags_and_observables):
@@ -96,8 +98,8 @@ class GenericTuningInterface:
             self.observables[tag] = new_obs
 
         if nr_shots is not None and nr_shots > 1:
-            self.sequence.set_sweeps(
-                {self.sequence.iteration: np.arange(nr_shots)})
+            self.measurement.set_sweeps(
+                {self.measurement.iteration: np.arange(nr_shots)})
             
     def compile_connect_and_run(self, host_ip: str):
         """
@@ -105,7 +107,7 @@ class GenericTuningInterface:
         given host ip.
         """
         self.program.connect_opx(host_ip = host_ip)
-        self.qua_program = self.sequence.get_qua_program()
+        self.qua_program = self.measurement.get_qua_program()
         self.program.run(self.qua_program)
 
     def run_parameter_set(
@@ -133,7 +135,7 @@ class GenericTuningInterface:
         else:
             raise ValueError(
                 f"Input params must be list or dict. Are {type(input_params)}")
-        self.sequence.insert_single_value_input_streams(input_param_dict)
+        self.measurement.insert_single_value_input_streams(input_param_dict)
         self.program.qm_job.resume()
 
         observable_results = {}
@@ -182,7 +184,7 @@ class GenericTuningInterface:
                 task = progress.add_task(
                     "Sampling parameter sets", total=population)
                 batch_task = progress.add_task(
-                    "Sampling batch", total=self.sequence.sweep_size)
+                    "Sampling batch", total=self.measurement.sweep_size)
                 total_nr = len(sobol_samples)
                 ### Looping over all sampled parameter sets
                 for i, x in enumerate(sobol_samples):
@@ -332,7 +334,7 @@ class GenericTuningInterface:
         dataset['obs'] = xr.DataArray(
             np.array(all_obs),
             coords = {'index':np.arange(nr_indices),
-                      'shot_nr': np.arange(self.sequence.sweep_size)},
+                      'shot_nr': np.arange(self.measurement.sweep_size)},
             dims = ('index', 'shot_nr')
             )
         return dataset
