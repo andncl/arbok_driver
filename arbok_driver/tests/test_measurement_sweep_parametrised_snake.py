@@ -38,15 +38,15 @@ v_range = np.linspace(-v_start, v_start, 100)
 v_arr = np.array([0, 1, 10, 100], dtype=float)
 
 
-sweeps = [{'v_set_home_P1': v_range},
+sweeps = [{'v_set_home_P1': v_range, 'snake': True},
         {'v_set_home_J1': v_arr},
-        {'v_set_home_P2': 32},
+        {'v_set_home_P2': 32, 'snake': False},
         ]
 
 measurement.set_sweeps(*sweeps)
 
 tmp_dir = tempfile.gettempdir()
-file_path = os.path.join(tmp_dir, "arbok_test", "sweep_test.qua")
+file_path = os.path.join(tmp_dir, "arbok_test", "sweep_param_snake_test.qua")
 os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
 measurement.print_qua_program_to_file(file_path)
