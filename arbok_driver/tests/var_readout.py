@@ -6,9 +6,6 @@ from arbok_driver import ReadSequence, AbstractReadout, AbstractObservable
 class VarReadout(AbstractReadout):
     """Helper class enabling variable readout from a given signal"""
     signals: list
-    thresholds: dict
-    current_obs  = {}
-    state_obs = {}
 
     def __init__(
             self,
@@ -34,7 +31,8 @@ class VarReadout(AbstractReadout):
 
     def qua_measure(self):
         """Measures the given observables and assigns the result to the vars"""
-        for signal in self.signals:
+        for signal in self.signal_names:
+            print(self.variable_obs[signal].qua_var, self.variables[signal]())
             qua.assign(
                 self.variable_obs[signal].qua_var, self.variables[signal]()
                 )
@@ -43,13 +41,18 @@ class VarReadout(AbstractReadout):
         """Creates the observables for the given readout"""
         self.observables = {}
         self.variable_obs = {}
+        self.signal_names = {}
+
         self.variables = self.get_params_with_prefix('signal_param')
-        self.signals = self.variables.keys()
-        for signal, var in self.variables.items():
-            self.variable_obs[signal] = obs = AbstractObservable(
-                observable_name = self.attr_name,
+        self.signal_names = self.variables.keys()
+        print('variables', self.variables)
+        print('signals', self.signal_names)
+        for signal_name, var in self.variables.items():
+            self.variables[signal_name] = getattr(self.sequence, var())
+            self.variable_obs[signal_name] = obs = AbstractObservable(
+                observable_name = f'{self.attr_name}_{signal_name}',
                 abstract_readout = self,
-                signal = signal,
-                qua_type = qua.fixed
+                signal = signal_name, #self.sequence.signals[signal_name],
+                qua_type = qua.fixed # var.qua_type
             )
             self.observables[obs.full_name] = obs
