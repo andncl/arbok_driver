@@ -21,8 +21,9 @@ measurement_config = {
     },
 }
 
-sample = SimpleNamespace(**{'elements' : [ 'output', 'loopback' ], 'divider_config' : {} })
-sample.config = config
+# sample = SimpleNamespace(**{'elements' : [ 'output', 'loopback' ], 'divider_config' : {} })
+# sample.config = config
+sample = nova
 arbok_driver = ArbokDriver('arbok_driver', sample)
 
 measurement = Measurement(
@@ -59,7 +60,7 @@ measurement.set_sweeps(*sweeps)
 # measurement.register_gettables(keywords=[('atq_stream')])
 
 tmp_dir = tempfile.gettempdir()
-file_path = os.path.join(tmp_dir, "arbok_test", "sweep_param_snake_test.qua")
+file_path = os.path.join("test_vectors", "sweep_param_snake_test.py")
 os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
 measurement.print_qua_program_to_file(file_path)

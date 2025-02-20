@@ -11,7 +11,7 @@ var_readout_config = {
         },
     },
     'signals':{
-        'var_signal':{},
+        'varSignal':{},
     },
     'readout_groups': {
         'var_readouts': {
@@ -22,7 +22,7 @@ var_readout_config = {
                     'signal_param': {
                         'type': String,
                         'elements': {
-                            'var_signal': 'dummy_var',
+                            'varSignal': 'dummy_var',
                         }
                     },
                 }
