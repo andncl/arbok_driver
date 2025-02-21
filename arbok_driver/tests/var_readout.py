@@ -32,7 +32,6 @@ class VarReadout(AbstractReadout):
     def qua_measure(self):
         """Measures the given observables and assigns the result to the vars"""
         for signal in self.signal_names:
-            print(self.variable_obs[signal].qua_var, self.variables[signal]())
             qua.assign(
                 self.variable_obs[signal].qua_var, self.variables[signal]()
                 )
@@ -45,8 +44,6 @@ class VarReadout(AbstractReadout):
 
         self.variables = self.get_params_with_prefix('signal_param')
         self.signal_names = self.variables.keys()
-        print('variables', self.variables)
-        print('signals', self.signal_names)
         for signal_name, var in self.variables.items():
             self.variables[signal_name] = getattr(self.sequence, var())
             self.variable_obs[signal_name] = obs = AbstractObservable(
