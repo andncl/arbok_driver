@@ -18,6 +18,11 @@ class AllTheQua(ReadSequence):
     def qua_sequence(self):
         qua.assign(self.qua_declare_atq, 2)
         qua.align(*self.elements)
+        # This can be used to display snake scanning in the collected output stream
+        # with qua.if_(self.measurement.sweeps[0].sweep_snake_var):
+        #     qua.assign(self.dummy_var.get_raw(), self.dummy_var.get_raw()-0.0001)
+        # with qua.else_():
+        #     qua.assign(self.dummy_var.get_raw(), self.dummy_var.get_raw()+0.0001)
         qua.assign(self.dummy_var.get_raw(), self.dummy_var.get_raw()+0.0001)
         qua.align()
 

@@ -303,13 +303,13 @@ class Sweep:
         ### Declaring sweep index variable and respective loop for sweep
         sweep_idx_var = qua.declare(int)
         if self._snake_scan:
-            sweep_snake_var = qua.declare(bool, 1)
+            self.sweep_snake_var = qua.declare(bool, True)
         ### Assigns start values to all parameters that can be parameterized
         for param, sss in parameters_sss.items():
             if self._snake_scan:
-                qua.assign(sweep_snake_var, sweep_snake_var==0)
+                qua.assign(self.sweep_snake_var, ~self.sweep_snake_var)
             if self._snake_scan:
-                with qua.if_(sweep_snake_var):
+                with qua.if_(self.sweep_snake_var):
                     qua.assign(param.qua_var, sss['stop'])
                 with qua.else_():
                     qua.assign(param.qua_var, sss['start'])
@@ -337,7 +337,7 @@ class Sweep:
                         if not self._snake_scan:
                             qua.assign(param.qua_var, param.qua_var + sss['step'])
                         else:
-                            with qua.if_(sweep_snake_var):
+                            with qua.if_(self.sweep_snake_var):
                                 qua.assign(param.qua_var, param.qua_var - sss['step'])
                             with qua.else_():
                                 qua.assign(param.qua_var, param.qua_var + sss['step'])
