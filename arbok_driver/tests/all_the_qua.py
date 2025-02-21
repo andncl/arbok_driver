@@ -18,11 +18,10 @@ class AllTheQua(ReadSequence):
     def qua_sequence(self):
         qua.assign(self.qua_declare_atq, 2)
         qua.align(*self.elements)
-        qua.assign(self.qua_declare_atq, 3)
         qua.assign(self.dummy_var.get_raw(), self.dummy_var.get_raw()+0.0001)
         qua.align()
 
     def qua_after_sequence(self):
-
+        qua.assign(self.qua_declare_atq, 3)
         for _ , readout in self.var_readouts.items():
             readout.qua_measure_and_save()
