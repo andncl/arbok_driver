@@ -10,6 +10,7 @@ import xarray as xr
 import numpy as np
 from rich.progress import Progress
 from rich import print
+from IPython import display
 
 from arbok_driver import measurement
 from .gettable_parameter import GettableParameter
@@ -150,8 +151,11 @@ class GenericTuningInterface:
         return float(cost), observable_results, saved_params
 
     def run_cross_entropy_sampler(
-            self, populations: list, select_frac: float = 0.3,
-            sampling_params_to_plot: list = None) -> xr.Dataset:
+            self, populations: list,
+            select_frac: float = 0.3,
+            plot_histograms: bool = False,
+            sampling_params_to_plot: list = None
+            ) -> xr.Dataset:
         """
         Runs the cross entropy method for the given populations.
 
@@ -187,6 +191,8 @@ class GenericTuningInterface:
                     "Sampling batch", total=self.measurement.sweep_size)
                 total_nr = len(sobol_samples)
                 ### Looping over all sampled parameter sets
+                if plot_histograms:
+                    fig, axs = plt.subplots(1, 2, figsize = (9,5))
                 for i, x in enumerate(sobol_samples):
                     ### Running the parameter set
                     r, obs, par_dict = self.run_parameter_set(
@@ -208,7 +214,21 @@ class GenericTuningInterface:
                         )
                     progress.refresh()
                     data_index += 1
-            print(f"Total time elapsed: {time.time()-t0:.2f} s")
+                    if plot_histograms:
+                        axs[0].cla()
+                        axs[0].set_title('Best histogram ')
+                        if len(all_rewards) == 0 or r > np.max(all_rewards):
+                            for name, data in obs.items():
+                                _ = axs[0].hist(data, label = name, alpha = 0.6)
+                        axs[1].cla()
+                        axs[1].set_title(f'Last histogram({i}/{total_nr})')
+                        for name, data in obs.items():
+                            _ = axs[1].hist(data, label = name, alpha = 0.6)
+
+                        display.clear_output(wait=True)
+                        display.display(plt.gcf())
+                plt.close()
+            print(f"Total time elapsed: {time.time()-t0:.0f}s")
             ### Updating the bounds for the next iteration
             dataset = self._merge_cem_data_into_xarray(
                 all_rewards, all_obs, all_params)
