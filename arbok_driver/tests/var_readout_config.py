@@ -5,7 +5,6 @@ var_readout_config = {
         'dummy_var': {
             'type': Voltage,
             'value': 0.,
-            # 'is_variable': True
             'validator': None,
             'scale': None
         },
