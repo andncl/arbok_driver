@@ -16,12 +16,12 @@ measurement_config = {
     'parameters': {
         'v_set_home': {
             'type': Voltage,
-            'elements': { 'output': 0, 'loopback': 0 }
+            'elements': { 'output': 0, 'loopback': 0, 'lineb': 0 }
         },
     },
 }
 
-sample = SimpleNamespace(**{'elements' : [ 'output', 'loopback' ], 'divider_config' : {} })
+sample = SimpleNamespace(**{'elements' : [ 'output', 'loopback', 'lineb' ], 'divider_config' : {} })
 sample.config = config
 arbok_driver = ArbokDriver('arbok_driver', sample)
 
@@ -44,12 +44,15 @@ measurement.qc_experiment = qc.dataset.load_or_create_experiment('experiment.nam
 
 import numpy as np
 v_start = 0.1
-v_range = np.linspace(-v_start, v_start, 100)
+v_range_a = np.linspace(-v_start, v_start, 10)
+v_range_b = np.linspace(-v_start, v_start, 20)
+v_range_c = np.linspace(-v_start, v_start, 30)
 v_arr = np.array([0, 1, 10, 100], dtype=float)
 
 sweeps = [
-    {'v_set_home_loopback': v_range, 'snake': False},
-    {'v_set_home_output': v_range, 'snake': True},
+    {'v_set_home_loopback': v_range_a},
+    {'v_set_home_output': v_range_b, 'snake': False},
+    {'v_set_home_lineb': v_range_c, 'snake': True},
         ]
 
 measurement.set_sweeps(*sweeps)

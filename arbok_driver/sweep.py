@@ -17,7 +17,7 @@ class Sweep:
     _inputs_are_streamed = None
     _input_streams = None
     _can_be_parameterized = None
-    _snake_scan = False # Assume by default non snake scanning
+    snake_scan = False # Assume by default non snake scanning
 
     def __init__(self, measurement, param_dict: dict, register_all = False):
         """
@@ -35,7 +35,7 @@ class Sweep:
         self.register_all = register_all
         self._config = param_dict
         if 'snake' in self._config: # check if the user defined the snake state
-            self._snake_scan = self._config['snake']
+            self.snake_scan = self._config['snake']
             del self._config['snake']
         self.configure_sweep()
         self._check_if_parametrizable()
@@ -302,13 +302,13 @@ class Sweep:
 
         ### Declaring sweep index variable and respective loop for sweep
         sweep_idx_var = qua.declare(int)
-        if self._snake_scan:
+        if self.snake_scan:
             self.sweep_snake_var = qua.declare(bool, True)
         ### Assigns start values to all parameters that can be parameterized
         for param, sss in parameters_sss.items():
-            if self._snake_scan:
+            if self.snake_scan:
                 qua.assign(self.sweep_snake_var, ~self.sweep_snake_var)
-            if self._snake_scan:
+            if self.snake_scan:
                 with qua.if_(self.sweep_snake_var):
                     qua.assign(param.qua_var, sss['stop'])
                 with qua.else_():
@@ -334,7 +334,7 @@ class Sweep:
                     if param.can_be_parameterized:
                         if param == self.parameters[0]:
                             qua.assign(sweep_idx_var, sweep_idx_var + 1)
-                        if not self._snake_scan:
+                        if not self.snake_scan:
                             qua.assign(param.qua_var, param.qua_var + sss['step'])
                         else:
                             with qua.if_(self.sweep_snake_var):
