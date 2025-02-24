@@ -26,6 +26,12 @@ config = {
                             "sampling_rate": sampling_rate,
                             "upsampling_mode": "mw",
                         },
+                        3: {
+                            "offset": 0.0,
+                            "output_mode": "direct",
+                            "sampling_rate": sampling_rate,
+                            "upsampling_mode": "mw",
+                        },
                     },
                     "digital_outputs": {},
                     "analog_inputs": {
@@ -37,7 +43,7 @@ config = {
         }
     },
     "elements": {
-        "output": {
+        "elementA": {
             "singleInput": {
                 "port": ("con1", 1, 1),
             },
@@ -45,7 +51,7 @@ config = {
                 "cw": "const_pulse",
             },
         },
-        "loopback": {
+        "elementB": {
             "singleInput": {
                 "port": ("con1", 1, 2),
             },
@@ -59,9 +65,9 @@ config = {
             "time_of_flight": 180,
             "smearing": 0,
         },
-        "lineb": {
+        "elementC": {
             "singleInput": {
-                "port": ("con1", 1, 2),
+                "port": ("con1", 1, 3),
             },
             "operations": {
                 "cw": "const_pulse",
