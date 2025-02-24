@@ -105,7 +105,7 @@ class AbstractReadout(ABC):
         all_params = self.sequence.parameters
         full_prefix = f"{self.name}__{prefix}"
         param_names = [x for x in all_params if full_prefix in x]
-        element_list = [x.split(prefix)[1].split('_')[1] for x in param_names]
+        element_list = [x.split(full_prefix)[-1].split('_')[-1] for x in param_names]
         return {e: all_params[p] for e, p in zip(element_list, param_names)}
 
     def get_signals_and_observables(self, prefix: str) -> dict:

@@ -14,8 +14,8 @@ class ReadSequence(SubSequence):
         name,
         sample,
         sequence_config,
-        available_abstract_readouts = None,
-        available_readout_points = None
+        available_abstract_readouts = {},
+        available_readout_points = {}
         ):
         """
         Constructor class for ReadSequence class
