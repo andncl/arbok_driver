@@ -47,7 +47,7 @@ config = {
         },
         "loopback": {
             "singleInput": {
-                "port": ("con1", 1),
+                "port": ("con1", 1, 2),
             },
             "operations": {
                 "readout": "readout_pulse",
@@ -58,6 +58,14 @@ config = {
             },
             "time_of_flight": 180,
             "smearing": 0,
+        },
+        "lineb": {
+            "singleInput": {
+                "port": ("con1", 1, 2),
+            },
+            "operations": {
+                "cw": "const_pulse",
+            },
         },
     },
     "pulses": {
