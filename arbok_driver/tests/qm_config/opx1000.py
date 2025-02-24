@@ -43,7 +43,7 @@ config = {
         }
     },
     "elements": {
-        "elementA": {
+        "element_a": {
             "singleInput": {
                 "port": ("con1", 1, 1),
             },
@@ -51,7 +51,7 @@ config = {
                 "cw": "const_pulse",
             },
         },
-        "elementB": {
+        "element_b": {
             "singleInput": {
                 "port": ("con1", 1, 2),
             },
@@ -65,7 +65,7 @@ config = {
             "time_of_flight": 180,
             "smearing": 0,
         },
-        "elementC": {
+        "element_c": {
             "singleInput": {
                 "port": ("con1", 1, 3),
             },
