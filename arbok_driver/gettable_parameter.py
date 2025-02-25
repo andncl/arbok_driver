@@ -92,7 +92,8 @@ class GettableParameter(ParameterWithSetpoints):
 
         # First check that the cumulative product of sizes is the same as self.size
         if np.prod(sizes) != a_in.size:
-            raise ValueError(f"The cumulative product of sizes {np.prod(sizes)} must be equal to the total number of elements in the array {self.size}.")
+            raise ValueError(f"""The cumulative product of sizes {np.prod(sizes)} must be equal to the 
+                             total number of elements in the array {self.size}.""")
 
         # Duplicate the ndarray
         a = a_in
