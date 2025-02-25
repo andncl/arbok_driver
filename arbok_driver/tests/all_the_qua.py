@@ -23,6 +23,7 @@ class AllTheQua(ReadSequence):
         #     qua.assign(self.dummy_var.get_raw(), self.dummy_var.get_raw()-0.0001)
         # with qua.else_():
         #     qua.assign(self.dummy_var.get_raw(), self.dummy_var.get_raw()+0.0001)
+        # This can be used to have a continuously increasing the collected output stream 
         qua.assign(self.dummy_var.get_raw(), self.dummy_var.get_raw()+0.0001)
         qua.align()
 
