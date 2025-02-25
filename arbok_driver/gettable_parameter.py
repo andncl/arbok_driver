@@ -73,7 +73,45 @@ class GettableParameter(ParameterWithSetpoints):
         while not self.buffer_val.shape == (self.sequence.sweep_size,):
             time.sleep(0.1)
             self.buffer_val = self._fetch_opx_buffer()
-        return self.buffer_val.reshape(tuple((reversed(self.shape))))
+        return self._reshape_data(self.buffer_val, self.shape, self.snaked)
+
+    def _reshape_data(self, a_in: np.ndarray, sizes: tuple[int, ...], snaked: tuple[bool, ...]) -> np.ndarray:
+        """
+        Reshape the inherited array to be len(sizes). Iterate through each of the sizes gradually
+        reshaping the inherited array one dimensions at a time. If for dimension n, snaked[n] is true,
+        then reverse every second row of that dimension, then iterate to the next dimension.
+
+        Args:
+            a_in (np.ndarray): The input array to be reshaped.
+            sizes (Tuple[int, ...]): The target shape dimensions.
+            snaked (Tuple[bool, ...]): A tuple indicating which dimensions should have every second row reversed.
+
+        Returns:
+            np.ndarray: The reshaped array with specified dimensions and reversed rows as needed
+        """
+
+        # First check that the cumulative product of sizes is the same as self.size
+        if np.prod(sizes) != a_in.size:
+            raise ValueError(f"""The cumulative product of sizes {np.prod(sizes)} must be equal to the 
+                             total number of elements in the array {self.size}.""")
+
+        # Duplicate the ndarray
+        a = a_in
+
+        # Now iterate through each of the sizes
+        for i, (sz, sn) in enumerate(zip(sizes[:-1], snaked[1:])):
+            # Reshape a to have an extra dimension of size sz
+            if i < len(sizes)-1:
+                new_shape = a.shape[:-1] + (sz, -1)
+                a = a.reshape(new_shape)
+
+                # If sn is true, then reverse every second innermost row
+                if sn:
+                    if i == 0: # For the first dimension, reverse elements of even rows
+                        a[1::2] = np.flip(a[1::2], axis=-1)
+                    else:      # For subsequent dimensions, reverse every second innermost row (like before)
+                        a[:, 1::2] = np.flip(a[:, 1::2], axis=-1)
+        return a
 
     def _set_up_gettable_from_program(self):
         """
@@ -93,7 +131,8 @@ class GettableParameter(ParameterWithSetpoints):
             raise LookupError(
                 f"Buffer {self.name}_buffer not found. Try one of:"
                 f"{self.qm_job.result_handles.keys()}")
-        self.shape = tuple(sweep.length for sweep in self.sequence.sweeps)
+        self.shape = tuple(reversed(tuple(sweep.length for sweep in self.sequence.sweeps)))
+        self.snaked = tuple(reversed(tuple(sweep.snake_scan for sweep in self.sequence.sweeps)))
         self.batch_size = self.sequence.sweep_size
 
     def _wait_until_buffer_full(self, progress_bar = None):

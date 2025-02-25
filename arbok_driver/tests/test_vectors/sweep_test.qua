@@ -1,0 +1,54 @@
+
+# Single QUA script generated at 2025-02-14 11:30:23.064037
+# QUA library version: 1.2.1
+
+from qm import CompilerOptionArguments
+from qm.qua import *
+
+with program() as prog:
+    v1 = declare(fixed, )
+    v2 = declare(fixed, )
+    a1 = declare(fixed, value=[0.0, 1.0, 10.0, 100.0])
+    v3 = declare(fixed, )
+    input_stream_arbok_driver_measurement_name_v_set_home_P2 = declare_input_stream(fixed, 'arbok_driver_measurement_name_v_set_home_P2', size=32)
+    v4 = declare(int, value=0)
+    v5 = declare(int, )
+    v6 = declare(int, )
+    v7 = declare(int, )
+    with infinite_loop_():
+        pause()
+        assign(v4, 0)
+        assign(v5, 0)
+        advance_input_stream(input_stream_arbok_driver_measurement_name_v_set_home_P2)
+        assign(v6, 0)
+        with while_((v6<32)):
+            assign(v3, input_stream_arbok_driver_measurement_name_v_set_home_P2[v6])
+            with for_each_((v2),(a1)):
+                assign(v1, -0.1)
+                assign(v7, 0)
+                with while_((v7<100)):
+                    align()
+                    assign(v5, 1)
+                    assign(v5, 2)
+                    align("SET1", "P1", "J1", "P2")
+                    align()
+                    assign(v4, (v4+1))
+                    r1 = declare_stream()
+                    save(v4, r1)
+                    align()
+                    assign(v5, 3)
+                    align()
+                    r2 = declare_stream()
+                    save(v5, r2)
+                    assign(v7, (v7+1))
+                    assign(v1, (v1+0.0020181818181818183))
+            assign(v6, (v6+1))
+    with stream_processing():
+        r1.buffer(1).save("arbok_driver_measurement_name_shots")
+        r2.save_all("atq_stream")
+
+
+config = None
+
+loaded_config = None
+

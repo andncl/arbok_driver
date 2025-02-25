@@ -1,12 +1,13 @@
 from qm import qua
-from arbok_driver import SubSequence
+from arbok_driver import ReadSequence
 
-class AllTheQua(SubSequence):
+class AllTheQua(ReadSequence):
+    
     def qua_declare(self):
         print('qua_declare')
-        # comment
+        self.dummy_var.set(qua.declare(qua.fixed, 0.))
         self.qua_declare_atq = qua.declare(int)
-        self.qua_declare_atq_stream = qua.declare_stream()
+        super().qua_declare()
 
     def qua_before_sweep(self):
         qua.assign(self.qua_declare_atq, 0)
@@ -17,11 +18,16 @@ class AllTheQua(SubSequence):
     def qua_sequence(self):
         qua.assign(self.qua_declare_atq, 2)
         qua.align(*self.elements)
+        # # This can be used to display snake scanning in the collected output stream
+        # with qua.if_(self.measurement.sweeps[0].sweep_snake_var):
+        #     qua.assign(self.dummy_var.get_raw(), self.dummy_var.get_raw()-0.0001)
+        # with qua.else_():
+        #     qua.assign(self.dummy_var.get_raw(), self.dummy_var.get_raw()+0.0001)
+        # This can be used to have a continuously increasing the collected output stream 
+        qua.assign(self.dummy_var.get_raw(), self.dummy_var.get_raw()+0.0001)
+        qua.align()
 
     def qua_after_sequence(self):
         qua.assign(self.qua_declare_atq, 3)
-        qua.align()
-        qua.save(self.qua_declare_atq, self.qua_declare_atq_stream)
-
-    def qua_stream(self):
-        self.qua_declare_atq_stream.save_all('atq_stream')
+        for _ , readout in self.var_readouts.items():
+            readout.qua_measure_and_save()

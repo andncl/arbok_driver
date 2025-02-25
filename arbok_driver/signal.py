@@ -30,7 +30,7 @@ class Signal:
             self.available_readout_points = available_readout_points
 
         self._observables = {}
-        self._readout_elements = {}
+        self._readout_elements = {} 
         if 'elements' in self.config:
             self._readout_elements = self.config["elements"]
         self._readout_points = {}
