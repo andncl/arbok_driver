@@ -5,7 +5,6 @@ import logging
 import numpy as np
 import matplotlib.pyplot as plt
 from qcodes.parameters import ParameterWithSetpoints
-from typing import Tuple
 
 class GettableParameter(ParameterWithSetpoints):
     """
@@ -74,9 +73,9 @@ class GettableParameter(ParameterWithSetpoints):
         while not self.buffer_val.shape == (self.sequence.sweep_size,):
             time.sleep(0.1)
             self.buffer_val = self._fetch_opx_buffer()
-        return self._snake_reshape(self.buffer_val, self.shape, self.snaked)
+        return self._reshape_data(self.buffer_val, self.shape, self.snaked)
 
-    def _snake_reshape(self, a_in: np.ndarray, sizes: Tuple[int, ...], snaked: Tuple[bool, ...]) -> np.ndarray:
+    def _reshape_data(self, a_in: np.ndarray, sizes: tuple[int, ...], snaked: tuple[bool, ...]) -> np.ndarray:
         """
         Reshape the inherited array to be len(sizes). Iterate through each of the sizes gradually
         reshaping the inherited array one dimensions at a time. If for dimension n, snaked[n] is true,
