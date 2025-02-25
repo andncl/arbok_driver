@@ -308,7 +308,6 @@ class Sweep:
         for param, sss in parameters_sss.items():
             if self.snake_scan:
                 qua.assign(self.sweep_snake_var, ~self.sweep_snake_var)
-            if self.snake_scan:
                 with qua.if_(self.sweep_snake_var):
                     qua.assign(param.qua_var, sss['stop'])
                 with qua.else_():
@@ -318,7 +317,6 @@ class Sweep:
 
         qua.assign(sweep_idx_var, 0)
         with qua.while_(sweep_idx_var < self.length):
-        # with qua.while_((sweep_idx_var < self.length) & (sweep_idx_var >= 0)):
             for param in self.parameters:
                 if not param.can_be_parameterized:
                     qua.assign(
