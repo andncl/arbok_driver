@@ -195,7 +195,7 @@ class SequenceBase(InstrumentModule):
                 if isinstance(param, SequenceParameter):
                     logging.debug("Declaring %s as %s",
                                     param.name, param.var_type)
-                    param.qua_declare(setpoints)
+                    param.qua_declare_sweep_var(setpoints)
 
     def recursive_sweep_generation(self, sweeps):
         """

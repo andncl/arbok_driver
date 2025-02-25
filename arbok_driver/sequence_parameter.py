@@ -21,6 +21,7 @@ class SequenceParameter(Parameter):
     qua_type = int
     input_stream = None
     qua_sweeped = False
+    is_variable = False
     qua_sweep_arr = None
     qua_var = None
     value = None
@@ -95,7 +96,7 @@ class SequenceParameter(Parameter):
             pass
         self.add_validator(self.validator)
 
-    def qua_declare(self, setpoints):
+    def qua_declare_sweep_var(self, setpoints):
         """
         Declares the parameter inside qua code as variable and sets its class
         attributes accordingly. Note: This method can only be called inside the
@@ -110,7 +111,7 @@ class SequenceParameter(Parameter):
         )
         if self.var_type == int:
             setpoints = np.array(setpoints, dtype = int)
-        else: 
+        else:
             setpoints = np.array(setpoints)
         self.qua_sweeped = True
         self.vals= Arrays()
@@ -128,6 +129,14 @@ class SequenceParameter(Parameter):
                 name = self.sequence_path,
                 size = int(setpoints)
             )
+
+    def qua_declare_as_variable(self):
+        """
+        Declares the parameter inside qua code as variable.
+        Note: This method can only be called inside the qua.program() context.
+        """
+        if not self.qua_sweeped and self.is_variable:
+            self.qua_var = qua.declare(self.var_type, value = self.get())
 
     def add_stream_param_to_sequence(self):
         """Adds input stream to sequence"""
