@@ -25,6 +25,8 @@ class AllTheQua(ReadSequence):
         #     qua.assign(self.dummy_var.get_raw(), self.dummy_var.get_raw()+0.0001)
         # This can be used to have a continuously increasing the collected output stream 
         qua.assign(self.dummy_var.get_raw(), self.dummy_var.get_raw()+0.0001)
+        # Use the following to check the swept parameter
+        # qua.assign(self.dummy_var.get_raw(), self.measurement.sweeps[1].parameters[0].qua_var)
         qua.align()
 
     def qua_after_sequence(self):
