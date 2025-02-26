@@ -304,16 +304,7 @@ class Sweep:
         sweep_idx_var = qua.declare(int)
         if self.snake_scan:
             self.sweep_snake_var = qua.declare(bool, True)
-        ### Assigns start values to all parameters that can be parameterized
-        for param, sss in parameters_sss.items():
-            if self.snake_scan:
-                qua.assign(self.sweep_snake_var, ~self.sweep_snake_var)
-                with qua.if_(self.sweep_snake_var):
-                    qua.assign(param.qua_var, sss['stop'])
-                with qua.else_():
-                    qua.assign(param.qua_var, sss['start'])
-            else:
-                qua.assign(param.qua_var, sss['start'])
+            qua.assign(self.sweep_snake_var, ~self.sweep_snake_var)
 
         qua.assign(sweep_idx_var, 0)
         with qua.while_(sweep_idx_var < self.length):
@@ -321,6 +312,17 @@ class Sweep:
                 if not param.can_be_parameterized:
                     qua.assign(
                         param.qua_var, param.qua_sweep_arr[sweep_idx_var])
+            if not self.snake_scan:
+                for param, sss in parameters_sss.items():
+                    qua.assign(param.qua_var, sss['start'] + qua.lib.Cast.mul_fixed_by_int(sss['step'], sweep_idx_var))
+            else:
+                with qua.if_(self.sweep_snake_var):
+                    for param, sss in parameters_sss.items():
+                        qua.assign(param.qua_var, sss['stop'] - qua.lib.Cast.mul_fixed_by_int(sss['step'], sweep_idx_var))
+                with qua.else_():
+                    for param, sss in parameters_sss.items():
+                        qua.assign(param.qua_var, sss['start'] + qua.lib.Cast.mul_fixed_by_int(sss['step'], sweep_idx_var))
+
             qua.align()
 
             ### This is where either the whole sequence or the next sweep is run
@@ -332,13 +334,6 @@ class Sweep:
                     if param.can_be_parameterized:
                         if param == self.parameters[0]:
                             qua.assign(sweep_idx_var, sweep_idx_var + 1)
-                        if not self.snake_scan:
-                            qua.assign(param.qua_var, param.qua_var + sss['step'])
-                        else:
-                            with qua.if_(self.sweep_snake_var):
-                                qua.assign(param.qua_var, param.qua_var - sss['step'])
-                            with qua.else_():
-                                qua.assign(param.qua_var, param.qua_var + sss['step'])
                 if self.measurement.sweeps[0] == self:
                     self.measurement.qua_check_step_requirements(step_variable)
                 else:
