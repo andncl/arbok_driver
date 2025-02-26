@@ -31,6 +31,12 @@ config = {
                             "output_mode": "direct",
                             "sampling_rate": sampling_rate,
                             "upsampling_mode": "mw",
+                        },                        
+                        4: {
+                            "offset": 0.0,
+                            "output_mode": "direct",
+                            "sampling_rate": sampling_rate,
+                            "upsampling_mode": "mw",
                         },
                     },
                     "digital_outputs": {},
@@ -68,6 +74,14 @@ config = {
         "element_c": {
             "singleInput": {
                 "port": ("con1", 1, 3),
+            },
+            "operations": {
+                "cw": "const_pulse",
+            },
+        },
+        "element_d": {
+            "singleInput": {
+                "port": ("con1", 1, 4),
             },
             "operations": {
                 "cw": "const_pulse",

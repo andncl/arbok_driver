@@ -16,12 +16,12 @@ measurement_config = {
     'parameters': {
         'v_set_home': {
             'type': Voltage,
-            'elements': { 'element_a': 0, 'element_b': 0, 'element_c': 0 }
+            'elements': { 'element_a': 0, 'element_b': 0, 'element_c': 0, 'element_d': 0 }
         },
     },
 }
 
-sample = SimpleNamespace(**{'elements' : [ 'element_a', 'element_b', 'element_c' ], 'divider_config' : {} })
+sample = SimpleNamespace(**{'elements' : [ 'element_a', 'element_b', 'element_c', 'element_d' ], 'divider_config' : {} })
 sample.config = config
 arbok_driver = ArbokDriver('arbok_driver', sample)
 
@@ -51,8 +51,9 @@ v_arr = np.array([0, 1, 10, 100], dtype=float)
 
 sweeps = [
     {'v_set_home_element_a': v_range_a},
-    {'v_set_home_element_b': v_range_b, 'snake': False},
-    {'v_set_home_element_c': v_range_c, 'snake': True},
+    {'v_set_home_element_b': v_range_b},
+    {'v_set_home_element_c': v_range_c,
+     'v_set_home_element_d': v_range_c, 'snake': True},
         ]
 
 measurement.set_sweeps(*sweeps)
