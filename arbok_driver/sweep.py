@@ -306,12 +306,6 @@ class Sweep:
         if self.snake_scan:
             self.sweep_snake_var = qua.declare(bool, True)
             qua.assign(self.sweep_snake_var, ~self.sweep_snake_var)
-            with qua.if_(self.sweep_snake_var):
-                for param, sss in parameters_sss.items():
-                    qua.assign(param.qua_var, sss['stop'])
-            with qua.else_():
-                for param, sss in parameters_sss.items():
-                    qua.assign(param.qua_var, sss['start'])
         else:
             for param, sss in parameters_sss.items():
                 qua.assign(param.qua_var, sss['start'])
@@ -322,21 +316,23 @@ class Sweep:
                 if not param.can_be_parameterized:
                     qua.assign(
                         param.qua_var, param.qua_sweep_arr[sweep_idx_var])
-            qua.align()
-
-            ### This is where either the whole sequence or the next sweep is run
-            next_action()
-
             if not self.snake_scan:
                 for param, sss in parameters_sss.items():
                     qua.assign(param.qua_var, param.qua_var + sss['step'])
             else:
                 with qua.if_(self.sweep_snake_var):
                     for param, sss in parameters_sss.items():
-                        qua.assign(param.qua_var, param.qua_var - sss['step'])
+                        # qua.assign(param.qua_var, param.qua_var - sss['step'])
+                        qua.assign(param.qua_var, sss['stop'] - qua.lib.Cast.mul_fixed_by_int(sss['step'], sweep_idx_var))
                 with qua.else_():
                     for param, sss in parameters_sss.items():
-                        qua.assign(param.qua_var, param.qua_var + sss['step'])
+                        # qua.assign(param.qua_var, param.qua_var + sss['step'])
+                        qua.assign(param.qua_var, sss['start'] + qua.lib.Cast.mul_fixed_by_int(sss['step'], sweep_idx_var))
+
+            qua.align()
+
+            ### This is where either the whole sequence or the next sweep is run
+            next_action()
 
             ### After the sequence the parameter variable is incremented by step
             for param, sss in parameters_sss.items():
