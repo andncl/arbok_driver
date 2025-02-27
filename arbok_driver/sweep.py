@@ -314,7 +314,10 @@ class Sweep:
                         param.qua_var, param.qua_sweep_arr[sweep_idx_var])
             if not self.snake_scan:
                 for param, sss in parameters_sss.items():
-                    qua.assign(param.qua_var, sss['start'] + qua.lib.Cast.mul_fixed_by_int(sss['step'], sweep_idx_var))
+                    if param.qua_type == int:
+                        qua.assign(param.qua_var, sss['start'] + sss['step']*sweep_idx_var)
+                    else:
+                        qua.assign(param.qua_var, sss['start'] + qua.lib.Cast.mul_fixed_by_int(sss['step'], sweep_idx_var))
             else:
                 with qua.if_(self.sweep_snake_var):
                     for param, sss in parameters_sss.items():
