@@ -220,8 +220,14 @@ class SequenceBase(InstrumentModule):
         logging.debug("Adding qua loop for %s",
             [par.name for par in current_sweep.parameters])
 
+        # In some cases, the current sweep needs knowledge of the next sweep,
+        # for example the snake variable needs to be reset each outer loop.
+        next_sweep = None
+        if len(new_sweeps):
+            next_sweep = new_sweeps[-1]
         current_sweep.qua_generate_parameter_sweep(
-            lambda: self.recursive_sweep_generation(new_sweeps)
+            lambda: self.recursive_sweep_generation(new_sweeps),
+            next_sweep
             )
         return
 
