@@ -250,20 +250,42 @@ class Sweep:
                 param.can_be_parameterized = False
         return parameterizabel
 
-    def qua_generate_parameter_sweep(self, next_action: callable) -> None:
+    def qua_generate_parameter_sweep(self, next_action: callable, next_sweep) -> None:
         """
         Runs a qua loop based on the configured method. Currently three
         different methods are available:
             1) From input stream
             2) From parametrized array (start, stop, step)
             3) From an explicitly defined qua array
+        If necessary, we need to reset the snake var for the inner loop before
+        entering the snaking loop.
         """
+
+        # Reset the snake var if necessary
+        if next_sweep is not None:
+            ns_sv = next_sweep.get_snake_var()
+            if ns_sv is not None:
+                qua.assign(next_sweep.get_snake_var(), True)
+
         if self.inputs_are_streamed:
             self._qua_input_stream_loop(next_action)
         elif self.can_be_parameterized:
             self._qua_parmetrized_loop(next_action)
         else:
             self._qua_explicit_array_loop(next_action)
+
+    def get_snake_var(self):
+        """
+        Declare a snake_var if we are snaking and return that var if snaking.
+
+        Returns:
+            qua bool var : The snaking indicator if snaking, None otherwise
+        """
+        if self.snake_scan:
+            if not hasattr(self, 'sweep_snake_var'):
+                self.sweep_snake_var = qua.declare(bool, True)
+            return self.sweep_snake_var
+        return None
 
     def _qua_input_stream_loop(self, next_action: callable) -> None:
         """Runs a qua for loop for an array that is imported from a stream"""
@@ -303,8 +325,7 @@ class Sweep:
         ### Declaring sweep index variable and respective loop for sweep
         sweep_idx_var = qua.declare(int)
         if self.snake_scan:
-            self.sweep_snake_var = qua.declare(bool, True)
-            qua.assign(self.sweep_snake_var, ~self.sweep_snake_var)
+            qua.assign(self.get_snake_var(), ~self.get_snake_var())
 
         qua.assign(sweep_idx_var, 0)
         with qua.while_(sweep_idx_var < self.length):
@@ -319,7 +340,7 @@ class Sweep:
                     else:
                         qua.assign(param.qua_var, sss['start'] + qua.lib.Cast.mul_fixed_by_int(sss['step'], sweep_idx_var))
             else:
-                with qua.if_(self.sweep_snake_var):
+                with qua.if_(self.get_snake_var()):
                     for param, sss in parameters_sss.items():
                         qua.assign(param.qua_var, sss['stop'] - qua.lib.Cast.mul_fixed_by_int(sss['step'], sweep_idx_var))
                 with qua.else_():
