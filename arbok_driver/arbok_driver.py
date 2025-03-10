@@ -208,7 +208,8 @@ class ArbokDriver(qc.Instrument):
         sweeps: dict = None,
         gettables = None,
         gettable_keywords = None,
-        sweep_list: list = None
+        sweep_list: list = None,
+        qc_measurement_name = None
         ):
         """
         Adds a sequence to the arbok_driver based on the arbok_experiment and
@@ -225,7 +226,10 @@ class ArbokDriver(qc.Instrument):
             sweep_list (list): List of of sweep dicts for external instruments
         """
         meas = self.create_measurement_from_experiment(
-            name = measurement_name, experiment = arbok_experiment)
+            name = measurement_name,
+            experiment = arbok_experiment,
+            qc_measurement_name = qc_measurement_name
+            )
 
         if sweeps is not None:
             meas.set_sweeps(*sweeps)
