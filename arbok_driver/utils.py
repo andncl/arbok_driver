@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from qcodes.instrument import Instrument
 from qcodes.station import Station
+from importlib.util import spec_from_file_location, module_from_spec
 
 def plot_qmm_simulation_results(simulated_samples):
     """ 
@@ -199,3 +200,28 @@ def remove_instrument(instrument_name: str, station: Station):
         del instrument_dict[instrument_name]
         print(
             f"Removed '{instrument_name}' from global qcodes instrument index")
+
+def get_module(name: str = None, mod_path: str = None):
+    """
+    Dynamically loads a Python module from a specified file path.
+
+    This function creates a module specification and loads the module from the
+    provided file path.
+
+    Args:
+        name: The desired name for the loaded module.
+        mod_path: The absolute path to the Python module file (.py).
+
+    Returns:
+        The loaded module object.
+
+    Raises:
+        ImportError: If the module specification cannot be created or if the
+                     module cannot be loaded.
+    """
+    spec = spec_from_file_location(name, mod_path)
+    if spec is None:
+        raise ImportError(f"Cannot create module spec for {mod_path}.")
+    mod = module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
