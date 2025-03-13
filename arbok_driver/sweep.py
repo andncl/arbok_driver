@@ -2,7 +2,6 @@
 import warnings
 import logging
 
-from argon2 import Type
 import numpy as np
 from qm import qua
 from qualang_tools import loops
