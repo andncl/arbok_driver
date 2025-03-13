@@ -1,9 +1,14 @@
+from importlib.util import spec_from_file_location, module_from_spec
+
 """ Module containing Samples class """
 
 class Sample():
     """
     Class describing the used sample by its config and the used sequence. 
     """
+
+    _master_config_path = None
+    master_config = None
 
     def __init__(
             self, name: str,
@@ -23,6 +28,16 @@ class Sample():
         self.param_config = param_config
         self.divider_config = divider_config
         self.elements = list(self.config['elements'].keys())
+
+    def get_module(self, name: str = None, mod_path: str = None):
+        """ get a module from a path"""
+        spec = spec_from_file_location(name, mod_path)
+        if spec is None:
+            raise ImportError(f"Cannot create module spec for {mod_path}.")
+        mod = module_from_spec(spec)
+        # sys.modules[name] = mod
+        spec.loader.exec_module(mod)
+        return mod
 
     @property
     def master_config_path(self):
@@ -49,3 +64,7 @@ class Sample():
         if not isinstance(config_path, str):
             raise ValueError("master_config_path must be a str.")
         self._master_config_path = config_path
+        mc = self.get_module('mc', config_path)
+        if not hasattr(mc, 'config'):
+            raise AttributeError(f"Dictionary 'config' not found in the file {self._master_config_path}")
+        self.master_config = mc.config
