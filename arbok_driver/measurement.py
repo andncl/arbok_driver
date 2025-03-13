@@ -41,12 +41,39 @@ class Measurement(SequenceBase):
                 their initial values and units0
             **kwargs: Key word arguments for InstrumentModule
         """
-        super().__init__(parent, name, sample, sequence_config)
+        conf = self.merge_with_sample_config(sample, sequence_config)
+        super().__init__(parent, name, sample, conf)
         self.driver = parent
         self.measurement = self
         self._init_vars()
         self._reset_sweeps_setpoints()
         parent.add_sequence(self)
+
+    def merge_with_sample_config(self, sample, sequence_config):
+        """
+        Merges a sequence configuration with a sample's master configuration.
+
+        If both sequence_config and sample.master_config are provided, the
+        sample's master configuration takes precedence in case of key
+        conflicts.
+
+        Args:
+            sample: An object with a 'master_config' attribute (dict or None).
+            sequence_config: A dictionary representing the sequence configuration,
+                             or None.
+
+        Returns:
+            A new dictionary containing the merged configurations. If neither
+            sequence_config nor sample.master_config is provided, an empty
+            dictionary is returned.
+        """
+        # update the master_config overrides sequence_config, if present
+        s_c = {}
+        if sequence_config is not None:
+            s_c.update(sequence_config)
+        if sample.master_config is not None:
+            s_c.update(sample.master_config)
+        return s_c
 
     def _init_vars(self) -> None:
         """
