@@ -335,17 +335,14 @@ class Sweep:
                         param.qua_var, param.qua_sweep_arr[sweep_idx_var])
             if not self.snake_scan:
                 for param, sss in parameters_sss.items():
-                    if param.qua_type == int:
-                        qua.assign(param.qua_var, sss['start'] + sss['step']*sweep_idx_var)
-                    else:
-                        qua.assign(param.qua_var, sss['start'] + qua.lib.Cast.mul_fixed_by_int(sss['step'], sweep_idx_var))
+                    self._qua_calc_param_step(param, sss, sweep_idx_var, False)
             else:
                 with qua.if_(self.get_snake_var()):
                     for param, sss in parameters_sss.items():
-                        qua.assign(param.qua_var, sss['stop'] - qua.lib.Cast.mul_fixed_by_int(sss['step'], sweep_idx_var))
+                        self._qua_calc_param_step(param, sss, sweep_idx_var, True)
                 with qua.else_():
                     for param, sss in parameters_sss.items():
-                        qua.assign(param.qua_var, sss['start'] + qua.lib.Cast.mul_fixed_by_int(sss['step'], sweep_idx_var))
+                        self._qua_calc_param_step(param, sss, sweep_idx_var, False)
 
             qua.align()
 
@@ -362,6 +359,50 @@ class Sweep:
                     self.measurement.qua_check_step_requirements(step_variable)
                 else:
                     step_variable()
+
+    def _qua_calc_param_step(self, param, sss, sweep_idx_var, reverse):
+        """
+        Calculates the step within a parameter sweep.
+        
+        Args:
+            param (SequenceParameter): Parameter to be swept
+            sss (dict): Dict with start, stop and step (parameterizing sweep)
+            sweep_idx_var (qua variable): Index variable for sweep
+            reverse (bool): Whether the sweep is reversed (from stop to start)
+
+        Raises:
+            TypeError: If qua_type is not int or fixed
+
+        Returns:
+            None
+        """
+        ### Note this implementation is written in a very explicit way avoiding
+        ### multiplications to save lines of code. This is done to avoid
+        ### multiplications in the FPGA code (e.g (-1)*x)
+        if param.qua_type == int:
+            if not reverse:
+                qua.assign(
+                    param.qua_var, sss['start'] + sss['step']*sweep_idx_var)
+            else:
+                qua.assign(
+                    param.qua_var, sss['stop'] - sss['step']*sweep_idx_var)
+        elif param.qua_type == qua.fixed:
+            if not reverse:
+                qua.assign(
+                    param.qua_var,
+                    sss['start'] + qua.lib.Cast.mul_fixed_by_int(
+                        sss['step'], sweep_idx_var)
+                    )
+            else:
+                qua.assign(
+                    param.qua_var,
+                    sss['stop'] - qua.lib.Cast.mul_fixed_by_int(
+                        sss['step'],sweep_idx_var)
+                    )
+        else:
+            raise TypeError(
+                "Only int and fixed qua types are supported for param sweeps"
+                )
 
     def _qua_explicit_array_loop(self, next_action):
         """Runs a qua for loop from explicitly defined qua arrays"""
