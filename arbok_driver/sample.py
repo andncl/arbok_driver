@@ -1,9 +1,13 @@
+from .utils import get_module
 """ Module containing Samples class """
 
 class Sample():
     """
     Class describing the used sample by its config and the used sequence. 
     """
+
+    _master_config_path = None
+    master_config = None
 
     def __init__(
             self, name: str,
@@ -49,3 +53,7 @@ class Sample():
         if not isinstance(config_path, str):
             raise ValueError("master_config_path must be a str.")
         self._master_config_path = config_path
+        mc = get_module('mc', config_path)
+        if not hasattr(mc, 'config'):
+            raise AttributeError(f"Dictionary 'config' not found in the file {self._master_config_path}")
+        self.master_config = mc.config
