@@ -3,7 +3,7 @@
 import numpy as np
 from qm import qua
 from qcodes.validators import (
-    Arrays, Numbers, Ints, MultiTypeOr, Strings, Sequence
+    Arrays, Numbers, Ints, MultiTypeOr, Strings, Sequence, Bool
 )
 from .sequence_parameter import SequenceParameter
 
@@ -77,6 +77,12 @@ class Int(SequenceParameter):
     """ Default: int """
     validator = Ints()
     sweep_validator = MultiTypeOr(Numbers(), Arrays(valid_types = [int]))
+
+class Boolean(SequenceParameter):
+    qua_type = bool
+    """ Default: int """
+    validator = Bool()
+    sweep_validator = None
 
 class Radian(SequenceParameter):
     unit = 'pi'
