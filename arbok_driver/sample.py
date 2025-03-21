@@ -57,3 +57,11 @@ class Sample():
         if not hasattr(mc, 'config'):
             raise AttributeError(f"Dictionary 'config' not found in the file {self._master_config_path}")
         self.master_config = mc.config
+
+    def reload_master_config(self):
+        """
+        If the master config path is set, force reloading
+        """
+        if self._master_config_path is not None:
+            mcp = self.master_config_path
+            self.master_config_path = mcp
