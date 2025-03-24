@@ -13,7 +13,7 @@ git clone https://github.com/andncl/arbok_driver.git
 ### 2) Prepare conda environment
 We create an empty conda environment to avoid interference with other python packages and to manage package dependencies for measurements. Remember to fix the python version as shown below when creating the environment, since some of the modules are not yet compatible with the latest 3.12.
 ```bash
-conda create --name <your_env_name> python=3.11
+conda create --name <your_env_name> python=3.12
 conda activate <your_env_name>
 conda install pip
 ```
