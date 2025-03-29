@@ -71,6 +71,8 @@ class Measurement(SequenceBase):
         s_c = {}
         if sequence_config is not None:
             s_c.update(sequence_config)
+        # refresh the master config and overwrite the sample config with it
+        sample.reload_master_config()
         if sample.master_config is not None:
             s_c.update(sample.master_config)
         return s_c
