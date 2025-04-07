@@ -82,10 +82,4 @@ jupyter lab
 ### 2) Launching plottr-inspectr
 Exactly as described above!
 
-## Todos:
-- [ ] validators in custom parameter classes for times (4ns -> 1 qm-cycle)
-- [ ] change the way to create sweeps!
-    - [ ] sset list of dicts -> list entry per axis, dict entry per param
-    - [ ] sweeps should be properties with setters for save measurement management
-- [ ] TESTS!
-    - [ ] issue: stubbing OPX/ errors raised by instrument
+
