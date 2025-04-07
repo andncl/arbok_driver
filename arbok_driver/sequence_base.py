@@ -196,6 +196,10 @@ class SequenceBase(InstrumentModule):
                     logging.debug("Declaring %s as %s",
                                     param.name, param.var_type)
                     param.qua_declare(setpoints)
+                else:
+                    raise TypeError(
+                        f"Parameter {param} is not of type SequenceParameter"
+                    )
 
     def recursive_sweep_generation(self, sweeps):
         """

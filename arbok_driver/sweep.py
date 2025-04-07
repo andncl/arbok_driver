@@ -291,6 +291,7 @@ class Sweep:
         """Runs a qua for loop for an array that is imported from a stream"""
         warnings.warn("Input streaming is not fully supported")
         for param in self.parameters:
+            qua.wait(int(1e6))
             qua.advance_input_stream(param.input_stream)
             logging.debug(
                 "Assigning %s with length %s (input stream)",
@@ -349,16 +350,13 @@ class Sweep:
             ### This is where either the whole sequence or the next sweep is run
             next_action()
 
-            ### After the sequence the parameter variable is incremented by step
-            for param, sss in parameters_sss.items():
-                def step_variable():
-                    if param.can_be_parameterized:
-                        if param == self.parameters[0]:
-                            qua.assign(sweep_idx_var, sweep_idx_var + 1)
-                if self.measurement.sweeps[0] == self:
-                    self.measurement.qua_check_step_requirements(step_variable)
-                else:
-                    step_variable()
+            ### After the sequence the index variable is incremented by step
+            def step_counter():
+                qua.assign(sweep_idx_var, sweep_idx_var + 1)
+            if self.measurement.sweeps[0] == self:
+                self.measurement.qua_check_step_requirements(step_counter)
+            else:
+                step_counter()
 
     def _qua_calc_param_step(self, param, sss, sweep_idx_var, reverse):
         """
@@ -410,8 +408,24 @@ class Sweep:
             logging.debug(
                 "Assigning %s to %s (loop)",
                     param.name, param.qua_sweep_arr)
-        with qua.for_each_(self.qua_variables, self.qua_sweep_arrays):
+
+        sweep_idx_var = qua.declare(int)
+        qua.assign(sweep_idx_var, 0)
+        with qua.while_(sweep_idx_var < self.length):
+            for param in self.parameters:
+                qua.assign(
+                    param.qua_var, param.qua_sweep_arr[sweep_idx_var])
             next_action()
+
+            ### After the sequence the parameter variable is incremented by step
+            # for param, in self.parameters():
+            def step_variable():
+                qua.assign(sweep_idx_var, sweep_idx_var + 1)
+            if self.measurement.sweeps[0] == self:
+                self.measurement.qua_check_step_requirements(step_variable)
+            else:
+                step_variable()
+
 
     def _parameterize_sweep_array(
         self, param: SequenceParameter, sweep_array: np.ndarray
