@@ -8,6 +8,7 @@ from qm.quantum_machines_manager import QuantumMachinesManager
 
 import qcodes as qc
 
+from .experiment import Experiment
 from .measurement import Measurement
 from .sequence_base import SequenceBase
 from .sample import Sample
@@ -32,8 +33,7 @@ class ArbokDriver(qc.Instrument):
         Args:
             name (str): Name of the instrument
             sample (Sample): Sample class describing phyical device
-            *args: Variable length argument list.
-            **kwargs: Arbitrary keyword arguments.
+            **kwargs: Arbitrary keyword arguments for qcodes Instrument class
         """
         super().__init__(name, **kwargs)
         self.sample = sample
@@ -58,24 +58,61 @@ class ArbokDriver(qc.Instrument):
         self._sequences = []
         self.submodules = {}
 
-    def connect_opx(self, host_ip: str, **kwargs) -> None:
+    def connect_opx(
+            self,
+            host_ip: str,
+            qm_config: dict = None,
+            reconnect: bool = False,
+            **kwargs) -> None:
         """
         Creates QuantumMachinesManager and opens a quantum machine on it with
         the given IP address
         
         Args:
             host_ip (str): Ip address of the OPX
+            qm_config (dict): QM/OPX config dictionary to be used. Defaults to
+                None, in which case the config from the sample is used. If given
+                overwrites the sample config.
+            reconnect (bool): Whether to reconnect to the OPX if already
+                connected. Keeps QMM alive if true. Defaults to False.
+            **kargs: Arbitrary keyword arguments for QMM instanciation
         """
-        self.qmm = QuantumMachinesManager(
-            host = host_ip, **kwargs)
+        if not reconnect:
+            self.qmm = QuantumMachinesManager(
+                host = host_ip, **kwargs)
+        if qm_config is not None:
+            if not isinstance(qm_config, dict):
+                raise ValueError(
+                    "qm_config must be a dictionary, not a string")
+            self.sample.config = copy.deepcopy(qm_config)
         self.opx = self.qmm.open_qm(self.sample.config)
+
+    def reconnect_opx(
+            self, host_ip: str, qm_config: dict = None) -> None:
+        """
+        Reconnects to the OPX with the given IP address and closes the previous
+        connection
+        
+        Args:
+            host_ip (str): Ip address of the OPX
+            qm_config (dict): QM/OPX config dictionary to be used. Defaults to
+                None, in which case the config from the sample is used. If given
+                overwrites the sample config. 
+        """
+        if self.opx is not None:
+            print('Closing previous connection')
+            self.opx.close()
+            self.qmm.close_all_quantum_machines()
+        self.connect_opx(host_ip, qm_config, reconnect = True)
 
     def add_sequence(self, new_sequence: SequenceBase):
         """
-        Adds a class which inherits `SequenceBase` to the program and adds it as a QCoDeS sub-module
+        Adds a class which inherits `SequenceBase` to the program and adds it
+        as a QCoDeS sub-module
         
         Args:
-            new_sequence (SequenceBase): The instance which inherits SequenceBase to be added
+            new_sequence (SequenceBase): The instance which inherits
+            SequenceBase to be added
         """
         self._sequences.append(new_sequence)
 
@@ -97,7 +134,9 @@ class ArbokDriver(qc.Instrument):
         
         Args:
             measurement (Object): QCoDeS measurement object
-            shots (int): Amount of repetitions to average
+        
+        Returns:
+            measurement (Object): QCoDeS measurement object
         """
         if not hasattr(self, 'iteration'):
             iteration = ShotNumber(name='iteration', instrument=self)
@@ -110,18 +149,23 @@ class ArbokDriver(qc.Instrument):
         return measurement
 
     def print_qua_program_to_file(
-            self, file_name: str, qua_program = None, add_config: bool = False):
+            self,
+            path: str,
+            qua_program = None,
+            add_config: bool = False
+            ) -> None:
         """
         Creates file with 'filename' and prints the QUA code to this file
         
         Args:
             file_name (str): File name of target file
+            qua_program (program): QUA program to be printed
             add_config (bool): Whether config is added to output file
         """
         if qua_program is None:
             print("Generating qua program from sequences")
             qua_program = self.get_qua_program()
-        with open(file_name, 'w', encoding="utf-8") as file:
+        with open(path, 'w', encoding="utf-8") as file:
             if self.sample is not None and add_config:
                 file.write(generate_qua_script(
                     qua_program, self.sample.config
@@ -129,13 +173,23 @@ class ArbokDriver(qc.Instrument):
             else:
                 file.write(generate_qua_script(qua_program))
 
-    def run_local_simulation(self, qua_program,  duration: int,
-        nr_controllers: int = 1, plot = True, **kwargs):
+    def run_local_simulation(
+            self,
+            qua_program,
+            duration: int,
+            nr_controllers: int = 1,
+            plot = True,
+            **kwargs
+            ):
         """
         Simulates the given program of the sequence for `duration` cycles
         TODO: Move to SequenceBase and add checks if OPX is connected
         Args:
+            qua_program (program): QUA program to be simulated
             duration (int): Simulation duration in cycles
+            nr_controllers (int): Number of controllers to simulate
+            plot (bool): Whether to plot the simulation results
+            **kwargs: Arbitrary keyword arguments for QMM simulation
 
         Returns:
             simulated_job (SimulatedJob): QM job with waveform simulation result
@@ -173,13 +227,17 @@ class ArbokDriver(qc.Instrument):
         raise NotImplementedError
 
     def create_measurement_from_experiment(
-            self, name, experiment, qc_measurement_name = None) -> Measurement:
+            self,
+            name: str,
+            experiment: Experiment,
+            qc_measurement_name: str | None = None
+            ) -> Measurement:
         """
-        Creates an arbok and QCoDeS measurement from an arbok experiment
+        Creates an arbok and QCoDeS measurement from an arbok-experiment
         
         Args:
             name (str): Name of the measurement (py. variable name compliant)
-            experiment (ArbokExperiment): Experiment to be run
+            experiment (arbok_driver.Experiment): Experiment to be run
             qc_measurement_name (str): Name of the QCoDeS measurement
                 (as it will be saved in the database)
 
@@ -225,6 +283,8 @@ class ArbokDriver(qc.Instrument):
             gettable_keywords (dict): Keywords to search for gettable parameters
             sweep_list (list): List of of sweep dicts for external instruments
         """
+        if qc_measurement_name is None:
+            qc_measurement_name = measurement_name
         meas = self.create_measurement_from_experiment(
             name = measurement_name,
             experiment = arbok_experiment,
