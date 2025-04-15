@@ -1,7 +1,7 @@
 """ Module containing BaseSequence class """
 
 import copy
-from os import pathsep
+import types
 from typing import Optional
 import logging
 
@@ -423,14 +423,17 @@ class SequenceBase(InstrumentModule):
         Args:
             subsequence_dict (dict): Dictionary containing the subsequences
         """
+        if isinstance(subsequence_dict, types.SimpleNamespace):
+            subsequence_dict = vars(subsequence_dict)
         for name, seq_conf  in subsequence_dict.items():
             if 'sequence' in seq_conf:
                 subsequence = seq_conf['sequence']
                 if 'config' in seq_conf:
                     sub_seq_conf = seq_conf['config']
+                    
                     if not isinstance(sub_seq_conf, dict):
                         raise ValueError(
-                            "Subsequence config must be of type dict,"
+                            f"Subsequence config ({name}) must be of type dict,"
                             f" is {type(sub_seq_conf)}")
                 else:
                     sub_seq_conf = None
