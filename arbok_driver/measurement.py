@@ -363,15 +363,46 @@ class Measurement(SequenceBase):
         with qua.stream_processing():
             self.recursive_qua_generation(seq_type = 'stream')
 
-    def compile_qua_and_run(self, save_path: str = None) -> None:
-        """Compiles the QUA code and runs it"""
+    def compile_qua(self, save_path: str = None) -> str:
+        """
+        Compiles the QUA program and optionally saves it to a file.
+        
+        This method resets registered gettables, generates the QUA program,
+        and can save the generated program to a specified file path.
+        
+        Args:
+            save_path (str, optional): Path where the QUA program should be saved.
+                If None, the program is not saved to a file. Defaults to None.
+                
+        Returns:
+            str: The compiled QUA program
+        """
         self.reset_registered_gettables()
         qua_program = self.get_qua_program()
         print('QUA program compiled')
         if save_path:
             with open(save_path, 'w', encoding="utf-8") as file:
                 file.write(generate_qua_script(qua_program))
-        print('QUA program saved')
+            print(f'QUA program saved to {save_path}')
+        return qua_program
+
+    def compile_qua_and_run(self, save_path: str = None) -> None:
+        """
+        Compiles the QUA program, optionally saves it to a file, and runs it on the connected OPX.
+
+        This method combines the functionality of compile_qua() and driver.run() into a single 
+        convenient method. It first compiles the QUA program, optionally saving it to the specified 
+        path, and then runs the program on the connected OPX hardware.
+
+        Args:
+            save_path (str, optional): Path where the QUA program should be saved.
+                If None, the program is not saved to a file. Defaults to None.
+
+        Note:
+            This method requires that the driver is properly connected to an OPX 
+            via the connect_opx() method before being called.
+        """
+        qua_program = self.compile_qua(save_path)
         self.driver.run(qua_program)
         print('QUA program compiled and is running')
 
