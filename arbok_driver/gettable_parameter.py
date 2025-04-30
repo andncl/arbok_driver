@@ -73,7 +73,7 @@ class GettableParameter(ParameterWithSetpoints):
         while not self.buffer_val.shape == (self.sequence.sweep_size,):
             time.sleep(0.1)
             self.buffer_val = self._fetch_opx_buffer()
-        return self._reshape_data(self.buffer_val, self.shape, self.snaked)
+        return self._reshape_data(self.buffer_val, tuple(reversed(self.shape)), tuple(reversed(self.snaked)))
 
     def _reshape_data(self, a_in: np.ndarray, sizes: tuple[int, ...], snaked: tuple[bool, ...]) -> np.ndarray:
         """
@@ -131,8 +131,8 @@ class GettableParameter(ParameterWithSetpoints):
             raise LookupError(
                 f"Buffer {self.name}_buffer not found. Try one of:"
                 f"{self.qm_job.result_handles.keys()}")
-        self.shape = tuple(reversed(tuple(sweep.length for sweep in self.sequence.sweeps)))
-        self.snaked = tuple(reversed(tuple(sweep.snake_scan for sweep in self.sequence.sweeps)))
+        self.shape = tuple(sweep.length for sweep in self.sequence.sweeps)
+        self.snaked = tuple(sweep.snake_scan for sweep in self.sequence.sweeps)
         self.batch_size = self.sequence.sweep_size
 
     def _wait_until_buffer_full(self, progress_bar = None):
