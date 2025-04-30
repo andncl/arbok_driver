@@ -21,8 +21,10 @@ measurement_config = {
     },
 }
 
-sample = SimpleNamespace(**{'elements' : [ 'element_a', 'element_b', 'element_c', 'element_d' ], 'divider_config' : {} })
+sample = SimpleNamespace(**{'elements' : [ 'element_a', 'element_b', 'element_c', 'element_d' ], 'divider_config' : {},
+                            'master_config' : None })
 sample.config = config
+sample.reload_master_config = lambda: None  # Method that does nothing but pass
 arbok_driver = ArbokDriver('arbok_driver', sample)
 
 measurement = Measurement(
@@ -67,11 +69,16 @@ measurement.print_qua_program_to_file(file_path)
 sweep_list_arg = [{arbok_driver.iteration: np.arange(1)}]
 run_loop = measurement.get_measurement_loop_function(sweep_list_arg)
 
-arbok_driver.connect_opx(host_ip = '192.168.88.254', port = 9510, log_level = 'DEBUG')
-measurement.compile_qua_and_run()
+dont_run = True
 
-try:
-    dataset = run_loop()
-except KeyboardInterrupt:
-    print('Dumping execution report:')
-    arbok_driver.qm_job.execution_report()
+if dont_run:
+    measurement.compile_qua("/tmp/qua_code2.qua")
+else:
+    arbok_driver.connect_opx(host_ip = '192.168.88.254', port = 9510, log_level = 'DEBUG')
+    measurement.compile_qua_and_run()
+
+    try:
+        dataset = run_loop()
+    except KeyboardInterrupt:
+        print('Dumping execution report:')
+        arbok_driver.qm_job.execution_report()
