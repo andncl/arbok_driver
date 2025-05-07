@@ -49,7 +49,28 @@ class SequenceBase(InstrumentModule):
         self._sub_sequences = []
         self._gettables = []
         self._qua_program_as_str = None
+        self._init(**kwargs)
         self.add_qc_params_from_config(self.sequence_config)
+
+    def _init(self, **kwargs):
+        """A method to do initialisation when the __init__ constructor isn't
+            required.
+           
+            Args:
+            **kwargs: Arbitrary keyword arguments.
+           """
+        pass
+
+    @staticmethod
+    def config_template():
+        """ The user can get an example config template.
+            This feature is useful if building from scratch or for UI 
+            prompting.
+              
+            Returns:
+                A dictionary with an example config template. 
+        """
+        return {}
 
     def qua_declare(self):
         """Contains raw QUA code to initialize the qua variables"""
