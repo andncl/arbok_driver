@@ -62,7 +62,7 @@ class SequenceBase(InstrumentModule):
         pass
 
     @staticmethod
-    def config_template(self):
+    def config_template():
         """ The user can get an example config template.
             This feature is useful if building from scratch or for UI 
             prompting.
