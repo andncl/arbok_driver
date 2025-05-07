@@ -61,6 +61,17 @@ class SequenceBase(InstrumentModule):
            """
         pass
 
+    @staticmethod
+    def config_template(self):
+        """ The user can get an example config template.
+            This feature is useful if building from scratch or for UI 
+            prompting.
+              
+            Returns:
+                A dictionary with an example config template. 
+        """
+        return {}
+
     def qua_declare(self):
         """Contains raw QUA code to initialize the qua variables"""
         return
