@@ -4,6 +4,7 @@ import copy
 import types
 from typing import Optional
 import logging
+from functools import reduce                                                                                                                        
 
 from qcodes.instrument import InstrumentModule
 
@@ -503,7 +504,16 @@ class SequenceBase(InstrumentModule):
         """Returns parameter with a certain key for a given element"""
         parameter = getattr(self, f"{key}_{element}")
         return parameter
-    
+                                                                                                                            
+    def get_attribute_by_path(self, path):                                                                                                               
+        """Access a nested attribute using a dot-separated string.
+        Args:
+            path: a dot delimited path to get the variable from.
+        Returns:
+            The variable matching the string path
+        """                                                                                   
+        return reduce(getattr, path.split('.'), self)     
+
     def find_parameter_from_str_path(self, path: str):
         """
         Returns the parameter from the given path
