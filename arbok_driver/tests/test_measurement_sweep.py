@@ -22,6 +22,7 @@ sequence_config = {
 }
 
 sample = SimpleNamespace(**{'elements' : [ 'output', 'loopback' ], 'divider_config' : {} })
+sample.reload_master_config = lambda: None  # Method that does nothing but pass
 sample.config = config
 arbok_driver = ArbokDriver('arbok_driver', sample)
 
