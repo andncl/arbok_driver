@@ -147,7 +147,7 @@ class SequenceBase(InstrumentModule):
             self.get_qua_program()
         return self._qua_program_as_str
 
-    def get_qua_program(self, simulate = False):
+    def get_qua_program(self, simulate = False, config = None):
         """
         Composes the entire sequence by searching recursively through init, 
         sequence and stream methods of all subsequences and their subsequences.
@@ -162,7 +162,7 @@ class SequenceBase(InstrumentModule):
         """
         with qua.program() as prog:
             self.get_qua_code(simulate)
-        self._qua_program_as_str = generate_qua_script(prog)
+        self._qua_program_as_str = generate_qua_script(prog, config)
         return prog
 
     def get_qua_code(self, simulate = False):
