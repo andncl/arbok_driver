@@ -12,6 +12,7 @@ from .experiment import Experiment
 from .measurement import Measurement
 from .sequence_base import SequenceBase
 from .sample import Sample
+from .arbok_runner import ArbokRunner
 from . import utils
 
 class ArbokDriver(qc.Instrument):
@@ -267,7 +268,8 @@ class ArbokDriver(qc.Instrument):
         gettables = None,
         gettable_keywords = None,
         sweep_list: list = None,
-        qc_measurement_name = None
+        qc_measurement_name = None,
+        use_runner = False
         ):
         """
         Adds a sequence to the arbok_driver based on the arbok_experiment and
@@ -282,6 +284,8 @@ class ArbokDriver(qc.Instrument):
             gettables (str): Gettables to be registered in the measurement
             gettable_keywords (dict): Keywords to search for gettable parameters
             sweep_list (list): List of of sweep dicts for external instruments
+            qc_measurement_name (str): Name for the QCoDeS measurement
+            use_runner (bool): Whether to use the non-recursive ArbokRunner
         """
         if qc_measurement_name is None:
             qc_measurement_name = measurement_name
@@ -314,8 +318,36 @@ class ArbokDriver(qc.Instrument):
         if sweep_list is not None:
             sweep_list_arg.extend(sweep_list)
 
-        run_loop = meas.get_measurement_loop_function(sweep_list_arg)
-        return run_loop, meas
+        if use_runner:
+            # Use the non-recursive ArbokRunner
+            qc_measurement = meas.get_qc_measurement(qc_measurement_name)
+            runner = ArbokRunner(meas)
+            
+            def run_with_runner(**kwargs):
+                return runner.run_measurement(
+                    qc_measurement=qc_measurement,
+                    sweep_list=sweep_list_arg,
+                    **kwargs
+                )
+                
+            return run_with_runner, meas
+        else:
+            # Use the original recursive implementation
+            run_loop = meas.get_measurement_loop_function(sweep_list_arg)
+            return run_loop, meas
+
+    def create_runner(self, measurement=None):
+        """
+        Create an ArbokRunner instance for the given measurement
+        
+        Args:
+            measurement: Arbok measurement to use with the runner
+            
+        Returns:
+            ArbokRunner instance
+        """
+        return ArbokRunner(measurement)
+
 
 class ShotNumber(qc.Parameter):
     """ Parameter that keeps track of averaging during measurement """
