@@ -370,7 +370,7 @@ class Measurement(SequenceBase):
         print('QUA program compiled')
         if save_path:
             with open(save_path, 'w', encoding="utf-8") as file:
-                file.write(generate_qua_script(qua_program))
+                file.write(generate_qua_script(qua_program, self.parent.sample.config))
         print('QUA program saved')
         self.driver.run(qua_program)
         print('QUA program compiled and is running')
