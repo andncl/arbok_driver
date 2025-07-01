@@ -2,6 +2,7 @@
 import math
 import copy
 import logging
+import os
 from collections import Counter
 
 import numpy as np
@@ -369,6 +370,13 @@ class Measurement(SequenceBase):
         qua_program = self.get_qua_program()
         print('QUA program compiled')
         if save_path:
+            # Check if the directory exists
+            directory = os.path.dirname(save_path)
+            if directory and not os.path.exists(directory):
+                raise FileNotFoundError(
+                    f"Directory '{directory}' does not exist. "
+                    f"Please create the directory before saving the QUA script."
+                )
             with open(save_path, 'w', encoding="utf-8") as file:
                 file.write(generate_qua_script(qua_program, self.parent.sample.config))
         print('QUA program saved')
