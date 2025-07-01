@@ -57,6 +57,22 @@ class Sample():
         if not hasattr(mc, 'config'):
             raise AttributeError(f"Dictionary 'config' not found in the file {self._master_config_path}")
         self.master_config = mc.config
+        # check if sequences_config is in the mc if not then put empty format.
+        if hasattr(mc, 'sequences_config'):
+            self.sequences_config = mc.sequences_config
+        else:
+            self.sequences_config = { 
+                                        'spin_init': {
+                                            'sequence': None,
+                                            'config': None
+                                        },
+                                        'spin_readout': {
+                                            'sequence': None,
+                                            'config': None
+                                        }
+                                    }
+                                    
+                                    
 
     def reload_master_config(self):
         """
