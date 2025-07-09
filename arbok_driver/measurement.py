@@ -19,6 +19,8 @@ from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
 from .sweep import Sweep
 
+from types import SimpleNamespace
+
 class Measurement(SequenceBase):
     """Class describing a Measurement in an OPX driver"""
     qc_experiment = None
@@ -367,6 +369,7 @@ class Measurement(SequenceBase):
     def compile_qua_and_run(self, save_path: str = None) -> None:
         """Compiles the QUA code and runs it"""
         self.reset_registered_gettables()
+
         qua_program = self.get_qua_program()
         print('QUA program compiled')
         if save_path:
@@ -380,7 +383,14 @@ class Measurement(SequenceBase):
             with open(save_path, 'w', encoding="utf-8") as file:
                 file.write(generate_qua_script(qua_program, self.parent.sample.config))
         print('QUA program saved')
-        self.driver.run(qua_program)
+
+        if hasattr(self.driver, '__class__') and 'Dummy' in self.driver.__class__.__name__:
+            # Create a mock job for dummy mode
+            self.driver.qm_job = SimpleNamespace(resume=lambda: None)
+            print('Dummy mode setup complete')
+        else:
+            # This is the real run, not a dummy run
+            self.driver.run(qua_program)
         print('QUA program compiled and is running')
 
     def insert_single_value_input_streams(self, value_dict: dict) -> None:

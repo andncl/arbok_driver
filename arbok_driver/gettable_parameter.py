@@ -2,6 +2,7 @@
 
 import time
 import logging
+import hashlib
 import numpy as np
 import matplotlib.pyplot as plt
 from qcodes.parameters import ParameterWithSetpoints
@@ -54,6 +55,64 @@ class GettableParameter(ParameterWithSetpoints):
         self.batch_counter = None
         self.nr_registered_results = 0
 
+    def _is_dummy_mode(self) -> bool:
+        """
+        Check if we're running in dummy mode by examining the driver type
+        
+        Returns:
+            bool: True if running with dummy driver, False otherwise
+        """
+        try:
+            # Check if the driver is a DummyDriver
+            driver_class_name = self.sequence.driver.__class__.__name__
+            print('dummy mode')
+            return driver_class_name == 'DummyDriver' or 'Dummy' in driver_class_name
+        except AttributeError:
+            return False
+
+    def _generate_synthetic_data(self) -> np.ndarray:
+        """
+        Generate synthetic/dummy data for testing purposes
+        
+        Returns:
+            np.ndarray: Synthetic data array with the expected shape
+        """
+        # Use a seed based on the parameter name for repeatability
+        seed = int(hashlib.md5(self.name.encode()).hexdigest(), 16) % (2**32)
+        np.random.seed(seed)
+        
+        # Generate synthetic data based on the sweep size
+        sweep_size = np.prod(self.shape)
+        
+        # Create different types of synthetic data based on parameter name
+        if 'I' in self.name or 'current' in self.name.lower():
+            # Current-like data: small values with some noise
+            base_value = 1e-9  # 1 nA base current
+            noise_level = 0.1 * base_value
+            data = np.random.normal(base_value, noise_level, sweep_size)
+        elif 'voltage' in self.name.lower() or 'V' in self.name:
+            # Voltage-like data: larger values
+            base_value = 0.5  # 0.5V base voltage
+            noise_level = 0.05 * base_value
+            data = np.random.normal(base_value, noise_level, sweep_size)
+        elif 'frequency' in self.name.lower() or 'freq' in self.name.lower():
+            # Frequency-like data
+            base_value = 1e9  # 1 GHz base frequency
+            noise_level = 1e6  # 1 MHz noise
+            data = np.random.normal(base_value, noise_level, sweep_size)
+        elif 'phase' in self.name.lower():
+            # Phase data: between -pi and pi
+            data = np.random.uniform(-np.pi, np.pi, sweep_size)
+        elif 'count' in self.name.lower() or 'shot' in self.name.lower():
+            # Count data: integers
+            data = np.random.poisson(100, sweep_size).astype(float)
+        else:
+            # Generic data: normalized values around 0
+            data = np.random.normal(0, 1, sweep_size)
+        
+        logging.debug(f"Generated synthetic data for {self.name}: shape={data.shape}, mean={np.mean(data):.3e}")
+        return data
+
     def get_raw(self, progress_bar = None) -> np.ndarray:
         """ 
         Get method to retrieve a single batch of data from a running measurement
@@ -61,6 +120,37 @@ class GettableParameter(ParameterWithSetpoints):
         the given measurement and the underlying hardware.
         """
         logging.debug("GettableParameter %s get_raw called", self.name)
+        
+        # Check if we're in dummy mode
+        if self._is_dummy_mode():
+            logging.debug(f"Running in dummy mode for {self.name}, generating synthetic data")
+            # Set up basic attributes for dummy mode
+            if self.batch_size == 0:
+                self.batch_size = getattr(self.sequence, 'sweep_size', 100)
+                self.shape = tuple(reversed(tuple(sweep.length for sweep in getattr(self.sequence.measurement, 'sweeps', []))))
+                if not self.shape:
+                    self.shape = (self.batch_size,)
+                self.snaked = tuple(reversed(tuple(getattr(sweep, 'snake_scan', False) for sweep in getattr(self.sequence.measurement, 'sweeps', []))))
+                if not self.snaked:
+                    self.snaked = (False,)
+            
+            # Simulate progress bar updates if provided
+            if progress_bar is not None:
+                import time
+                for i in range(10):  # Simulate 10 progress updates
+                    progress_bar[1].update(
+                        progress_bar[0],
+                        completed = int((i + 1) * self.batch_size / 10),
+                        description = f"[cyan]Dummy batch progress {int((i + 1) * self.batch_size / 10)}/{self.batch_size}"
+                    )
+                    progress_bar[1].refresh()
+                    time.sleep(0.01)  # Small delay to simulate real measurement time
+            
+            # Generate and return synthetic data
+            synthetic_data = self._generate_synthetic_data()
+            return self._reshape_data(synthetic_data, self.shape, self.snaked)
+        
+        # Original hardware mode code
         ### Setup is called on first get
         if self.buffer is None:
             self._set_up_gettable_from_program()
