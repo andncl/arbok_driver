@@ -39,7 +39,7 @@ class SubSequence(SequenceBase):
     def add_subsequences_from_dict(
             self,
             subsequence_dict: dict,
-            insert_sequences_into_name_space: dict = None) -> None:
+            namespace_to_add_to: dict = None) -> None:
         """
         Adds subsequences to the sequence from a given dictionary
 
@@ -49,7 +49,7 @@ class SubSequence(SequenceBase):
         super()._add_subsequences_from_dict(
             default_sequence = SubSequence,
             subsequence_dict = subsequence_dict,
-            insert_sequences_into_name_space = insert_sequences_into_name_space
+            namespace_to_add_to = namespace_to_add_to
         )
 
     def find_measurement(self):
