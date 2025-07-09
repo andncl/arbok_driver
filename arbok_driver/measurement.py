@@ -584,19 +584,19 @@ class Measurement(SequenceBase):
     def add_subsequences_from_dict(
             self,
             subsequence_dict: dict,
-            insert_sequences_into_name_space: dict = None) -> None:
+            namespace_to_add_to: dict = None) -> None:
         """
         Adds subsequences to the sequence from a given dictionary
 
         Args:
             subsequence_dict (dict): Dictionary containing the subsequences
-            insert_sequences_into_name_space (dict): Name space to insert the
+            namespace_to_add_to (dict): Name space to insert the
                 subsequence into (e.g locals(), globals()) defaults to None
         """
         super()._add_subsequences_from_dict(
             default_sequence = SubSequence,
             subsequence_dict = subsequence_dict,
-            insert_sequences_into_name_space = insert_sequences_into_name_space
+            namespace_to_add_to = namespace_to_add_to
         )
 
     def get_qc_measurement(
