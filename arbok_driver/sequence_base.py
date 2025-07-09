@@ -434,16 +434,61 @@ class SequenceBase(InstrumentModule):
                 element_dict[element][key] = param
         return element_dict
 
-    def add_subsequences_from_dict(
+    def _add_subsequence(
+        self,
+        name: str,
+        subsequence: 'SequenceBase',
+        sequence_config: dict = None,
+        insert_sequences_into_name_space: dict = None,
+        **kwargs
+        ) -> None:
+        """
+        Adds a subsequence to the sequence
+        
+        Args:
+            name (str): Name of the subsequence
+            subsequence (SubSequence): Subsequence to be added
+            sequence_config (dict): Config containing all measurement params
+            insert_sequences_into_name_space (dict): Name space to insert the
+                subsequence into (e.g locals(), globals()) defaults to None
+        """
+        if not issubclass(subsequence, SequenceBase):
+            raise TypeError(
+                "Subsequence must be of type SubSequence")
+        seq_instance = subsequence(
+            parent = self,
+            name = name,
+            sample = self.sample,
+            sequence_config = sequence_config,
+            **kwargs
+            )
+        setattr(self, name, seq_instance)
+        if insert_sequences_into_name_space is not None:
+            name_space = insert_sequences_into_name_space
+            name_space[name] = seq_instance
+        return seq_instance
+
+    def _add_subsequences_from_dict(
             self,
+            default_sequence,
             subsequence_dict: dict,
             insert_sequences_into_name_space: dict = None) -> None:
         """
         Adds subsequences to the sequence from a given dictionary
 
         Args:
+            default_sequence (SubSequence): Default subsequence to be used if
+                no sequence is given in the subsequence_dict. Since is meant to
+                be SubSequence which is a child of SequenceBase, therefore it
+                cant be directly referenced here but is given from the
+                respective child
             subsequence_dict (dict): Dictionary containing the subsequences
-        """
+            insert_sequences_into_name_space (dict): Name space to insert the
+                subsequence into (e.g locals(), globals()) defaults to None
+                    """
+        if type(self) is SequenceBase:
+            raise TypeError(
+                "Method is meant to be used in SubSequence or Measurement!")
         if isinstance(subsequence_dict, types.SimpleNamespace):
             subsequence_dict = vars(subsequence_dict)
         for name, seq_conf  in subsequence_dict.items():
@@ -451,7 +496,6 @@ class SequenceBase(InstrumentModule):
                 subsequence = seq_conf['sequence']
                 if 'config' in seq_conf:
                     sub_seq_conf = seq_conf['config']
-                    
                     if not isinstance(sub_seq_conf, dict):
                         raise ValueError(
                             f"Subsequence config ({name}) must be of type dict,"
@@ -468,10 +512,13 @@ class SequenceBase(InstrumentModule):
                 _ = self._add_subsequence(
                     name, subsequence, sub_seq_conf,
                     insert_sequences_into_name_space, **kwargs)
-
             else:
                 seq_instance = self._add_subsequence(
-                    name, 'default', None, insert_sequences_into_name_space)
+                    name = name,
+                    subsequence = default_sequence,
+                    sequence_config = None,
+                    insert_sequences_into_name_space = insert_sequences_into_name_space
+                    )
                 seq_instance.add_subsequences_from_dict(
                     seq_conf, insert_sequences_into_name_space)
 
@@ -503,7 +550,7 @@ class SequenceBase(InstrumentModule):
         """Returns parameter with a certain key for a given element"""
         parameter = getattr(self, f"{key}_{element}")
         return parameter
-    
+
     def find_parameter_from_str_path(self, path: str):
         """
         Returns the parameter from the given path

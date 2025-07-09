@@ -2,6 +2,7 @@
 import math
 import copy
 import logging
+import types
 from collections import Counter
 
 import numpy as np
@@ -580,41 +581,23 @@ class Measurement(SequenceBase):
         logging.debug('Adding step requirement: %s', requirement)
         self._step_requirements.append(requirement)
 
-    def _add_subsequence(
-        self,
-        name: str,
-        subsequence: SubSequence,
-        sequence_config: dict = None,
-        insert_sequences_into_name_space: dict = None,
-        **kwargs
-        ) -> None:
+    def add_subsequences_from_dict(
+            self,
+            subsequence_dict: dict,
+            insert_sequences_into_name_space: dict = None) -> None:
         """
-        Adds a subsequence to the sequence
-        
+        Adds subsequences to the sequence from a given dictionary
+
         Args:
-            name (str): Name of the subsequence
-            subsequence (SubSequence): Subsequence to be added
-            sequence_config (dict): Config containing all measurement params
+            subsequence_dict (dict): Dictionary containing the subsequences
             insert_sequences_into_name_space (dict): Name space to insert the
                 subsequence into (e.g locals(), globals()) defaults to None
         """
-        if subsequence == 'default':
-            subsequence = SubSequence
-        if not issubclass(subsequence, SubSequence):
-            raise TypeError(
-                "Subsequence must be of type SubSequence or str: 'default'")
-        seq_instance = subsequence(
-            parent = self,
-            name = name,
-            sample = self.sample,
-            sequence_config = sequence_config,
-            **kwargs
-            )
-        setattr(self, name, seq_instance)
-        if insert_sequences_into_name_space is not None:
-            name_space = insert_sequences_into_name_space
-            name_space[name] = seq_instance
-        return seq_instance
+        super()._add_subsequences_from_dict(
+            default_sequence = SubSequence,
+            subsequence_dict = subsequence_dict,
+            insert_sequences_into_name_space = insert_sequences_into_name_space
+        )
 
     def get_qc_measurement(
             self, measurement_name: str) -> qc.dataset.Measurement:
