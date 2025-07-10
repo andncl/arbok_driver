@@ -5,6 +5,7 @@ import types
 import warnings
 from typing import Optional
 import logging
+from functools import reduce                                                                                                                        
 
 from qcodes.instrument import InstrumentModule
 
@@ -147,7 +148,7 @@ class SequenceBase(InstrumentModule):
             self.get_qua_program()
         return self._qua_program_as_str
 
-    def get_qua_program(self, simulate = False):
+    def get_qua_program(self, simulate = False, config = None):
         """
         Composes the entire sequence by searching recursively through init, 
         sequence and stream methods of all subsequences and their subsequences.
@@ -162,7 +163,7 @@ class SequenceBase(InstrumentModule):
         """
         with qua.program() as prog:
             self.get_qua_code(simulate)
-        self._qua_program_as_str = generate_qua_script(prog)
+        self._qua_program_as_str = generate_qua_script(prog, config)
         return prog
 
     def get_qua_code(self, simulate = False):
@@ -596,6 +597,15 @@ class SequenceBase(InstrumentModule):
         """Returns parameter with a certain key for a given element"""
         parameter = getattr(self, f"{key}_{element}")
         return parameter
+                                                                                                                            
+    def get_attribute_by_path(self, path):                                                                                                               
+        """Access a nested attribute using a dot-separated string.
+        Args:
+            path: a dot delimited path to get the variable from.
+        Returns:
+            The variable matching the string path
+        """                                                                                   
+        return reduce(getattr, path.split('.'), self)     
 
     def find_parameter_from_str_path(self, path: str):
         """
