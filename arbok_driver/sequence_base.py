@@ -7,6 +7,9 @@ from typing import Optional
 import logging
 from functools import reduce                                                                                                                        
 
+from asciitree import LeftAligned
+from asciitree.drawing import BoxStyle, BOX_LIGHT
+
 from qcodes.instrument import InstrumentModule
 
 from qm import SimulationConfig, generate_qua_script, qua, QuantumMachinesManager
@@ -160,6 +163,21 @@ class SequenceBase(InstrumentModule):
         for param_name, param_dict in config.items():
             self._add_param(param_name, param_name, param_dict)
 
+    def draw_sub_sequence_tree(
+            self,
+            draw_style: BoxStyle = BoxStyle(gfx=BOX_LIGHT, horiz_len=1),
+        ) -> str:
+        """
+        Draws a tree of the subsequences of the sequence with their names and
+        types
+        Args:
+            box_style (BoxStyle): Style of the box to draw the tree with
+        Returns:
+            str: String representation of the tree
+        """
+        tr = LeftAligned(draw=draw_style)
+        print(tr(self.sub_sequence_dict))
+        
     def get_qua_program_as_str(self) -> str:
         """Returns the qua program as str. Will be compiled if it wasnt yet"""
         if self._qua_program_as_str is None:
