@@ -469,7 +469,7 @@ class SequenceBase(InstrumentModule):
         else:
             if sequence_config is not None:
                 warnings.warn(
-                    "Depcrecation Warning: sequence types should not be given as "
+                    "Deprecation Warning: sequence types should not be given as "
                     "arg to 'add_subsequence'. Should be ONLY given in config. "
                     f"{sequence_config['sequence'].__name__} -> "
                     f"{subsequence.__name__}",
