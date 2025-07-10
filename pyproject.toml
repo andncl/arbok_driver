@@ -15,6 +15,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
+    "asciitree==0.3.3",
     "jupyterlab",
     "numpy >= 1.23",
     "matplotlib",

@@ -7,6 +7,9 @@ from typing import Optional
 import logging
 from functools import reduce                                                                                                                        
 
+from asciitree import LeftAligned
+from asciitree.drawing import BoxStyle, BOX_LIGHT
+
 from qcodes.instrument import InstrumentModule
 
 from qm import SimulationConfig, generate_qua_script, qua, QuantumMachinesManager
@@ -49,6 +52,7 @@ class SequenceBase(InstrumentModule):
         self.check_step_requirements = check_step_requirements
 
         self._sub_sequences = []
+        self._sub_sequence_dict = {}
         self._gettables = []
         self._qua_program_as_str = None
         self._init(**kwargs)
@@ -106,6 +110,23 @@ class SequenceBase(InstrumentModule):
         return self._sub_sequences
 
     @property
+    def sub_sequence_dict(self) -> dict:
+        """
+        List of `SubSequences`s that build the given sequence
+        """
+        # return 'hi'
+        structure_dict = {}
+        for sub_sequence in self._sub_sequences:
+            if len(sub_sequence.sub_sequences) > 0:
+                sub_dict = sub_sequence.sub_sequence_dict
+                structure_dict[sub_sequence.short_name] = sub_dict[sub_sequence.short_name]
+            else:
+                #name = f"{sub_sequence.short_name} [{sub_sequence.__name__}]"
+                #structure_dict[name] = {}
+                structure_dict[sub_sequence.short_name] = {}
+        return {self.short_name: structure_dict}
+
+    @property
     def gettables(self) -> list:
         """
         List of `GettableParameter`s that can be registered for acquisition
@@ -142,6 +163,21 @@ class SequenceBase(InstrumentModule):
         for param_name, param_dict in config.items():
             self._add_param(param_name, param_name, param_dict)
 
+    def draw_sub_sequence_tree(
+            self,
+            draw_style: BoxStyle = BoxStyle(gfx=BOX_LIGHT, horiz_len=1),
+        ) -> str:
+        """
+        Draws a tree of the subsequences of the sequence with their names and
+        types
+        Args:
+            box_style (BoxStyle): Style of the box to draw the tree with
+        Returns:
+            str: String representation of the tree
+        """
+        tr = LeftAligned(draw=draw_style)
+        print(tr(self.sub_sequence_dict))
+        
     def get_qua_program_as_str(self) -> str:
         """Returns the qua program as str. Will be compiled if it wasnt yet"""
         if self._qua_program_as_str is None:
