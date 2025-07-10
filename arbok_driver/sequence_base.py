@@ -48,6 +48,7 @@ class SequenceBase(InstrumentModule):
         self.check_step_requirements = check_step_requirements
 
         self._sub_sequences = []
+        self._sub_sequence_dict = {}
         self._gettables = []
         self._qua_program_as_str = None
         self._init(**kwargs)
@@ -103,6 +104,23 @@ class SequenceBase(InstrumentModule):
         List of `SubSequences`s that build the given sequence
         """
         return self._sub_sequences
+
+    @property
+    def sub_sequence_dict(self) -> dict:
+        """
+        List of `SubSequences`s that build the given sequence
+        """
+        # return 'hi'
+        structure_dict = {}
+        for sub_sequence in self._sub_sequences:
+            if len(sub_sequence.sub_sequences) > 0:
+                sub_dict = sub_sequence.sub_sequence_dict
+                structure_dict[sub_sequence.short_name] = sub_dict[sub_sequence.short_name]
+            else:
+                #name = f"{sub_sequence.short_name} [{sub_sequence.__name__}]"
+                #structure_dict[name] = {}
+                structure_dict[sub_sequence.short_name] = {}
+        return {self.short_name: structure_dict}
 
     @property
     def gettables(self) -> list:
