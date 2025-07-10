@@ -454,6 +454,7 @@ class SequenceBase(InstrumentModule):
             namespace_to_add_to (dict): Name space to insert the
                 subsequence into (e.g locals(), globals()) defaults to None
         """
+        given_subsequence = subsequence
         if subsequence is None:
             if sequence_config is None:
                 raise ValueError(
@@ -467,14 +468,16 @@ class SequenceBase(InstrumentModule):
                     "'sequence' key with a subsequence type to configure for."
                     ) from exc
         else:
-            if sequence_config is not None:
-                warnings.warn(
-                    "Deprecation Warning: sequence types should not be given as "
-                    "arg to 'add_subsequence'. Should be ONLY given in config. "
-                    f"{sequence_config['sequence'].__name__} -> "
-                    f"{subsequence.__name__}",
-                    category = DeprecationWarning
-                    )
+            if given_subsequence is not None:
+                if sequence_config is not None and 'sequence' in sequence_config:
+                    warnings.warn(
+                        "Deprecation Warning: sequence types should not be given as "
+                        "arg to 'add_subsequence'. Should be ONLY given in config. "
+                        f"{sequence_config['sequence'].__name__} -> "
+                        f"{subsequence.__name__}",
+                        category = DeprecationWarning
+                        )
+                subsequence = given_subsequence
         if not issubclass(subsequence, SequenceBase):
             raise TypeError(
                 "Subsequence must be of type SubSequence")
