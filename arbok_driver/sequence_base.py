@@ -473,6 +473,7 @@ class SequenceBase(InstrumentModule):
                     "arg to 'add_subsequence'. Should be ONLY given in config. "
                     f"{sequence_config['sequence'].__name__} -> "
                     f"{subsequence.__name__}",
+                    category = DeprecationWarning
                     )
         if not issubclass(subsequence, SequenceBase):
             raise TypeError(
