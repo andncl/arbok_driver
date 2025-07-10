@@ -2,6 +2,7 @@
 
 import copy
 import types
+import warnings
 from typing import Optional
 import logging
 from functools import reduce                                                                                                                        
@@ -435,46 +436,142 @@ class SequenceBase(InstrumentModule):
                 element_dict[element][key] = param
         return element_dict
 
-    def add_subsequences_from_dict(
+    def _add_subsequence(
+        self,
+        name: str,
+        subsequence: 'SequenceBase' = None,
+        sequence_config: dict = None,
+        namespace_to_add_to: dict = None,
+        **kwargs
+        ) -> None:
+        """
+        Adds a subsequence to the sequence
+        
+        Args:
+            name (str): Name of the subsequence
+            subsequence (SubSequence): Subsequence to be added
+            sequence_config (dict): Config containing all measurement params
+            namespace_to_add_to (dict): Name space to insert the
+                subsequence into (e.g locals(), globals()) defaults to None
+        """
+        given_subsequence = subsequence
+        if subsequence is None:
+            if sequence_config is None:
+                raise ValueError(
+                    "Neither a subsequence nor a sequence_config was given. "
+                    )
+            try:
+                subsequence = sequence_config['sequence']
+            except KeyError as exc:
+                raise KeyError(
+                    f"The given config for {self.name} does not contain a "
+                    "'sequence' key with a subsequence type to configure for."
+                    ) from exc
+        else:
+            if given_subsequence is not None:
+                if sequence_config is not None and 'sequence' in sequence_config:
+                    warnings.warn(
+                        "Deprecation Warning: sequence types should not be given as "
+                        "arg to 'add_subsequence'. Should be ONLY given in config. "
+                        f"{sequence_config['sequence'].__name__} -> "
+                        f"{subsequence.__name__}",
+                        category = DeprecationWarning
+                        )
+                subsequence = given_subsequence
+        if not issubclass(subsequence, SequenceBase):
+            raise TypeError(
+                "Subsequence must be of type SubSequence")
+        seq_instance = subsequence(
+            parent = self,
+            name = name,
+            sample = self.sample,
+            sequence_config = sequence_config,
+            **kwargs
+            )
+        setattr(self, name, seq_instance)
+        if namespace_to_add_to is not None:
+            name_space = namespace_to_add_to
+            name_space[name] = seq_instance
+        return seq_instance
+
+    def _add_subsequences_from_dict(
             self,
+            default_sequence,
             subsequence_dict: dict,
-            insert_sequences_into_name_space: dict = None) -> None:
+            namespace_to_add_to: dict = None) -> None:
         """
         Adds subsequences to the sequence from a given dictionary
 
         Args:
+            default_sequence (SubSequence): Default subsequence to be used if
+                no sequence is given in the subsequence_dict. Since is meant to
+                be SubSequence which is a child of SequenceBase, therefore it
+                cant be directly referenced here but is given from the
+                respective child
             subsequence_dict (dict): Dictionary containing the subsequences
-        """
+            namespace_to_add_to (dict): Name space to insert the
+                subsequence into (e.g locals(), globals()) defaults to None
+                    """
+        if type(self) is SequenceBase:
+            raise TypeError(
+                "Method is meant to be used in SubSequence or Measurement!")
         if isinstance(subsequence_dict, types.SimpleNamespace):
             subsequence_dict = vars(subsequence_dict)
         for name, seq_conf  in subsequence_dict.items():
-            if 'sequence' in seq_conf:
-                subsequence = seq_conf['sequence']
-                if 'config' in seq_conf:
-                    sub_seq_conf = seq_conf['config']
-                    
-                    if not isinstance(sub_seq_conf, dict):
-                        raise ValueError(
-                            f"Subsequence config ({name}) must be of type dict,"
-                            f" is {type(sub_seq_conf)}")
-                else:
-                    sub_seq_conf = None
-                if 'kwargs' in seq_conf:
-                    kwargs = seq_conf['kwargs']
-                    if not isinstance(kwargs, dict):
-                        raise ValueError(
-                            f"Kwargs must be of type dict, is {type(kwargs)}")
-                else:
-                    kwargs = {}
-                _ = self._add_subsequence(
-                    name, subsequence, sub_seq_conf,
-                    insert_sequences_into_name_space, **kwargs)
-
-            else:
+            ### Check whether a subsequence is configured or empty 
+            if all(k not in seq_conf.keys() for k in ['sequence', 'config']):
+                ### If empty SubSequence, create one deeper nesting layer
                 seq_instance = self._add_subsequence(
-                    name, 'default', None, insert_sequences_into_name_space)
+                    name = name,
+                    subsequence = default_sequence,
+                    sequence_config = None,
+                    namespace_to_add_to = namespace_to_add_to
+                    )
                 seq_instance.add_subsequences_from_dict(
-                    seq_conf, insert_sequences_into_name_space)
+                    seq_conf, namespace_to_add_to)
+            else:
+                self._prepare_adding_subsequence(
+                    name, seq_conf, namespace_to_add_to)
+
+    def _prepare_adding_subsequence(
+            self,
+            name: str,
+            seq_conf: dict,
+            namespace_to_add_to: dict = None
+            ) -> None:
+            ### Check if config available and of type dict
+            if 'config' in seq_conf:
+                sub_seq_conf = seq_conf['config']
+                subsequence = None # seq_conf['config']['sequence']
+                if not isinstance(sub_seq_conf, dict):
+                    raise ValueError(
+                        f"Subsequence config ({name}) must be of type dict,"
+                        f" is {type(sub_seq_conf)}")
+            else:
+                sub_seq_conf = None
+            ### Check if kwargs available and of type dict
+            if 'kwargs' in seq_conf:
+                kwargs = seq_conf['kwargs']
+                if not isinstance(kwargs, dict):
+                    raise ValueError(
+                        f"Kwargs must be of type dict, is {type(kwargs)}")
+            else:
+                kwargs = {}
+            ### Check if sequence is available and of type SequenceBase
+            if 'sequence' in seq_conf:
+                if sub_seq_conf is not None:
+                    warnings.warn(
+                        "If both 'config' and 'sequence' are given, 'sequence' "
+                        "will be used and the seq given in 'config' will be "
+                        "ignored. "
+                        f"{sub_seq_conf['sequence'].__name__} -> "
+                        f"{seq_conf['sequence'].__name__}",
+                    )
+                subsequence = seq_conf['sequence']
+
+            _ = self._add_subsequence(
+                name, subsequence, sub_seq_conf,
+                namespace_to_add_to, **kwargs)
 
     def find_parameters(self, key: str, elements: list = None) -> dict:
         """

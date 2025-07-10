@@ -13,20 +13,27 @@ class Sample():
             self, name: str,
             opx_config: dict,
             divider_config: dict,
-            param_config = None,):
+            param_config = None,
+            default_sequence_configs = None
+            ):
         """
         Constructor class for 'Sample' class.
 
         Args:
             name (str): Name of the used sample
-            config (dict): OPX configuration file for sample
-            self.elements (list): List of all quantum elements
+            opx_config (dict): Configuration dictionary for the OPX
+            divider_config (dict): Configuration dictionary for the divider
+            param_config (dict): Configuration dictionary for the parameters
+                Also known as master config with params available to all subseq.
+            default_sequence_configs (dict): Default sequence configurations
+                Lookup table to find default configs for any subsequences
         """
         self.name = name
         self.config = opx_config
         self.param_config = param_config
         self.divider_config = divider_config
         self.elements = list(self.config['elements'].keys())
+        self.default_sequence_configs = default_sequence_configs
 
     @property
     def master_config_path(self):
@@ -55,7 +62,10 @@ class Sample():
         self._master_config_path = config_path
         mc = get_module('mc', config_path)
         if not hasattr(mc, 'config'):
-            raise AttributeError(f"Dictionary 'config' not found in the file {self._master_config_path}")
+            raise AttributeError(
+                "Dictionary 'config' not found in the file: "
+                f"{self._master_config_path}"
+                )
         self.master_config = mc.config
         # check if sequences_config is in the mc if not then put empty format.
         if hasattr(mc, 'sequences_config'):
