@@ -554,7 +554,12 @@ class SequenceBase(InstrumentModule):
         if isinstance(subsequence_dict, types.SimpleNamespace):
             subsequence_dict = vars(subsequence_dict)
         for name, seq_conf  in subsequence_dict.items():
-            ### Check whether a subsequence is configured or empty 
+            ### Check whether a subsequence is configured or empty
+            if seq_conf is None:
+                raise ValueError(
+                    f"Conf for {name} is None, please provide dict. E.g: "
+                    r"{'sequence': SubSequence, 'config': {}}"
+                    )
             if all(k not in seq_conf.keys() for k in ['sequence', 'config']):
                 ### If empty SubSequence, create one deeper nesting layer
                 seq_instance = self._add_subsequence(
