@@ -28,7 +28,7 @@ dependencies = [
     "qcodes-contrib-drivers == 0.18",
     "rich == 13.7.1",
 ]
-dynamic = ["version"]
+dynamic = "1.2.1"
 
 [tool.setuptools_scm]
 version_scheme = "post-release"
