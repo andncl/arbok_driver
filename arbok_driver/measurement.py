@@ -11,6 +11,7 @@ import qcodes as qc
 from qcodes.validators import Arrays
 
 from .measurement_helpers import create_measurement_loop
+from .measurement_runner import MeasurementRunner
 from .gettable_parameter import GettableParameter
 from .observable import ObservableBase
 from .sequence_parameter import SequenceParameter
@@ -656,3 +657,23 @@ class Measurement(SequenceBase):
         def run_loop():
             pass
         return run_loop
+
+    def run_measurement(
+            self, sweep_list: list[dict], inner_func = None) -> "dataset":
+        """
+        Runs the measurement with the given sweep list based on MeasurementRunner
+        class
+
+        Args:
+            sweep_list (list[dict]): List of dictionaries with parameters as keys
+                and np.ndarrays as setpoints. Each list entry creates one sweep axis.
+                If you want to sweep params concurrently enter more entries into
+                their sweep dict
+        """
+        self.measurement_runner = MeasurementRunner(
+            measurement = self,
+            sweep_list = sweep_list
+        )
+        self.measurement_runner.run_arbok_measurement(
+            inner_func = inner_func)
+        )
