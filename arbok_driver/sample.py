@@ -1,5 +1,5 @@
-from .utils import get_module
 """ Module containing Samples class """
+import warnings
 
 class Sample():
     """
@@ -33,6 +33,9 @@ class Sample():
         self.param_config = param_config
         self.divider_config = divider_config
         self.elements = list(self.config['elements'].keys())
+        if default_sequence_configs is None:
+            default_sequence_configs = {}
+            warnings.warn("No default_sequence_configs provided on sample!")
         self.default_sequence_configs = default_sequence_configs
 
     @property
