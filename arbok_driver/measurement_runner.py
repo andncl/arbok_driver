@@ -5,8 +5,6 @@ import copy
 import numpy as np
 from rich.progress import Progress
 
-from .measurement import Measurement
-
 class MeasurementRunner:
     """
     Helper class constructing QCoDeS measurement loops
@@ -14,13 +12,13 @@ class MeasurementRunner:
 
     def __init__(
         self,
-        measurement: Measurement,
+        measurement: 'Measurement',
         sweep_list: list[dict],
         register_all: bool = False
         ):
 
         self.measurement = measurement
-        self.qc_measurement  = measurement.qc_measurement
+        self.qc_measurement  = measurement.get_qc_measurement()
         self.sweep_list = sweep_list
 
         self.result_args_dict = self._get_result_arguments(register_all)
@@ -31,7 +29,7 @@ class MeasurementRunner:
         self.progress_tracker = None
         self.progress_bars = None
 
-    def run_arbok_measurement(self, inner_func: callable | None) -> "dataset":
+    def run_arbok_measurement(self, inner_func: callable = None) -> "dataset":
         """
         Runs the measurement with the given inner function.
         
@@ -39,14 +37,31 @@ class MeasurementRunner:
             inner_func (callable): The function to be executed for each measurement
                 point. It should accept the datasaver and the current sweep values
                 as arguments.
+        Returns:
+            dataset (Dataset): The QCoDeS dataset containing the measurement results.
         """
-        logging.debug("Creating measurement loop")
+        logging.debug("Preparing params and gettables for measurement")
         self.inner_func = inner_func
         self._prepare_params_and_gettables()
         # Run the measurement with the recursive measurement loop
+        try:
+            logging.debug("Running measurement with %s", self.measurement.name)
+            datasaver = self._build_qc_measurement()
+        except KeyboardInterrupt:
+            logging.warning("Measurement interrupted by user.")
+            print("Measurement interrupted by user.")
+            return None
+
+        return datasaver.dataset
+
+    def _build_qc_measurement(self):
+        """
+        Builds the QCoDeS measurement object for the measurement.
+        """
         with self.qc_measurement.run() as datasaver:
             with Progress() as self.progress_tracker:
                 ### Adding progress bars
+
                 self.progress_bars = {}
                 total_progress = self.progress_tracker.add_task(
                     description = "[green]Total progress...",
@@ -60,8 +75,7 @@ class MeasurementRunner:
                 self._create_recursive_measurement_loop(
                     self.sweep_list, datasaver)
             print("Measurement finished!")
-
-        return datasaver.dataset
+        return datasaver
 
     def _create_recursive_measurement_loop(
             self,
@@ -83,7 +97,8 @@ class MeasurementRunner:
             if self.inner_func is not None:
                 self.inner_func()
             ### Program is resumed and all gettables are fetched when ready
-            self.measurement.driver.qm_job.resume()
+            if not self.measurement.driver.is_dummy:
+                self.measurement.driver.qm_job.resume()
             logging.debug("Job resumed, Fetching gettables")
             self._save_results(datasaver)
             return
