@@ -42,6 +42,7 @@ class ArbokDriver(qc.Instrument):
         self.qm_job = None
         self.result_handles = None
         self.no_pause = False
+        self.is_dummy = False
         self._sequences = []
         self.add_parameter('iteration', get_cmd = None, set_cmd =None)
 
