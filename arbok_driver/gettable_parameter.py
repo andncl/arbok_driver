@@ -37,8 +37,18 @@ class GettableParameter(ParameterWithSetpoints):
         self.unit = ""
         self.label = ""
 
-        self.sequence = sequence
+        self.measurement = sequence.measurement
         self.reset_measuerement_attributes()
+
+        self.qm_job = None
+        self.buffer = None
+        self.buffer_val = None
+        self.shape = None
+        self.snaked = None
+        self.batch_size = 0
+        self.result_nr = 0
+        self.batch_counter = None
+        self.nr_registered_results = 0
 
     def set_raw(self, *args, **kwargs) -> None:
         """Empty abstract `set_raw` method. Parameter not meant to be set"""
@@ -62,56 +72,14 @@ class GettableParameter(ParameterWithSetpoints):
         Returns:
             bool: True if running with dummy driver, False otherwise
         """
+        if self.measurement.driver.is_dummy:
+            return True
         try:
             # Check if the driver is a DummyDriver
-            driver_class_name = self.sequence.driver.__class__.__name__
-            print('dummy mode')
+            driver_class_name = self.measurement.driver.__class__.__name__
             return driver_class_name == 'DummyDriver' or 'Dummy' in driver_class_name
         except AttributeError:
             return False
-
-    def _generate_synthetic_data(self) -> np.ndarray:
-        """
-        Generate synthetic/dummy data for testing purposes
-        
-        Returns:
-            np.ndarray: Synthetic data array with the expected shape
-        """
-        # Use a seed based on the parameter name for repeatability
-        seed = int(hashlib.md5(self.name.encode()).hexdigest(), 16) % (2**32)
-        np.random.seed(seed)
-        
-        # Generate synthetic data based on the sweep size
-        sweep_size = np.prod(self.shape)
-        
-        # Create different types of synthetic data based on parameter name
-        if 'I' in self.name or 'current' in self.name.lower():
-            # Current-like data: small values with some noise
-            base_value = 1e-9  # 1 nA base current
-            noise_level = 0.1 * base_value
-            data = np.random.normal(base_value, noise_level, sweep_size)
-        elif 'voltage' in self.name.lower() or 'V' in self.name:
-            # Voltage-like data: larger values
-            base_value = 0.5  # 0.5V base voltage
-            noise_level = 0.05 * base_value
-            data = np.random.normal(base_value, noise_level, sweep_size)
-        elif 'frequency' in self.name.lower() or 'freq' in self.name.lower():
-            # Frequency-like data
-            base_value = 1e9  # 1 GHz base frequency
-            noise_level = 1e6  # 1 MHz noise
-            data = np.random.normal(base_value, noise_level, sweep_size)
-        elif 'phase' in self.name.lower():
-            # Phase data: between -pi and pi
-            data = np.random.uniform(-np.pi, np.pi, sweep_size)
-        elif 'count' in self.name.lower() or 'shot' in self.name.lower():
-            # Count data: integers
-            data = np.random.poisson(100, sweep_size).astype(float)
-        else:
-            # Generic data: normalized values around 0
-            data = np.random.normal(0, 1, sweep_size)
-        
-        logging.debug(f"Generated synthetic data for {self.name}: shape={data.shape}, mean={np.mean(data):.3e}")
-        return data
 
     def get_raw(self, progress_bar = None) -> np.ndarray:
         """ 
@@ -120,52 +88,37 @@ class GettableParameter(ParameterWithSetpoints):
         the given measurement and the underlying hardware.
         """
         logging.debug("GettableParameter %s get_raw called", self.name)
-        
-        # Check if we're in dummy mode
-        if self._is_dummy_mode():
-            logging.debug(f"Running in dummy mode for {self.name}, generating synthetic data")
-            # Set up basic attributes for dummy mode
-            if self.batch_size == 0:
-                self.batch_size = getattr(self.sequence, 'sweep_size', 100)
-                self.shape = tuple(reversed(tuple(sweep.length for sweep in getattr(self.sequence.measurement, 'sweeps', []))))
-                if not self.shape:
-                    self.shape = (self.batch_size,)
-                self.snaked = tuple(reversed(tuple(getattr(sweep, 'snake_scan', False) for sweep in getattr(self.sequence.measurement, 'sweeps', []))))
-                if not self.snaked:
-                    self.snaked = (False,)
-            
-            # Simulate progress bar updates if provided
-            if progress_bar is not None:
-                import time
-                for i in range(10):  # Simulate 10 progress updates
-                    progress_bar[1].update(
-                        progress_bar[0],
-                        completed = int((i + 1) * self.batch_size / 10),
-                        description = f"[cyan]Dummy batch progress {int((i + 1) * self.batch_size / 10)}/{self.batch_size}"
-                    )
-                    progress_bar[1].refresh()
-                    time.sleep(0.01)  # Small delay to simulate real measurement time
-            
-            # Generate and return synthetic data
-            synthetic_data = self._generate_synthetic_data()
-            return self._reshape_data(synthetic_data, self.shape, self.snaked)
-        
-        # Original hardware mode code
         ### Setup is called on first get
         if self.buffer is None:
             self._set_up_gettable_from_program()
-
+        # Check if we're in dummy mode
+        if self._is_dummy_mode():
+            logging.debug(
+                "Running in dummy mode for %s,"
+                "generating synthetic data", self.name
+                )
+            # Set up basic attributes for dummy mode
+            synthetic_data = self._generate_synthetic_data(
+                progress_bar= progress_bar)
+            return self._reshape_data(synthetic_data, self.shape, self.snaked)
+        
+        # Original hardware mode code
         ### The progress is being tracked while waiting for the buffer to fill
         self._wait_until_buffer_full(progress_bar = progress_bar)
         self.buffer_val = self._fetch_opx_buffer()
 
         ### The QM can have a delay in populating the stream for big sweeps
-        while not self.buffer_val.shape == (self.sequence.sweep_size,):
+        while not self.buffer_val.shape == (self.measurement.sweep_size,):
             time.sleep(0.1)
             self.buffer_val = self._fetch_opx_buffer()
         return self._reshape_data(self.buffer_val, self.shape, self.snaked)
 
-    def _reshape_data(self, a_in: np.ndarray, sizes: tuple[int, ...], snaked: tuple[bool, ...]) -> np.ndarray:
+    def _reshape_data(
+            self,
+            a_in: np.ndarray,
+            sizes: tuple[int, ...],
+            snaked: tuple[bool, ...]
+            ) -> np.ndarray:
         """
         Reshape the inherited array to be len(sizes). Iterate through each of the sizes gradually
         reshaping the inherited array one dimensions at a time. If for dimension n, snaked[n] is true,
@@ -182,12 +135,13 @@ class GettableParameter(ParameterWithSetpoints):
 
         # First check that the cumulative product of sizes is the same as self.size
         if np.prod(sizes) != a_in.size:
-            raise ValueError(f"""The cumulative product of sizes {np.prod(sizes)} must be equal to the 
-                             total number of elements in the array {self.size}.""")
-
+            raise ValueError(
+                f"The cumulative product of sizes {np.prod(sizes)} must be"
+                "equal to the total number of elements in the array: "
+                f"{self.batch_size}."
+                )
         # Duplicate the ndarray
         a = a_in
-
         # Now iterate through each of the sizes
         for i, (sz, sn) in enumerate(zip(sizes[:-1], snaked[1:])):
             # Reshape a to have an extra dimension of size sz
@@ -206,31 +160,35 @@ class GettableParameter(ParameterWithSetpoints):
     def _set_up_gettable_from_program(self):
         """
         Set up Gettable attributes from running OPX including measurement and 
-        hardware specific values.
+        hardware specific values if driver is not operated in dummy mode.
         """
-        self.sequence = self.sequence.measurement
-        if not self.sequence.measurement.driver.opx:
-            raise LookupError("Results cant be retreived without OPX connected")
-        self.qm_job = self.sequence.driver.qm_job
-        self.batch_counter = getattr(
-            self.qm_job.result_handles,
-            f"{self.sequence.name}_shots"
-        )
-        self.buffer = getattr(self.qm_job.result_handles, f"{self.name}_buffer")
-        if self.buffer is None:
-            raise LookupError(
-                f"Buffer {self.name}_buffer not found. Try one of:"
-                f"{self.qm_job.result_handles.keys()}")
-        self.shape = tuple(reversed(tuple(sweep.length for sweep in self.sequence.sweeps)))
-        self.snaked = tuple(reversed(tuple(sweep.snake_scan for sweep in self.sequence.sweeps)))
-        self.batch_size = self.sequence.sweep_size
+        shape = tuple(sweep.length for sweep in self.measurement.sweeps)
+        self.shape = tuple(reversed(shape))
+        snaked_shape = tuple(sweep.snake_scan for sweep in self.measurement.sweeps)
+        self.snaked = tuple(reversed(snaked_shape))
+        self.batch_size = self.measurement.sweep_size
+        if not self._is_dummy_mode():
+            if not self.measurement.driver.opx:
+                raise LookupError("Results cant be retreived without OPX connected")
+            self.qm_job = self.measurement.driver.qm_job
+            self.batch_counter = getattr(
+                self.qm_job.result_handles,
+                f"{self.measurement.name}_shots"
+            )
+            self.buffer = getattr(self.qm_job.result_handles, f"{self.name}_buffer")
+            if self.buffer is None:
+                raise LookupError(
+                    f"Buffer {self.name}_buffer not found. Try one of:"
+                    f"{self.qm_job.result_handles.keys()}")
 
-    def _wait_until_buffer_full(self, progress_bar = None):
+    def _wait_until_buffer_full(self, progress_bar: tuple = None):
         """
         This function is running until a batch with self.batch_size is ready
+
+        Args:
+            progress_bar (tuple): Optional tuple containing progress bar
         """
-        batch_count, old_count = 0, 0
-        last_result_nr = self.result_nr
+        batch_count = 0
         time_per_shot = 0
         shot_timing = "Calculate timing...\n"
         total_results = "Total results: ..."
@@ -282,13 +240,61 @@ class GettableParameter(ParameterWithSetpoints):
         self.batch_size = 0
         self.result_nr = 0
 
-    def plot_set_current_histogram(self, *args, **kwargs) -> tuple:
+    def _generate_synthetic_data(self, progress_bar) -> np.ndarray:
         """
-        Plots a histrogram of all the measured data so far
+        Generate synthetic/dummy data for testing purposes
         
-        Args:
-            *args: Arguments for plt.hist
-            **kwargs: Keyword arguments for plt.hist
+        Returns:
+            np.ndarray: Synthetic data array with the expected shape
         """
-        set_current = np.array(self.get_all(), dtype = float)
-        return plt.hist(set_current, args, kwargs)
+        # Simulate progress bar updates if provided
+        if progress_bar is not None:
+            import time
+            for i in range(10):  # Simulate 10 progress updates
+                count = int((i + 1) * self.batch_size / 10)
+                progress_bar[1].update(
+                    progress_bar[0],
+                    completed = int((i + 1) * self.batch_size / 10),
+                    description = f"[cyan]Dummy batch progress {count}/{self.batch_size}"
+                )
+                progress_bar[1].refresh()
+                time.sleep(0.01)  # Small delay to simulate real measurement time
+        
+        # Generate and return synthetic data
+        # Use a seed based on the parameter name for repeatability
+        seed = int(hashlib.md5(self.name.encode()).hexdigest(), 16) % (2**32)
+        np.random.seed(seed)
+        # Generate synthetic data based on the sweep size
+        sweep_size = np.prod(self.shape)
+        # Create different types of synthetic data based on parameter name
+        if 'I' in self.name or 'current' in self.name.lower():
+            # Current-like data: small values with some noise
+            base_value = 1e-9  # 1 nA base current
+            noise_level = 0.1 * base_value
+            data = np.random.normal(base_value, noise_level, sweep_size)
+        elif 'voltage' in self.name.lower() or 'V' in self.name:
+            # Voltage-like data: larger values
+            base_value = 0.5  # 0.5V base voltage
+            noise_level = 0.05 * base_value
+            data = np.random.normal(base_value, noise_level, sweep_size)
+        elif 'frequency' in self.name.lower() or 'freq' in self.name.lower():
+            # Frequency-like data
+            base_value = 1e9  # 1 GHz base frequency
+            noise_level = 1e6  # 1 MHz noise
+            data = np.random.normal(base_value, noise_level, sweep_size)
+        elif 'phase' in self.name.lower():
+            # Phase data: between -pi and pi
+            data = np.random.uniform(-np.pi, np.pi, sweep_size)
+        elif 'count' in self.name.lower() or 'shot' in self.name.lower():
+            # Count data: integers
+            data = np.random.poisson(100, sweep_size).astype(float)
+        else:
+            # Generic data: normalized values around 0
+            data = np.random.normal(0, 1, sweep_size)
+        data = np.array(data)
+        logging.debug(
+            "Generated synthetic data for %s: shape=%s, mean=%s",
+            self.name, len(data), np.mean(data)
+            )
+        time.sleep(0.5)
+        return data

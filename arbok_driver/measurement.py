@@ -11,6 +11,7 @@ import qcodes as qc
 from qcodes.validators import Arrays
 
 from .measurement_helpers import create_measurement_loop
+from .measurement_runner import MeasurementRunner
 from .gettable_parameter import GettableParameter
 from .observable import ObservableBase
 from .sequence_parameter import SequenceParameter
@@ -86,6 +87,7 @@ class Measurement(SequenceBase):
         """
         self._gettables = []
         self._sweep_size = 1
+        self._sweep_dims = ()
         self.shot_tracker_qua_var = None
         self.shot_tracker_qua_stream = None
         self._step_requirements = []
@@ -135,8 +137,8 @@ class Measurement(SequenceBase):
     @property
     def sweep_dims(self) -> int:
         """Dimensionality of sweep axes"""
-        self._sweep_dims = (sweep.length for sweep in self.sweeps)
-        return self._sweep_size
+        self._sweep_dims = tuple((sweep.length for sweep in self.sweeps))
+        return self._sweep_dims
 
     @property
     def input_stream_parameters(self) -> list:
@@ -486,7 +488,7 @@ class Measurement(SequenceBase):
         all_gettable_parameters = all(
             isinstance(gettable, GettableParameter) for gettable in gettables)
         all_gettables_from_self = all(
-            gettable.sequence.measurement == self for gettable in gettables)
+            gettable.measurement == self for gettable in gettables)
         if not all_gettable_parameters:
             raise TypeError(
                 f"All args need to be GettableParameters, Are: {gettables}")
@@ -617,7 +619,7 @@ class Measurement(SequenceBase):
         )
 
     def get_qc_measurement(
-            self, measurement_name: str) -> qc.dataset.Measurement:
+            self, measurement_name: str = None) -> qc.dataset.Measurement:
         """
         Creates a QCoDeS measurement from the given experiment
         
@@ -628,6 +630,8 @@ class Measurement(SequenceBase):
         Returns:
             qc_measurement (qc.dataset.Measurement): Measurement instance
         """
+        if measurement_name is None:
+            measurement_name = self.qc_measurement_name
         self.qc_measurement = qc.dataset.Measurement(
             exp = self.qc_experiment, name = measurement_name)
         return self.qc_measurement
@@ -656,3 +660,22 @@ class Measurement(SequenceBase):
         def run_loop():
             pass
         return run_loop
+
+    def run_measurement(
+            self, sweep_list: list[dict], inner_func = None) -> "dataset":
+        """
+        Runs the measurement with the given sweep list based on MeasurementRunner
+        class
+
+        Args:
+            sweep_list (list[dict]): List of dictionaries with parameters as keys
+                and np.ndarrays as setpoints. Each list entry creates one sweep axis.
+                If you want to sweep params concurrently enter more entries into
+                their sweep dict
+        """
+        self.measurement_runner = MeasurementRunner(
+            measurement = self,
+            sweep_list = sweep_list
+        )
+        self.measurement_runner.run_arbok_measurement(
+            inner_func = inner_func)
