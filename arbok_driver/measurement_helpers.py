@@ -175,7 +175,8 @@ def _create_recursive_measurement_loop(
             inner_function(*args, **kwargs)
 
         ### Program is resumed and all gettables are fetched when ready
-        sequence.driver.qm_job.resume()
+        if not sequence.driver.is_dummy:
+            sequence.driver.qm_job.resume()
         logging.debug("Job resumed, Fetching gettables")
         result_args_temp = []
         for gettable in sequence.gettables:
