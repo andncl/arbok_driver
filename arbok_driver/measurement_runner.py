@@ -71,7 +71,6 @@ class MeasurementRunner:
                     total = self.measurement.sweep_size)
                 self.progress_bars['total_progress'] = total_progress
                 self.progress_bars['batch_progress'] = batch_progress
-
                 self._create_recursive_measurement_loop(
                     self.sweep_list, datasaver)
             print("Measurement finished!")
@@ -100,6 +99,9 @@ class MeasurementRunner:
             if not self.measurement.driver.is_dummy:
                 self.measurement.driver.qm_job.resume()
             logging.debug("Job resumed, Fetching gettables")
+            self.measurement.wait_until_result_buffer_full(
+                (self.progress_bars['batch_progress'], self.progress_tracker)
+            )
             self._save_results(datasaver)
             return
 
@@ -132,17 +134,9 @@ class MeasurementRunner:
             datasaver (DataSaver): The QCoDeS DataSaver object to save results to.
         """
         result_args_temp = []
-        for gettable in self.measurement.gettables:
+        for _, gettable in self.measurement.gettables.items():
             result_args_temp.append(
-                (
-                    gettable,
-                    gettable.get_raw(
-                        progress_bar = (
-                            self.progress_bars['batch_progress'],
-                            self.progress_tracker,
-                        )
-                    )
-                )
+                (gettable, gettable.fetch_results())
             )
         ### Retreived results are added to the datasaver
         result_args_temp += list(self.result_args_dict.values())
@@ -186,7 +180,7 @@ class MeasurementRunner:
                 "Registering sequence parameter %s", param.full_name)
             self.qc_measurement.register_parameter(param)
 
-        for gettable in self.measurement.gettables:
+        for _, gettable in self.measurement.gettables.items():
             gettable_setpoints = self.result_args_dict.keys()
             logging.debug("Registering gettable %s", gettable_setpoints)
             self.qc_measurement.register_parameter(
