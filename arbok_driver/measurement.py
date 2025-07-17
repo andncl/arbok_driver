@@ -710,7 +710,7 @@ class Measurement(SequenceBase):
             progress_bar (tuple): Tuple containing the progress bar and the
                 total number of results
         """
-        bar_title2 = "[cyan]Batch progress "
+        bar_title2 = "[cyan]Batch progress\n"
         batch_count = 0
         time_per_shot = 0
         shot_timing = "Calculate timing...\n"
