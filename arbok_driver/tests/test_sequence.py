@@ -6,13 +6,13 @@ from sklearn import dummy
 from arbok_driver import Sequence, SubSequence
 from arbok_driver.tests.helpers import set_sweeps_args
 
-def test_sequence_init(arbok_driver, dummy_sample) -> None:
+def test_sequence_init(arbok_driver, dummy_device) -> None:
     """Tests if sequence is correctly initialized"""
-    seq = Sequence(arbok_driver, 'dummy_sequence', dummy_sample)
+    seq = Sequence(arbok_driver, 'dummy_sequence', dummy_device)
     assert seq.name == f'{arbok_driver.name}_dummy_sequence'
 
 def test_sequence_sub_sequence_addition(
-        dummy_sequence, dummy_sample) -> None:
+        dummy_sequence, dummy_device) -> None:
     """Tests if subsequence is correctly added to sequence"""
     config_1 = {
         'par1': {'unit': 'cycles', 'value': int(1)},
@@ -20,7 +20,7 @@ def test_sequence_sub_sequence_addition(
         'par3': {'unit': 'cycles', 'value': 1.1},
         'vHome': {'unit': 'V', 'elements': {'P1': 5, 'J1': 6, }},
     }
-    seq1 = SubSequence(dummy_sequence, 'seq1', dummy_sample, config_1)
+    seq1 = SubSequence(dummy_sequence, 'seq1', dummy_device, config_1)
     assert len(dummy_sequence.submodules) == 1
     assert len(dummy_sequence.sub_sequences) == 1
     assert dummy_sequence.sub_sequences[0] == seq1

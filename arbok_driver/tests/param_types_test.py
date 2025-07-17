@@ -74,8 +74,8 @@ def compare_multiline_strings(string1, string2):
     for line_num, (line1, line2) in enumerate(zip(lines1, lines2), start=1):
         assert line1 == line2, f"Line {line_num} differs:\n'{line1}'\nvs\n'{line2}'"
 
-def test_parameters(dummy_sample, capfd) -> None:
-    sequenceBase = SubSequence('square_conf2', dummy_sample, square_conf2)
+def test_parameters(dummy_device, capfd) -> None:
+    sequenceBase = SubSequence('square_conf2', dummy_device, square_conf2)
     sequenceBase.print_readable_snapshot()
     out, err = capfd.readouterr()
     compare_multiline_strings(out, expected_output)

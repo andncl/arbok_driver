@@ -57,7 +57,7 @@ class Sweep:
 
     @property
     def length(self):
-        """ Number of samples for parameters on the given axis """
+        """ Number of devices for parameters on the given axis """
         return self._length
 
     @property

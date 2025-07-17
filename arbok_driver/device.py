@@ -1,9 +1,9 @@
-""" Module containing Samples class """
+""" Module containing Devices class """
 import warnings
 
-class Sample():
+class Device():
     """
-    Class describing the used sample by its config and the used sequence. 
+    Class describing the used device by its config and the used sequence. 
     """
 
     _master_config_path = None
@@ -17,10 +17,10 @@ class Sample():
             default_sequence_configs = None
             ):
         """
-        Constructor class for 'Sample' class.
+        Constructor class for 'Device' class.
 
         Args:
-            name (str): Name of the used sample
+            name (str): Name of the used device
             opx_config (dict): Configuration dictionary for the OPX
             divider_config (dict): Configuration dictionary for the divider
             param_config (dict): Configuration dictionary for the parameters
@@ -35,7 +35,7 @@ class Sample():
         self.elements = list(self.config['elements'].keys())
         if default_sequence_configs is None:
             default_sequence_configs = {}
-            warnings.warn("No default_sequence_configs provided on sample!")
+            warnings.warn("No default_sequence_configs provided on device!")
         self.default_sequence_configs = default_sequence_configs
 
     @property

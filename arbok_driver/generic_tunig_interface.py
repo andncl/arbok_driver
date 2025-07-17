@@ -18,7 +18,7 @@ from .observable import ObservableBase
 
 class GenericTuningInterface:
     """Generic streaming interface for ML tuning."""
-    sample = None
+    device = None
     parameter_dict = None
     bounds = None
     input_stream_params = None
@@ -150,7 +150,7 @@ class GenericTuningInterface:
             saved_params[param_name] = value
         return float(cost), observable_results, saved_params
 
-    def run_cross_entropy_sampler(
+    def run_cross_entropy_devicer(
             self, populations: list,
             select_frac: float = 0.3,
             plot_histograms: bool = False,
@@ -182,18 +182,18 @@ class GenericTuningInterface:
             print('Current bounds:\n', current_bounds)
             for param_name, bounds in current_bounds.items():
                 all_bounds[param_name].append(bounds)
-            sobol_samples = sobol_sampling(population, current_bounds)
+            sobol_devices = sobol_sampling(population, current_bounds)
             t0 = time.time()
             with Progress() as progress:
                 task = progress.add_task(
                     "Sampling parameter sets", total=population)
                 batch_task = progress.add_task(
                     "Sampling batch", total=self.measurement.sweep_size)
-                total_nr = len(sobol_samples)
-                ### Looping over all sampled parameter sets
+                total_nr = len(sobol_devices)
+                ### Looping over all deviced parameter sets
                 if plot_histograms:
                     fig, axs = plt.subplots(1, 2, figsize = (9,5))
-                for i, x in enumerate(sobol_samples):
+                for i, x in enumerate(sobol_devices):
                     ### Running the parameter set
                     r, obs, par_dict = self.run_parameter_set(
                         x, progress_bar = (batch_task, progress))
@@ -292,16 +292,16 @@ class GenericTuningInterface:
             last_reward_threshold: float,
             sampling_params_to_plot: list = None,):
         """
-        Updates the bounds for the Sobol sampler.
+        Updates the bounds for the Sobol devicer.
         
         Args:
             rewards (list): List of rewards for the current iteration
             params (dict): Dict of par names and values for the last population
         """
         dataset = dataset.sel(index = dataset.index[-population:])
-        nr_samples = int(np.ceil(select_frac*population))
+        nr_devices = int(np.ceil(select_frac*population))
         sorted_dataset = dataset.sortby(dataset.rewards)
-        best_indices = sorted_dataset.index[-nr_samples:]
+        best_indices = sorted_dataset.index[-nr_devices:]
 
         new_bounds = {}
         for par_name in dataset.parameters:
@@ -359,26 +359,26 @@ class GenericTuningInterface:
             )
         return dataset
 
-def sobol_sampling(num_samples: int, bound_dict: dict):
+def sobol_sampling(num_devices: int, bound_dict: dict):
     """
-    Generate Sobol sequence samples for the given parameters.
+    Generate Sobol sequence devices for the given parameters.
     
     Args:
-        num_samples (int): Number of samples to generate.
-        parameter_dict (dict): Dictionary containing the parameters to sample.
+        num_devices (int): Number of devices to generate.
+        parameter_dict (dict): Dictionary containing the parameters to device.
             Must have bounds as a key for each parameter.
         
     Returns:
-        dict: Dictionary containing the parameters as keys and the samples as values.
+        dict: Dictionary containing the parameters as keys and the devices as values.
     """
-    # Generate Sobol sequence samples and truncate samples to the desired number
+    # Generate Sobol sequence devices and truncate devices to the desired number
     sobol_engine = qmc.Sobol(d=len(bound_dict), scramble=True)
-    sobol_samples = sobol_engine.random_base2(m=int(np.ceil(np.log2(num_samples))))
-    sobol_samples = np.array(random.sample(sobol_samples.tolist(), num_samples))
+    sobol_devices = sobol_engine.random_base2(m=int(np.ceil(np.log2(num_devices))))
+    sobol_devices = np.array(random.device(sobol_devices.tolist(), num_devices))
 
-    # Scale samples to the desired domain
+    # Scale devices to the desired domain
     for i, (_, config) in enumerate(bound_dict.items()):
         l_bound = config[0]
         u_bound = config[1]
-        sobol_samples[:,i] = l_bound + (u_bound - l_bound) * sobol_samples[:,i]
-    return sobol_samples
+        sobol_devices[:,i] = l_bound + (u_bound - l_bound) * sobol_devices[:,i]
+    return sobol_devices

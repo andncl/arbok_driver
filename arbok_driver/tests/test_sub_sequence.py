@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 from qm import generate_qua_script
 
-from arbok_driver import SubSequence, Sample, SequenceParameter
+from arbok_driver import SubSequence, Device, SequenceParameter
 from arbok_driver.tests.helpers import set_sweeps_args
 
 def test_sub_seq_param_init(sub_sequence_1, sub_sequence_2) -> None:

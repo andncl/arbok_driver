@@ -2,7 +2,7 @@
 import logging
 from typing import Any
 
-from .sample import Sample
+from .device import Device
 from .sequence_base import SequenceBase
 
 class SubSequence(SequenceBase):
@@ -13,7 +13,7 @@ class SubSequence(SequenceBase):
             self,
             parent,
             name: str,
-            sample: Sample,
+            device: Device,
             sequence_config: dict | None = None,
             check_step_requirements: bool = False,
             **kwargs
@@ -23,12 +23,12 @@ class SubSequence(SequenceBase):
         
         Args:
             name (str): Name of the program
-            sample (Sample): Sample class describing phyical device
+            device (Device): Device class describing phyical device
             param_config (dict): Dictionary containing all device parameters
             **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(
-            parent, name, sample, sequence_config, check_step_requirements, **kwargs)
+            parent, name, device, sequence_config, check_step_requirements, **kwargs)
         self.parent.add_subsequence(self)
 
     @property

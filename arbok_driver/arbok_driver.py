@@ -11,7 +11,7 @@ import qcodes as qc
 from .experiment import Experiment
 from .measurement import Measurement
 from .sequence_base import SequenceBase
-from .sample import Sample
+from .device import Device
 from . import utils
 
 class ArbokDriver(qc.Instrument):
@@ -24,7 +24,7 @@ class ArbokDriver(qc.Instrument):
     def __init__(
             self,
             name: str,
-            sample: Sample,
+            device: Device,
             **kwargs
             ) -> None:
         """
@@ -32,11 +32,11 @@ class ArbokDriver(qc.Instrument):
         
         Args:
             name (str): Name of the instrument
-            sample (Sample): Sample class describing phyical device
+            device (Device): Device class describing phyical device
             **kwargs: Arbitrary keyword arguments for qcodes Instrument class
         """
         super().__init__(name, **kwargs)
-        self.sample = sample
+        self.device = device
         self.qmm = None
         self.opx = None
         self.qm_job = None
@@ -72,8 +72,8 @@ class ArbokDriver(qc.Instrument):
         Args:
             host_ip (str): Ip address of the OPX
             qm_config (dict): QM/OPX config dictionary to be used. Defaults to
-                None, in which case the config from the sample is used. If given
-                overwrites the sample config.
+                None, in which case the config from the device is used. If given
+                overwrites the device config.
             reconnect (bool): Whether to reconnect to the OPX if already
                 connected. Keeps QMM alive if true. Defaults to False.
             **kargs: Arbitrary keyword arguments for QMM instanciation
@@ -85,8 +85,8 @@ class ArbokDriver(qc.Instrument):
             if not isinstance(qm_config, dict):
                 raise ValueError(
                     "qm_config must be a dictionary, not a string")
-            self.sample.config = copy.deepcopy(qm_config)
-        self.opx = self.qmm.open_qm(self.sample.config)
+            self.device.config = copy.deepcopy(qm_config)
+        self.opx = self.qmm.open_qm(self.device.config)
 
     def reconnect_opx(
             self, host_ip: str, qm_config: dict = None) -> None:
@@ -97,8 +97,8 @@ class ArbokDriver(qc.Instrument):
         Args:
             host_ip (str): Ip address of the OPX
             qm_config (dict): QM/OPX config dictionary to be used. Defaults to
-                None, in which case the config from the sample is used. If given
-                overwrites the sample config. 
+                None, in which case the config from the device is used. If given
+                overwrites the device config. 
         """
         if self.opx is not None:
             print('Closing previous connection')
@@ -167,9 +167,9 @@ class ArbokDriver(qc.Instrument):
             print("Generating qua program from sequences")
             qua_program = self.get_qua_program()
         with open(path, 'w', encoding="utf-8") as file:
-            if self.sample is not None and add_config:
+            if self.device is not None and add_config:
                 file.write(generate_qua_script(
-                    qua_program, self.sample.config
+                    qua_program, self.device.config
                     ))
             else:
                 file.write(generate_qua_script(qua_program))
@@ -200,17 +200,17 @@ class ArbokDriver(qc.Instrument):
             raise ConnectionError(
                 "No QMM found! Connect an OPX via `connect_OPX`")
         simulated_job = self.qmm.simulate(
-            self.sample.config,
+            self.device.config,
             qua_program,
             SimulationConfig(duration=duration),
             **kwargs
         )
 
-        samples = simulated_job.get_simulated_samples()
+        devices = simulated_job.get_simulated_devices()
         if plot:
             for i in range(nr_controllers):
-                con_samples = getattr(samples, f'con{i+1}')
-                utils.plot_qmm_simulation_results(con_samples)
+                con_devices = getattr(devices, f'con{i+1}')
+                utils.plot_qmm_simulation_results(con_devices)
         return simulated_job
 
     def get_idn(self):
@@ -248,13 +248,13 @@ class ArbokDriver(qc.Instrument):
         measurement = Measurement(
             parent = self,
             name = name,
-            sample = self.sample,
-            sequence_config = self.sample.param_config
+            device = self.device,
+            sequence_config = self.device.param_config
             )
         if qc_measurement_name is None:
             qc_measurement_name = experiment.name
         measurement.qc_experiment = qc.dataset.load_or_create_experiment(
-            experiment.name, self.sample.name)
+            experiment.name, self.device.name)
         measurement.qc_measurement_name = qc_measurement_name
         measurement.add_subsequences_from_dict(experiment.sequences)
         return measurement

@@ -12,7 +12,7 @@ class ReadSequence(SubSequence):
         self,
         parent,
         name,
-        sample,
+        device,
         sequence_config,
         available_abstract_readouts = {},
         available_readout_points = {}
@@ -21,14 +21,14 @@ class ReadSequence(SubSequence):
         Constructor class for ReadSequence class
         Args:
             name (dict): name of the ReadSequence
-            sample (Sample): sample for which sequence is configured
+            device (Device): device for which sequence is configured
             seq_config (dict): Dict configuring all parameters for the given
                 read-sequence and its read-points and abstract-readouts
             available_abstract_readouts (None | dict): Optional, dictionairy with
                 available abstract readouts with method name as key and abstract
                 readout class as value
         """
-        super().__init__(parent, name, sample, sequence_config)
+        super().__init__(parent, name, device, sequence_config)
         self.seq_config = sequence_config
         self.available_abstract_readouts = available_abstract_readouts
         self.available_readout_points = available_readout_points
