@@ -631,6 +631,9 @@ class Measurement(SequenceBase):
             qc_measurement (qc.dataset.Measurement): Measurement instance
         """
         if measurement_name is None:
+            if self.qc_measurement_name is None:
+                raise ValueError(
+                    "No measurement name given and no default set")
             measurement_name = self.qc_measurement_name
         self.qc_measurement = qc.dataset.Measurement(
             exp = self.qc_experiment, name = measurement_name)
