@@ -1,10 +1,10 @@
 """ Module containing GettableParameter class """
-
-import time
 import logging
 import hashlib
+import warnings
 import numpy as np
-import matplotlib.pyplot as plt
+
+from qcodes.validators import Arrays
 from qcodes.parameters import ParameterWithSetpoints
 
 class GettableParameter(ParameterWithSetpoints):
@@ -43,12 +43,13 @@ class GettableParameter(ParameterWithSetpoints):
         self.qm_job = None
         self.buffer = None
         self.buffer_val = None
-        self.shape = None
+        self.sweep_dims = None
         self.snaked = None
         self.batch_size = 0
         self.result_nr = 0
         self.batch_counter = None
         self.nr_registered_results = 0
+        self.is_mock = False
 
     def set_raw(self, *args, **kwargs) -> None:
         """Empty abstract `set_raw` method. Parameter not meant to be set"""
@@ -59,11 +60,45 @@ class GettableParameter(ParameterWithSetpoints):
         self.qm_job = None
         self.buffer = None
         self.buffer_val = None
-        self.shape = None
+        self.sweep_dims = None
         self.batch_size = 0
         self.result_nr = 0
         self.batch_counter = None
         self.nr_registered_results = 0
+        self.snaked = None
+
+    def configure_from_measurement(self):
+        """
+        Configures the gettable parameter from the measurement object.
+        This method sets the sweep dimensions, batch size, and snaked shape
+        based on the sweeps defined in the measurement.
+        """
+        self.batch_size = self.measurement.sweep_size
+        self.sweep_dims = self.measurement.sweep_dims
+        self.vals = Arrays(
+            shape = tuple(sweep.length for sweep in self.measurement.sweeps))
+        self.is_mock = self.measurement.is_mock
+        snaked_shape = tuple(s.snake_scan for s in self.measurement.sweeps)
+        self.snaked = tuple(reversed(snaked_shape))
+
+        if not self._is_dummy_mode():
+            if not self.measurement.driver.opx:
+                raise LookupError(
+                    "Results cant be retreived without OPX connected")
+            if self.qm_job is None:
+                raise LookupError(
+                    "No QM job found. Please run the measurement first.")
+            self.qm_job = self.measurement.driver.qm_job
+            self.batch_counter = getattr(
+                self.qm_job.result_handles,
+                f"{self.measurement.name}_shots"
+            )
+            self.buffer = getattr(
+                self.qm_job.result_handles, f"{self.name}_buffer")
+            if self.buffer is None:
+                raise LookupError(
+                    f"Buffer {self.name}_buffer not found. Try one of:"
+                    f"{self.qm_job.result_handles.keys()}")
 
     def _is_dummy_mode(self) -> bool:
         """
@@ -81,37 +116,42 @@ class GettableParameter(ParameterWithSetpoints):
         except AttributeError:
             return False
 
-    def get_raw(self, progress_bar = None) -> np.ndarray:
+    def get_raw(self) -> np.ndarray:
         """ 
         Get method to retrieve a single batch of data from a running measurement
         On its first call, the gettables attributes get configured regarding
         the given measurement and the underlying hardware.
         """
-        logging.debug("GettableParameter %s get_raw called", self.name)
-        ### Setup is called on first get
-        if self.buffer is None:
-            self._set_up_gettable_from_program()
-        # Check if we're in dummy mode
-        if self._is_dummy_mode():
-            logging.debug(
-                "Running in dummy mode for %s,"
-                "generating synthetic data", self.name
-                )
-            # Set up basic attributes for dummy mode
-            synthetic_data = self._generate_synthetic_data(
-                progress_bar= progress_bar)
-            return self._reshape_data(synthetic_data, self.shape, self.snaked)
-        
-        # Original hardware mode code
-        ### The progress is being tracked while waiting for the buffer to fill
-        self._wait_until_buffer_full(progress_bar = progress_bar)
-        self.buffer_val = self._fetch_opx_buffer()
+        warnings.warn(
+            "Directly calling get_raw on gettable (%s)"
+            "Make sure the qua program has run and the buffer to fetch is full"
+            )
+        self.fetch_results()
 
-        ### The QM can have a delay in populating the stream for big sweeps
-        while not self.buffer_val.shape == (self.measurement.sweep_size,):
-            time.sleep(0.1)
-            self.buffer_val = self._fetch_opx_buffer()
-        return self._reshape_data(self.buffer_val, self.shape, self.snaked)
+    def fetch_results(self) -> np.ndarray:
+        """
+        Get method to retrieve the results from the OPX buffer.
+
+        Returns:
+            np.ndarray: Reshaped data array from the OPX buffer.
+        """
+        if not self.is_mock:
+            data = self._fetch_opx_buffer()
+        else:
+            logging.debug(
+                "GettableParameter %s is in mock mode, returning random array",
+                self.name
+            )
+            data = self._generate_synthetic_data()
+        return self._reshape_data(data, self.sweep_dims, self.snaked)
+
+    def _fetch_opx_buffer(self):
+        """
+        Fetches the OPX buffer into the `buffer_val` and increments the internal
+        counter `count`
+        """
+        buffer_val = np.array(self.buffer.fetch_all(), dtype = float)
+        return buffer_val
 
     def _reshape_data(
             self,
@@ -157,115 +197,28 @@ class GettableParameter(ParameterWithSetpoints):
                         a[:, 1::2] = np.flip(a[:, 1::2], axis=-1)
         return a
 
-    def _set_up_gettable_from_program(self):
-        """
-        Set up Gettable attributes from running OPX including measurement and 
-        hardware specific values if driver is not operated in dummy mode.
-        """
-        shape = tuple(sweep.length for sweep in self.measurement.sweeps)
-        self.shape = tuple(reversed(shape))
-        snaked_shape = tuple(sweep.snake_scan for sweep in self.measurement.sweeps)
-        self.snaked = tuple(reversed(snaked_shape))
-        self.batch_size = self.measurement.sweep_size
-        if not self._is_dummy_mode():
-            if not self.measurement.driver.opx:
-                raise LookupError("Results cant be retreived without OPX connected")
-            self.qm_job = self.measurement.driver.qm_job
-            self.batch_counter = getattr(
-                self.qm_job.result_handles,
-                f"{self.measurement.name}_shots"
-            )
-            self.buffer = getattr(self.qm_job.result_handles, f"{self.name}_buffer")
-            if self.buffer is None:
-                raise LookupError(
-                    f"Buffer {self.name}_buffer not found. Try one of:"
-                    f"{self.qm_job.result_handles.keys()}")
+    # def reset(self):
+    #     """Resets all job specific attributes"""
+    #     self.qm_job = None
+    #     self.buffer = None
+    #     self.buffer_val = None
+    #     self.sweep_dims = None
+    #     self.batch_size = 0
+    #     self.result_nr = 0
 
-    def _wait_until_buffer_full(self, progress_bar: tuple = None):
-        """
-        This function is running until a batch with self.batch_size is ready
-
-        Args:
-            progress_bar (tuple): Optional tuple containing progress bar
-        """
-        batch_count = 0
-        time_per_shot = 0
-        shot_timing = "Calculate timing...\n"
-        total_results = "Total results: ..."
-        t0 = time.time()
-        try:
-            # self.qm_job.resume()
-            while batch_count < self.batch_size or not self.qm_job.is_paused():
-                logging.debug(
-                    "Waiting for buffer to fill (%s/%s), %s",
-                    batch_count, self.batch_size, self.qm_job.is_paused()
-                    )
-                shot_count_result = self.batch_counter.fetch_all()
-                if shot_count_result is not None:
-                    batch_count = shot_count_result[0]
-                    total_nr_results = batch_count + self.nr_registered_results
-                    total_results = f"Total results: {total_nr_results}"
-                if progress_bar is not None:
-                    bar_title = "[cyan]Batch progress "
-                    bar_title += f"{batch_count}/{self.batch_size}\n"
-                    if batch_count > 0:
-                        time_per_shot = 1e3*(time.time()-t0)/(batch_count)
-                    shot_timing = f"{time_per_shot:.1f} ms per shot\n"
-                    progress_bar[1].update(
-                        progress_bar[0],
-                        completed = batch_count,
-                        description = bar_title + shot_timing + total_results
-                    )
-                    progress_bar[1].refresh()
-        except KeyboardInterrupt as exc:
-            raise KeyboardInterrupt('Measurement interrupted by user') from exc
-        if progress_bar is not None:
-            progress_bar[1].update(progress_bar[0], completed = batch_count)
-        self.nr_registered_results += self.batch_size
-
-    def _fetch_opx_buffer(self):
-        """
-        Fetches the OPX buffer into the `buffer_val` and increments the internal
-        counter `count`
-        """
-        buffer_val = np.array(self.buffer.fetch_all(), dtype = float)
-        return buffer_val
-
-    def reset(self):
-        """Resets all job specific attributes"""
-        self.qm_job = None
-        self.buffer = None
-        self.buffer_val = None
-        self.shape = None
-        self.batch_size = 0
-        self.result_nr = 0
-
-    def _generate_synthetic_data(self, progress_bar) -> np.ndarray:
+    def _generate_synthetic_data(self) -> np.ndarray:
         """
         Generate synthetic/dummy data for testing purposes
         
         Returns:
             np.ndarray: Synthetic data array with the expected shape
         """
-        # Simulate progress bar updates if provided
-        if progress_bar is not None:
-            import time
-            for i in range(10):  # Simulate 10 progress updates
-                count = int((i + 1) * self.batch_size / 10)
-                progress_bar[1].update(
-                    progress_bar[0],
-                    completed = int((i + 1) * self.batch_size / 10),
-                    description = f"[cyan]Dummy batch progress {count}/{self.batch_size}"
-                )
-                progress_bar[1].refresh()
-                time.sleep(0.01)  # Small delay to simulate real measurement time
-        
         # Generate and return synthetic data
         # Use a seed based on the parameter name for repeatability
         seed = int(hashlib.md5(self.name.encode()).hexdigest(), 16) % (2**32)
         np.random.seed(seed)
         # Generate synthetic data based on the sweep size
-        sweep_size = np.prod(self.shape)
+        sweep_size = np.prod(self.sweep_dims)
         # Create different types of synthetic data based on parameter name
         if 'I' in self.name or 'current' in self.name.lower():
             # Current-like data: small values with some noise
@@ -296,5 +249,4 @@ class GettableParameter(ParameterWithSetpoints):
             "Generated synthetic data for %s: shape=%s, mean=%s",
             self.name, len(data), np.mean(data)
             )
-        time.sleep(0.5)
         return data
