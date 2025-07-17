@@ -1,5 +1,6 @@
 """Module containing the Measurement class"""
 import math
+import time
 import copy
 import logging
 import os
@@ -8,7 +9,6 @@ from collections import Counter
 import numpy as np
 from qm import qua, generate_qua_script
 import qcodes as qc
-from qcodes.validators import Arrays
 
 from .measurement_helpers import create_measurement_loop
 from .measurement_runner import MeasurementRunner
@@ -19,8 +19,6 @@ from .sample import Sample
 from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
 from .sweep import Sweep
-
-from types import SimpleNamespace
 
 class Measurement(SequenceBase):
     """Class describing a Measurement in an OPX driver"""
@@ -52,6 +50,15 @@ class Measurement(SequenceBase):
         self._init_vars()
         self._reset_sweeps_setpoints()
         parent.add_sequence(self)
+
+        self._is_mock = False
+        self._sweep_dims = None
+        self._sweep_size = None
+        self.measurement_runner = None
+
+        self.shot_tracker_qua_var = None
+        self.shot_tracker_qua_stream = None
+        self.nr_registered_results = 0
 
     def merge_with_sample_config(self, sample, sequence_config):
         """
@@ -114,7 +121,7 @@ class Measurement(SequenceBase):
 
     def reset_registered_gettables(self) -> None:
         """Resets gettables to prepare for new measurement"""
-        for gettable in self.gettables:
+        for _, gettable in self.gettables.items():
             gettable.reset_measuerement_attributes()
 
     @property
@@ -123,7 +130,7 @@ class Measurement(SequenceBase):
         return self._sweeps
 
     @property
-    def gettables(self) -> list:
+    def gettables(self) -> dict:
         """List of `GettableParameter`s for data acquisition"""
         return self._gettables
 
@@ -154,6 +161,13 @@ class Measurement(SequenceBase):
     def available_gettables(self) -> list:
         """List of all available gettables from all sub sequences"""
         return self._available_gettables
+
+    @property
+    def is_mock(self) -> bool:
+        """Returns True if the measurement is a mock measurement"""
+        if self.driver.is_mock:
+            return True
+        return self._is_mock
 
     @input_stream_parameters.setter
     def input_stream_parameters(self, parameters: list) -> None:
@@ -312,8 +326,10 @@ class Measurement(SequenceBase):
                     f"Keywords must be of type str or list. Is {type(keywords)}")
         ### Remove duplicates
         gettables = list(dict.fromkeys(gettables))
+        gettables = {g.name: g for g in gettables}
         self._check_given_gettables(gettables)
-        self._gettables = list(gettables)
+
+        self._gettables = gettables
         self._configure_gettables()
         self.sweeps.reverse()
 
@@ -371,7 +387,8 @@ class Measurement(SequenceBase):
     def compile_qua_and_run(self, save_path: str = None) -> None:
         """Compiles the QUA code and runs it"""
         self.reset_registered_gettables()
-
+        self.register_gettables(*list(self.gettables.values()))
+        self.nr_registered_results = 0
         qua_program = self.get_qua_program()
         print('QUA program compiled')
         if save_path:
@@ -383,14 +400,13 @@ class Measurement(SequenceBase):
                     f"Please create the directory before saving the QUA script."
                 )
             with open(save_path, 'w', encoding="utf-8") as file:
-                file.write(generate_qua_script(qua_program, self.parent.sample.config))
+                file.write(
+                    generate_qua_script(qua_program, self.parent.sample.config))
         print('QUA program saved')
 
-        if hasattr(self.driver, '__class__') and 'Dummy' in self.driver.__class__.__name__:
-            # Create a mock job for dummy mode
-            self.driver.qm_job = SimpleNamespace(resume=lambda: None)
-            print('Dummy mode setup complete')
-        else:
+        ### I think this should be implemented with is_dummy attribute
+        ### on driver
+        if not self.driver.is_dummy:
             # This is the real run, not a dummy run
             self.driver.run(qua_program)
         print('QUA program compiled and is running')
@@ -458,14 +474,11 @@ class Measurement(SequenceBase):
         Configures all gettables to be measured. Sets batch_size, can_resume,
         setpoints and vals
         """
-        for i, gettable in enumerate(self.gettables):
-            gettable.batch_size = self.sweep_size
-            gettable.can_resume = True if i==(len(self.gettables)-1) else False
+        for i, (_, gettable) in enumerate(self.gettables.items()):
             gettable.setpoints = self._setpoints_for_gettables
-            gettable.vals = Arrays(
-                shape = tuple(sweep.length for sweep in self.sweeps))
-
-    def _check_given_gettables(self, gettables: list) -> None:
+            gettable.configure_from_measurement()
+            
+    def _check_given_gettables(self, gettables: dict) -> None:
         """
         Check validity of given gettables
 
@@ -478,7 +491,7 @@ class Measurement(SequenceBase):
         """
         ### Replace observables with their gettables if present
         gettables_without_observabels = []
-        for gettable in gettables:
+        for _, gettable in gettables.items():
             if isinstance(gettable, ObservableBase):
                 gettables_without_observabels.append(gettable.gettable)
             else:
@@ -665,7 +678,11 @@ class Measurement(SequenceBase):
         return run_loop
 
     def run_measurement(
-            self, sweep_list: list[dict], inner_func = None) -> "dataset":
+            self,
+            sweep_list: list[dict],
+            inner_func = None,
+            qua_program_save_path: str = None
+            ) -> "dataset":
         """
         Runs the measurement with the given sweep list based on MeasurementRunner
         class
@@ -676,9 +693,70 @@ class Measurement(SequenceBase):
                 If you want to sweep params concurrently enter more entries into
                 their sweep dict
         """
+        if self.is_mock:
+            self.compile_qua_and_run(save_path = qua_program_save_path)
         self.measurement_runner = MeasurementRunner(
             measurement = self,
             sweep_list = sweep_list
         )
         self.measurement_runner.run_arbok_measurement(
             inner_func = inner_func)
+
+    def wait_until_result_buffer_full(self, progress_tracker: tuple = None):
+        """
+        Waits until the result buffer is full and updates the progress bar if given
+
+        Args:
+            progress_bar (tuple): Tuple containing the progress bar and the
+                total number of results
+        """
+        bar_title2 = "[cyan]Batch progress "
+        batch_count = 0
+        time_per_shot = 0
+        shot_timing = "Calculate timing...\n"
+        total_results = "Total results: ..."
+        t0 = time.time()
+        if self.is_mock:
+            step_chunk = self.sweep_size // 10
+            for i in range(10):
+                progress_tracker[1].update(
+                    progress_tracker[0],
+                    completed = (i+1)*step_chunk,
+                    description = f"{bar_title2}\n{i*step_chunk}/{self.sweep_size}"
+                )
+                progress_tracker[1].refresh()
+                time.sleep(0.1)
+            if progress_tracker is not None:
+                progress_tracker[1].update(
+                    progress_tracker[0], completed = self.sweep_size)
+                return
+        ### Add checks if job exists and is running
+        ### Also check if streams are available
+        try:
+            is_paused = self.driver.qm_job.is_paused()
+            while batch_count < self.sweep_size or not is_paused:
+                logging.debug(
+                    "Waiting for buffer to fill (%s/%s), %s",
+                    batch_count, self.sweep_size, self.qm_job.is_paused()
+                    )
+                shot_count_result = self.batch_counter.fetch_all()
+                if shot_count_result is not None:
+                    batch_count = shot_count_result[0]
+                    total_nr_results = batch_count + self.nr_registered_results
+                    total_results = f"Total results: {total_nr_results}"
+                if progress_tracker is not None:
+                    bar_title2 += f"{batch_count}/{self.sweep_size}\n"
+                    if batch_count > 0:
+                        time_per_shot = 1e3*(time.time()-t0)/(batch_count)
+                    shot_timing = f"{time_per_shot:.1f} ms per shot\n"
+                    progress_tracker[1].update(
+                        progress_tracker[0],
+                        completed = batch_count,
+                        description = bar_title2 + shot_timing + total_results
+                    )
+                    progress_tracker[1].refresh()
+        except KeyboardInterrupt as exc:
+            raise KeyboardInterrupt('Measurement interrupted by user') from exc
+        if progress_tracker is not None:
+            progress_tracker[1].update(progress_tracker[0], completed = batch_count)
+        self.nr_registered_results += self.sweep_size
