@@ -652,31 +652,6 @@ class Measurement(SequenceBase):
             exp = self.qc_experiment, name = measurement_name)
         return self.qc_measurement
 
-    def get_measurement_loop_function(self, sweep_list_arg: list) -> callable:
-        """
-        Returns the measurement loop function
-        
-        Args:
-            sweep_list_arg (list): List of of sweep dicts for external instruments
-
-        Returns:
-            run_loop (callable): Measurement loop function
-        """
-        if self.qc_experiment is None:
-            raise ValueError("No QCoDeS experiment set")
-        if self.qc_measurement is None:
-            _ = self.get_qc_measurement(self.qc_measurement_name)
-        if self.sweeps is None:
-            raise ValueError("No sweeps set")
-
-        @create_measurement_loop(
-            sequence = self,
-            measurement = self.qc_measurement,
-            sweep_list = sweep_list_arg)
-        def run_loop():
-            pass
-        return run_loop
-
     def run_measurement(
             self,
             sweep_list: list[dict],
@@ -695,12 +670,29 @@ class Measurement(SequenceBase):
         """
         if self.is_mock:
             self.compile_qua_and_run(save_path = qua_program_save_path)
-        self.measurement_runner = MeasurementRunner(
-            measurement = self,
-            sweep_list = sweep_list
-        )
+        self.measurement_runner = self.get_measurement_runner(sweep_list)
         self.measurement_runner.run_arbok_measurement(
             inner_func = inner_func)
+
+    def get_measurement_runner(
+            self, sweep_list: list[dict] = None) -> MeasurementRunner:
+        """
+        Returns the measurement runner for the current measurement
+
+        Args:
+            sweep_list (list[dict]): List of dictionaries with parameters as keys
+                and np.ndarrays as setpoints. Each list entry creates one sweep axis.
+                If you want to sweep params concurrently enter more entries into
+                their sweep dict
+
+        Returns:
+            MeasurementRunner: The measurement runner instance
+        """
+        if self.measurement_runner is None:
+            self.measurement_runner = MeasurementRunner(
+                measurement = self,
+                sweep_list = sweep_list)
+        return self.measurement_runner
 
     def wait_until_result_buffer_full(self, progress_tracker: tuple = None):
         """
