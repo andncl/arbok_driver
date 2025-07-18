@@ -714,7 +714,7 @@ class Measurement(SequenceBase):
             progress_bar (tuple): Tuple containing the progress bar and the
                 total number of results
         """
-        bar_title2 = "[slate_blue1]Batch progress "
+        bar_title2 = "[slate_blue1]Batch progress\n "
         #bar_title2 = "[deep_pink4]Batch progress\n "
         batch_count = 0
         time_per_shot = 0
