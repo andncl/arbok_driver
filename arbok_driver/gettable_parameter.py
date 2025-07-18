@@ -81,25 +81,6 @@ class GettableParameter(ParameterWithSetpoints):
         snaked_shape = tuple(s.snake_scan for s in self.measurement.sweeps)
         self.snaked = tuple(reversed(snaked_shape))
 
-        if not self._is_dummy_mode():
-            if not self.measurement.driver.opx:
-                raise LookupError(
-                    "Results cant be retreived without OPX connected")
-            if self.qm_job is None:
-                raise LookupError(
-                    "No QM job found. Please run the measurement first.")
-            self.qm_job = self.measurement.driver.qm_job
-            self.batch_counter = getattr(
-                self.qm_job.result_handles,
-                f"{self.measurement.name}_shots"
-            )
-            self.buffer = getattr(
-                self.qm_job.result_handles, f"{self.name}_buffer")
-            if self.buffer is None:
-                raise LookupError(
-                    f"Buffer {self.name}_buffer not found. Try one of:"
-                    f"{self.qm_job.result_handles.keys()}")
-
     def _is_dummy_mode(self) -> bool:
         """
         Check if we're running in dummy mode by examining the driver type
@@ -107,7 +88,7 @@ class GettableParameter(ParameterWithSetpoints):
         Returns:
             bool: True if running with dummy driver, False otherwise
         """
-        if self.measurement.driver.is_dummy:
+        if self.measurement.driver.is_mock:
             return True
         try:
             # Check if the driver is a DummyDriver
