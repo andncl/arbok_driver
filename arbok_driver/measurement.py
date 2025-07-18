@@ -405,10 +405,23 @@ class Measurement(SequenceBase):
 
         ### I think this should be implemented with is_dummy attribute
         ### on driver
-        if not self.driver.is_dummy:
+        if not self.driver.is_mock:
             # This is the real run, not a dummy run
             self.driver.run(qua_program)
+            self.qm_job = self.driver.qm_job
+            self._add_streams_to_gettables()
+            self.batch_counter = getattr(
+                self.driver.qm_job.result_handles,
+                f"{self.name}_shots"
+            )
+
         print('QUA program compiled and is running')
+
+    def _add_streams_to_gettables(self):
+        for _, gettable in self.gettables.items():
+            gettable.qm_job = self.driver.qm_job
+            gettable.buffer = getattr(
+                self.driver.qm_job.result_handles, f"{gettable.name}_buffer")
 
     def insert_single_value_input_streams(self, value_dict: dict) -> None:
         """
@@ -701,7 +714,7 @@ class Measurement(SequenceBase):
             progress_bar (tuple): Tuple containing the progress bar and the
                 total number of results
         """
-        bar_title2 = "[slate_blue1]Batch progress\n "
+        bar_title2 = "[slate_blue1]Batch progress "
         #bar_title2 = "[deep_pink4]Batch progress\n "
         batch_count = 0
         time_per_shot = 0
@@ -726,10 +739,10 @@ class Measurement(SequenceBase):
         ### Also check if streams are available
         try:
             is_paused = self.driver.qm_job.is_paused()
-            while batch_count < self.sweep_size or not is_paused:
+            while batch_count < self.sweep_size: # or not is_paused:
                 logging.debug(
                     "Waiting for buffer to fill (%s/%s), %s",
-                    batch_count, self.sweep_size, self.qm_job.is_paused()
+                    batch_count, self.sweep_size, self.driver.qm_job.is_paused()
                     )
                 shot_count_result = self.batch_counter.fetch_all()
                 if shot_count_result is not None:

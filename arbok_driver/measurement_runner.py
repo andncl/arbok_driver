@@ -1,6 +1,7 @@
 """Module containing the MeasurementRunner class."""
 import logging
 import copy
+import time
 
 import numpy as np
 from rich.progress import Progress
@@ -98,8 +99,9 @@ class MeasurementRunner:
             if self.inner_func is not None:
                 self.inner_func()
             ### Program is resumed and all gettables are fetched when ready
-            if not self.measurement.driver.is_dummy:
+            if not self.measurement.driver.is_mock:
                 self.measurement.driver.qm_job.resume()
+            time.sleep(1)
             logging.debug("Job resumed, Fetching gettables")
             self.measurement.wait_until_result_buffer_full(
                 (self.progress_bars['batch_progress'], self.progress_tracker)
