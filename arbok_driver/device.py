@@ -1,5 +1,6 @@
 """ Module containing Devices class """
 import warnings
+from .utils import get_module
 
 class Device():
     """
