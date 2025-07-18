@@ -259,20 +259,20 @@ class ArbokDriver(qc.Instrument):
         measurement.add_subsequences_from_dict(experiment.sequences)
         return measurement
 
-    def add_sequence_and_create_qc_measurement(
+    def add_measurement_and_create_qc_measurement(
         self,
         measurement_name: str,
-        arbok_experiment,
+        arbok_experiment: 'Experiment',
         iterations: str = None,
         sweeps: dict = None,
         gettables = None,
         gettable_keywords = None,
         sweep_list: list = None,
         qc_measurement_name = None
-        ):
+        ) -> tuple['MeasurementRunner', Measurement]:
         """
-        Adds a sequence to the arbok_driver based on the arbok_experiment and
-        creates a QCoDeS measurement and experiment. Returns the sequence and
+        Adds a measurement to the arbok_driver based on the arbok_experiment and
+        creates a QCoDeS measurement and experiment. Returns the measurement and
         the measurement loop function
 
         Args:
@@ -315,8 +315,8 @@ class ArbokDriver(qc.Instrument):
         if sweep_list is not None:
             sweep_list_arg.extend(sweep_list)
 
-        run_loop = meas.get_measurement_loop_function(sweep_list_arg)
-        return run_loop, meas
+        measurement_runner = meas.get_measurement_runner(sweep_list_arg)
+        return measurement_runner, meas
 
 class ShotNumber(qc.Parameter):
     """ Parameter that keeps track of averaging during measurement """

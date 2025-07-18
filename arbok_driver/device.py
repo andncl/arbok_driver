@@ -13,8 +13,7 @@ class Device():
             self, name: str,
             opx_config: dict,
             divider_config: dict,
-            param_config = None,
-            default_sequence_configs = None
+            master_config = None,
             ):
         """
         Constructor class for 'Device' class.
@@ -23,20 +22,31 @@ class Device():
             name (str): Name of the used device
             opx_config (dict): Configuration dictionary for the OPX
             divider_config (dict): Configuration dictionary for the divider
-            param_config (dict): Configuration dictionary for the parameters
-                Also known as master config with params available to all subseq.
-            default_sequence_configs (dict): Default sequence configurations
-                Lookup table to find default configs for any subsequences
+            master (dict): Configuration dictionary for universally accessible
+                parameters across all sub-sequences as well as default
+                sequence configurations.
         """
         self.name = name
         self.config = opx_config
-        self.param_config = param_config
-        self.divider_config = divider_config
         self.elements = list(self.config['elements'].keys())
-        if default_sequence_configs is None:
-            default_sequence_configs = {}
-            warnings.warn("No default_sequence_configs provided on device!")
-        self.default_sequence_configs = default_sequence_configs
+        self.divider_config = divider_config
+        if master_config is None:
+            master_config = {}
+            warnings.warn("No master_config provided.")
+        if 'parameters' in master_config:
+            self.param_config = master_config['parameters']
+        else:
+            self.param_config = {}
+            warnings.warn(
+                "No parameters found in master_config."
+            )
+        if 'default_sequence_configs' in master_config:
+            self.default_sequence_configs = master_config['default_sequence_configs']
+        else:
+            self.default_sequence_configs = {}
+            warnings.warn(
+                "No default_sequence_configs found in master_config."
+            )
 
     @property
     def master_config_path(self):
@@ -74,18 +84,16 @@ class Device():
         if hasattr(mc, 'sequences_config'):
             self.sequences_config = mc.sequences_config
         else:
-            self.sequences_config = { 
-                                        'spin_init': {
-                                            'sequence': None,
-                                            'config': None
-                                        },
-                                        'spin_readout': {
-                                            'sequence': None,
-                                            'config': None
-                                        }
-                                    }
-                                    
-                                    
+            self.sequences_config = {
+                'spin_init': {
+                    'sequence': None,
+                    'config': None
+                },
+                'spin_readout': {
+                    'sequence': None,
+                    'config': None
+                }
+            }
 
     def reload_master_config(self):
         """
