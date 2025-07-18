@@ -710,7 +710,8 @@ class Measurement(SequenceBase):
             progress_bar (tuple): Tuple containing the progress bar and the
                 total number of results
         """
-        bar_title2 = "[cyan]Batch progress\n"
+        bar_title2 = "[slate_blue1]Batch progress\n "
+        #bar_title2 = "[deep_pink4]Batch progress\n "
         batch_count = 0
         time_per_shot = 0
         shot_timing = "Calculate timing...\n"
@@ -722,7 +723,7 @@ class Measurement(SequenceBase):
                 progress_tracker[1].update(
                     progress_tracker[0],
                     completed = (i+1)*step_chunk,
-                    description = f"{bar_title2}\n{i*step_chunk}/{self.sweep_size}"
+                    description = f"{bar_title2}{i*step_chunk}/{self.sweep_size}"
                 )
                 progress_tracker[1].refresh()
                 time.sleep(0.1)
