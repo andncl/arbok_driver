@@ -15,7 +15,7 @@ from .measurement_runner import MeasurementRunner
 from .gettable_parameter import GettableParameter
 from .observable import ObservableBase
 from .sequence_parameter import SequenceParameter
-from .sample import Sample
+from .device import Device
 from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
 from .sweep import Sweep
@@ -30,7 +30,7 @@ class Measurement(SequenceBase):
             self,
             parent,
             name: str,
-            sample: Sample,
+            device: Device,
             sequence_config: dict | None = None,
             ) -> None:
         """
@@ -38,13 +38,13 @@ class Measurement(SequenceBase):
 
         Args:
             name (str): Name of the measurement
-            sample (Sample): Sample object describing the device in use
+            device (Device): Device object describing the device in use
             sequence_config (dict): Config containing all measurement params and
                 their initial values and units0
             **kwargs: Key word arguments for InstrumentModule
         """
-        conf = self.merge_with_sample_config(sample, sequence_config)
-        super().__init__(parent, name, sample, conf)
+        conf = self.merge_with_device_config(device, sequence_config)
+        super().__init__(parent, name, device, conf)
         self.driver = parent
         self.measurement = self
         self._init_vars()
@@ -60,32 +60,32 @@ class Measurement(SequenceBase):
         self.shot_tracker_qua_stream = None
         self.nr_registered_results = 0
 
-    def merge_with_sample_config(self, sample, sequence_config):
+    def merge_with_device_config(self, device, sequence_config):
         """
-        Merges a sequence configuration with a sample's master configuration.
+        Merges a sequence configuration with a device's master configuration.
 
-        If both sequence_config and sample.master_config are provided, the
-        sample's master configuration takes precedence in case of key
+        If both sequence_config and device.master_config are provided, the
+        device's master configuration takes precedence in case of key
         conflicts.
 
         Args:
-            sample: An object with a 'master_config' attribute (dict or None).
+            device: An object with a 'master_config' attribute (dict or None).
             sequence_config: A dictionary representing the sequence configuration,
                              or None.
 
         Returns:
             A new dictionary containing the merged configurations. If neither
-            sequence_config nor sample.master_config is provided, an empty
+            sequence_config nor device.master_config is provided, an empty
             dictionary is returned.
         """
         # update the master_config overrides sequence_config, if present
         s_c = {}
         if sequence_config is not None:
             s_c.update(sequence_config)
-        # refresh the master config and overwrite the sample config with it
-        sample.reload_master_config()
-        if sample.master_config is not None:
-            s_c.update(sample.master_config)
+        # refresh the master config and overwrite the device config with it
+        device.reload_master_config()
+        if device.master_config is not None:
+            s_c.update(device.master_config)
         return s_c
 
     def _init_vars(self) -> None:
@@ -401,7 +401,7 @@ class Measurement(SequenceBase):
                 )
             with open(save_path, 'w', encoding="utf-8") as file:
                 file.write(
-                    generate_qua_script(qua_program, self.parent.sample.config))
+                    generate_qua_script(qua_program, self.parent.device.config))
         print('QUA program saved')
 
         ### I think this should be implemented with is_dummy attribute
@@ -710,7 +710,8 @@ class Measurement(SequenceBase):
             progress_bar (tuple): Tuple containing the progress bar and the
                 total number of results
         """
-        bar_title2 = "[cyan]Batch progress\n"
+        bar_title2 = "[slate_blue1]Batch progress\n "
+        #bar_title2 = "[deep_pink4]Batch progress\n "
         batch_count = 0
         time_per_shot = 0
         shot_timing = "Calculate timing...\n"
@@ -722,7 +723,7 @@ class Measurement(SequenceBase):
                 progress_tracker[1].update(
                     progress_tracker[0],
                     completed = (i+1)*step_chunk,
-                    description = f"{bar_title2}\n{i*step_chunk}/{self.sweep_size}"
+                    description = f"{bar_title2}{i*step_chunk}/{self.sweep_size}"
                 )
                 progress_tracker[1].refresh()
                 time.sleep(0.1)

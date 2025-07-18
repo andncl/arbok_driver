@@ -1,7 +1,7 @@
 """Module containing abstract class for experiments"""
 from abc import ABC
 import copy
-from arbok_driver.sample import Sample
+from arbok_driver.device import Device
 
 class Experiment(ABC):
     """
@@ -20,15 +20,15 @@ class Experiment(ABC):
     _sequences_config = None
     _name = None
 
-    def __init__(self, sample: Sample, configs_to_prepare: dict = None):
+    def __init__(self, device: Device, configs_to_prepare: dict = None):
         """
         Constructor class for 'Experiment' class.
 
         Args:
-            sample (Sample): The sample object containing configurations and sequences.
+            device (Device): The device object containing configurations and sequences.
         """
-        self.sample = sample
-        self.configs = copy.deepcopy(sample.default_sequence_configs)
+        self.device = device
+        self.configs = copy.deepcopy(device.default_sequence_configs)
         if configs_to_prepare is not None:
             self._prepare_configs(configs_to_prepare)
 

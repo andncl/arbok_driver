@@ -52,16 +52,16 @@ divider_config = {
     }
 }
 
-from arbok_driver import Sample
+from arbok_driver import Device
 from arbok_driver.tests.dummy_opx_config import dummy_qua_config
-dummy_sample = Sample('dummy_sample', dummy_qua_config, divider_config)
+dummy_device = Device('dummy_device', dummy_qua_config, divider_config)
 
 
-# def test_parameters(dummy_sample, capfd) -> None:
-qm_driver = ArbokDriver('qm_driver', dummy_sample)
-dummy_sequence = Sequence(qm_driver, 'dummy_squence', dummy_sample)
+# def test_parameters(dummy_device, capfd) -> None:
+qm_driver = ArbokDriver('qm_driver', dummy_device)
+dummy_sequence = Sequence(qm_driver, 'dummy_squence', dummy_device)
 
-square_pulse = SquarePulse(dummy_sequence, 'square_pulse', dummy_sample, square_conf)
+square_pulse = SquarePulse(dummy_sequence, 'square_pulse', dummy_device, square_conf)
 
 try:
     print(square_pulse.t_square_pulse.set(100.1))
@@ -132,7 +132,7 @@ square_conf2 = {
     },
 }
 
-square_pulse2 = SquarePulse(dummy_sequence, 'square_pulse2', dummy_sample, square_conf2)
+square_pulse2 = SquarePulse(dummy_sequence, 'square_pulse2', dummy_device, square_conf2)
 if square_pulse2.vHome_gate_1.unit != 'v label 3':
     raise Exeception('unit override error')
 if square_pulse2.amplitude3.unit != 'v label 2':
@@ -155,4 +155,4 @@ no_type = {
     },
 }
 
-square_pulse3 = SquarePulse(dummy_sequence, 'no_type', dummy_sample, no_type)
+square_pulse3 = SquarePulse(dummy_sequence, 'no_type', dummy_device, no_type)

@@ -28,6 +28,7 @@ class MeasurementRunner:
         self.inner_func = None
         self.progress_tracker = None
         self.progress_bars = None
+        self.counter = 0
 
     def run_arbok_measurement(self, inner_func: callable = None) -> "dataset":
         """
@@ -58,6 +59,7 @@ class MeasurementRunner:
         """
         Builds the QCoDeS measurement object for the measurement.
         """
+        self.counter = 0
         with self.qc_measurement.run() as datasaver:
             with Progress() as self.progress_tracker:
                 ### Adding progress bars
@@ -133,6 +135,7 @@ class MeasurementRunner:
         Args:
             datasaver (DataSaver): The QCoDeS DataSaver object to save results to.
         """
+        self.counter += 1
         result_args_temp = []
         for _, gettable in self.measurement.gettables.items():
             result_args_temp.append(
@@ -141,8 +144,12 @@ class MeasurementRunner:
         ### Retreived results are added to the datasaver
         result_args_temp += list(self.result_args_dict.values())
         datasaver.add_result(*result_args_temp)
+        title = "[green]Total progress\n "
         self.progress_tracker.update(
-            self.progress_bars['total_progress'], advance=1)
+            self.progress_bars['total_progress'],
+            advance=1,
+            description=f"{title}{self.counter}/{self.nr_total_results}"
+            )
         self.progress_tracker.refresh()
         logging.debug("Results saved")
 

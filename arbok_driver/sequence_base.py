@@ -15,7 +15,7 @@ from qcodes.instrument import InstrumentModule
 from qm import SimulationConfig, generate_qua_script, qua, QuantumMachinesManager
 from qm.simulate.credentials import create_credentials
 
-from .sample import Sample
+from .device import Device
 from .sequence_parameter import SequenceParameter
 from . import utils
 
@@ -27,7 +27,7 @@ class SequenceBase(InstrumentModule):
             self,
             parent,
             name: str,
-            sample: Sample,
+            device: Device,
             sequence_config: Optional[dict | None] = None,
             check_step_requirements: Optional[bool] = False,
             **kwargs
@@ -37,7 +37,7 @@ class SequenceBase(InstrumentModule):
         
         Args:
             name (str): Name of the program
-            sample (Sample): Sample class describing phyical device
+            device (Device): Device class describing phyical device
             sequence_config (dict): Dictionary containing all device parameters
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
@@ -46,8 +46,8 @@ class SequenceBase(InstrumentModule):
         self.parent.add_submodule(self.name, self)
         setattr(self.parent, self.short_name, self)
 
-        self.sample = sample
-        self.elements = self.sample.elements
+        self.device = device
+        self.elements = self.device.elements
         self.sequence_config = sequence_config
         self.check_step_requirements = check_step_requirements
 
@@ -370,8 +370,8 @@ class SequenceBase(InstrumentModule):
         if 'elements' in param_dict:
             for element, value in param_dict['elements'].items():
                 scale = 1
-                if element in self.sample.divider_config:
-                    scale = self.sample.divider_config[element]['division']
+                if element in self.device.divider_config:
+                    scale = self.device.divider_config[element]['division']
                 new_param_dict = {
                     'value' : value,
                     'scale' : scale,
@@ -431,13 +431,13 @@ class SequenceBase(InstrumentModule):
             credentials=create_credentials()
         )
         simulated_job = qmm.simulate(
-            self.sample.config,
+            self.device.config,
             self.get_qua_program(simulate = True),
             SimulationConfig(duration=duration)
             )
 
-        samples = simulated_job.get_simulated_samples()
-        utils.plot_qmm_simulation_results(samples)
+        devices = simulated_job.get_simulated_devices()
+        utils.plot_qmm_simulation_results(devices)
         return simulated_job
 
     def find_parameters_from_keywords(
@@ -459,7 +459,7 @@ class SequenceBase(InstrumentModule):
                 with element as key
         """
         if elements is None:
-            elements = list(self.sample.elements)
+            elements = list(self.device.elements)
         if isinstance(keys, str):
             keys = [keys]
         elif not isinstance(keys, list):
@@ -502,7 +502,7 @@ class SequenceBase(InstrumentModule):
         seq_instance = subsequence(
             parent = self,
             name = name,
-            sample = self.sample,
+            device = self.device,
             sequence_config = sequence_config,
             **kwargs
             )
@@ -620,7 +620,7 @@ class SequenceBase(InstrumentModule):
         """
         parameters = {}
         if elements is None:
-            elements = self.sample.elements
+            elements = self.device.elements
         for element in elements:
             if hasattr(self, f"{key}_{element}"):
                 parameters[element] = getattr(self, f"{key}_{element}")

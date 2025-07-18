@@ -39,14 +39,14 @@ square_conf = {
     },
 }
 
-from arbok_driver import Sample
+from arbok_driver import Device
 from arbok_driver.tests.dummy_opx_config import dummy_qua_config, divider_config
 
-dummy_sample = Sample('dummy_sample', dummy_qua_config, divider_config)
-qm_driver = ArbokDriver('qm_driver', dummy_sample)
-dummy_sequence = Sequence(qm_driver, 'dummy_squence', dummy_sample)
+dummy_device = Device('dummy_device', dummy_qua_config, divider_config)
+qm_driver = ArbokDriver('qm_driver', dummy_device)
+dummy_sequence = Sequence(qm_driver, 'dummy_squence', dummy_device)
 
-square_pulse = SquarePulse(dummy_sequence, 'square_pulse', dummy_sample, square_conf)
+square_pulse = SquarePulse(dummy_sequence, 'square_pulse', dummy_device, square_conf)
 
 dummy_sequence.set_sweeps(
     {

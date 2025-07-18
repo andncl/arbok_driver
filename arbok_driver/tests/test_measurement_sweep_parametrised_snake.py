@@ -2,7 +2,7 @@
 import os
 import tempfile
 
-from arbok_driver import ArbokDriver, Sample, ReadSequence
+from arbok_driver import ArbokDriver, Device, ReadSequence
 from arbok_driver.measurement import Measurement
 from types import SimpleNamespace
 
@@ -21,14 +21,14 @@ measurement_config = {
     },
 }
 
-sample = SimpleNamespace(**{'elements' : [ 'element_a', 'element_b', 'element_c', 'element_d' ], 'divider_config' : {} })
-sample.config = config
-arbok_driver = ArbokDriver('arbok_driver', sample)
+device = SimpleNamespace(**{'elements' : [ 'element_a', 'element_b', 'element_c', 'element_d' ], 'divider_config' : {} })
+device.config = config
+arbok_driver = ArbokDriver('arbok_driver', device)
 
 measurement = Measurement(
     parent = arbok_driver,
     name = 'measurement_name',
-    sample = sample,
+    device = device,
     sequence_config = measurement_config
 )
 
@@ -37,10 +37,10 @@ available_abstract_readouts = {
     'var_readout': VarReadout
 }
 from arbok_driver.tests.var_readout_config import var_readout_config
-atq = AllTheQua(measurement, 'atq', sample, var_readout_config, available_abstract_readouts = available_abstract_readouts)
+atq = AllTheQua(measurement, 'atq', device, var_readout_config, available_abstract_readouts = available_abstract_readouts)
 
 measurement.qc_measurement_name = 'sweep_measurement'
-measurement.qc_experiment = qc.dataset.load_or_create_experiment('experiment.name', 'sample.name')
+measurement.qc_experiment = qc.dataset.load_or_create_experiment('experiment.name', 'device.name')
 
 import numpy as np
 v_start = 0.1
