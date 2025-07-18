@@ -739,9 +739,7 @@ class Measurement(SequenceBase):
         ### Also check if streams are available
         try:
             is_paused = self.driver.qm_job.is_paused()
-            print('outside', batch_count, self.sweep_size, is_paused)
             while batch_count < self.sweep_size: # or not is_paused:
-                print('inside', batch_count, self.sweep_size, is_paused)
                 logging.debug(
                     "Waiting for buffer to fill (%s/%s), %s",
                     batch_count, self.sweep_size, self.driver.qm_job.is_paused()
