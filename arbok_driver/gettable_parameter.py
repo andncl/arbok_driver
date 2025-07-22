@@ -208,9 +208,7 @@ class GettableParameter(ParameterWithSetpoints):
             # Count data: integers
             data = np.random.poisson(100, sweep_size).astype(float)
         else:
-            # Generic data: normalized values around 0
-            print('Generating generic data')
-            data = np.random.normal(0, 1, sweep_size)
+            # Generic data: linear increasing values
             data = np.linspace(0, 1, sweep_size)
         data = np.array(data)
         logging.debug(
