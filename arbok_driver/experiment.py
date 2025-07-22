@@ -20,13 +20,19 @@ class Experiment(ABC):
     _sequences_config = None
     _name = None
 
-    def __init__(self, device: Device, configs_to_prepare: dict = None):
+    def __init__(
+            self,
+            name: str,
+            device: Device,
+            configs_to_prepare: dict = None
+            ) -> None:
         """
         Constructor class for 'Experiment' class.
 
         Args:
             device (Device): The device object containing configurations and sequences.
         """
+        self._name = name
         self.device = device
         self.configs = copy.deepcopy(device.default_sequence_configs)
         if configs_to_prepare is not None:
