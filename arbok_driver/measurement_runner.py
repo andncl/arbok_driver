@@ -190,7 +190,7 @@ class MeasurementRunner:
             self.qc_measurement.register_parameter(param)
 
         for _, gettable in self.measurement.gettables.items():
-            gettable_setpoints = self.result_args_dict.keys()
+            gettable_setpoints = list(self.result_args_dict.keys())
             logging.debug("Registering gettable %s", gettable_setpoints)
             self.qc_measurement.register_parameter(
                 gettable, setpoints = gettable_setpoints)

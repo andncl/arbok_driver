@@ -31,6 +31,7 @@ class String(SequenceParameter):
     qua_type = str
     """ Default: str """
     validator = Strings()
+    scale = None
     """ Default: Strings """
     sweep_validator = MultiTypeOr(Strings(), Arrays(valid_types = [None]))
 
@@ -69,6 +70,7 @@ class List(SequenceParameter):
     qua_type = None
     """ Default: str """
     validator = Sequence()
+    scale = None
     """ Default: Strings """
     sweep_validator = Sequence()
 
@@ -82,6 +84,7 @@ class Boolean(SequenceParameter):
     qua_type = bool
     """ Default: int """
     validator = Bool()
+    scale = None
     sweep_validator = None
 
 class Radian(SequenceParameter):

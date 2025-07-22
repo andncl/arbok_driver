@@ -330,7 +330,6 @@ class Measurement(SequenceBase):
 
         self._gettables = gettables
         self._configure_gettables()
-        self.sweeps.reverse()
 
     def _find_gettables_from_keyword(self, keyword: str | tuple) -> list:
         """Returns all gettables that contain the given keyword"""
@@ -611,7 +610,7 @@ class Measurement(SequenceBase):
     def reshape_results_from_sweeps(self, results: np.ndarray) -> np.ndarray:
         """
         Reshapes the results array to the shape of the setpoints from sweeps
-
+        TODO: CHECK IF THIS IS STILL NEEDED!
         Args:
             results (np.ndarray): Results array
 

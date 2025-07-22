@@ -369,7 +369,7 @@ class SequenceBase(InstrumentModule):
             param_dict['label'] = param_name
         if 'elements' in param_dict:
             for element, value in param_dict['elements'].items():
-                scale = 1
+                scale = None
                 if element in self.device.divider_config:
                     scale = self.device.divider_config[element]['division']
                 new_param_dict = {
@@ -387,13 +387,17 @@ class SequenceBase(InstrumentModule):
             # set defaults and merge in changes
             appl_dict = {
                 'element' : None,
-                'scale' : 1,
+                'scale' : None,
                 'validator' : param_dict['type'].validator,
                 'qua_type' : param_dict['type'].qua_type,
                 'unit' : param_dict['type'].unit,
                 }
             appl_dict.update(param_dict) # ensure overrides take precedence
-            self.add_parameter(
+            attr_exists_already = hasattr(self, param_name)
+            if attr_exists_already:
+                short_param_name = param_name
+                param_name = f"{self.short_name}__{param_name}"
+            new_param = self.add_parameter(
                 name  = param_name,
                 register_name = f"{self.short_name}__{param_name}",
                 config_name = cfg_name,
@@ -408,6 +412,9 @@ class SequenceBase(InstrumentModule):
                 var_type = appl_dict['qua_type'],
                 label = appl_dict['label']
             )
+            if attr_exists_already:
+                setattr(self, short_param_name, new_param)
+                print(getattr(self, short_param_name)())
         else:
             raise KeyError(
                 f"The config of parameter {param_name} does not have "
