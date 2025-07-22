@@ -84,18 +84,12 @@ class GettableParameter(ParameterWithSetpoints):
     def _is_dummy_mode(self) -> bool:
         """
         Check if we're running in dummy mode by examining the driver type
-        
         Returns:
             bool: True if running with dummy driver, False otherwise
         """
         if self.measurement.driver.is_mock:
             return True
-        try:
-            # Check if the driver is a DummyDriver
-            driver_class_name = self.measurement.driver.__class__.__name__
-            return driver_class_name == 'DummyDriver' or 'Dummy' in driver_class_name
-        except AttributeError:
-            return False
+        return False
 
     def get_raw(self) -> np.ndarray:
         """ 
@@ -177,15 +171,6 @@ class GettableParameter(ParameterWithSetpoints):
                     else:      # For subsequent dimensions, reverse every second innermost row (like before)
                         a[:, 1::2] = np.flip(a[:, 1::2], axis=-1)
         return a
-
-    # def reset(self):
-    #     """Resets all job specific attributes"""
-    #     self.qm_job = None
-    #     self.buffer = None
-    #     self.buffer_val = None
-    #     self.sweep_dims = None
-    #     self.batch_size = 0
-    #     self.result_nr = 0
 
     def _generate_synthetic_data(self) -> np.ndarray:
         """
