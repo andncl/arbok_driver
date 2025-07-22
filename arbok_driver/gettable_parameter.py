@@ -101,7 +101,7 @@ class GettableParameter(ParameterWithSetpoints):
             "Directly calling get_raw on gettable (%s)"
             "Make sure the qua program has run and the buffer to fetch is full"
             )
-        self.fetch_results()
+        return self.fetch_results()
 
     def fetch_results(self) -> np.ndarray:
         """
@@ -209,7 +209,9 @@ class GettableParameter(ParameterWithSetpoints):
             data = np.random.poisson(100, sweep_size).astype(float)
         else:
             # Generic data: normalized values around 0
+            print('Generating generic data')
             data = np.random.normal(0, 1, sweep_size)
+            data = np.linspace(0, 1, sweep_size)
         data = np.array(data)
         logging.debug(
             "Generated synthetic data for %s: shape=%s, mean=%s",
