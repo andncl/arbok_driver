@@ -713,27 +713,15 @@ class Measurement(SequenceBase):
             progress_bar (tuple): Tuple containing the progress bar and the
                 total number of results
         """
-        bar_title2 = "[slate_blue1]Batch progress\n "
-        #bar_title2 = "[deep_pink4]Batch progress\n "
+        bar_title = "[slate_blue1]Batch progress\n "
         batch_count = 0
         time_per_shot = 0
         shot_timing = "Calculate timing...\n"
         total_results = "Total results: ..."
         t0 = time.time()
         if self.is_mock:
-            step_chunk = self.sweep_size // 10
-            for i in range(10):
-                progress_tracker[1].update(
-                    progress_tracker[0],
-                    completed = (i+1)*step_chunk,
-                    description = f"{bar_title2}{i*step_chunk}/{self.sweep_size}"
-                )
-                progress_tracker[1].refresh()
-                time.sleep(0.1)
-            if progress_tracker is not None:
-                progress_tracker[1].update(
-                    progress_tracker[0], completed = self.sweep_size)
-                return
+            self._mock_wait_until_result_buffer_full(progress_tracker, bar_title)
+            return
         ### Add checks if job exists and is running
         ### Also check if streams are available
         try:
@@ -749,14 +737,14 @@ class Measurement(SequenceBase):
                     total_nr_results = batch_count + self.nr_registered_results
                     total_results = f"Total results: {total_nr_results}"
                 if progress_tracker is not None:
-                    bar_title2 += f"{batch_count}/{self.sweep_size}\n"
+                    count = f"{batch_count}/{self.sweep_size}\n"
                     if batch_count > 0:
                         time_per_shot = 1e3*(time.time()-t0)/(batch_count)
                     shot_timing = f"{time_per_shot:.1f} ms per shot\n"
                     progress_tracker[1].update(
                         progress_tracker[0],
                         completed = batch_count,
-                        description = bar_title2 + shot_timing + total_results
+                        description = bar_title+count+shot_timing+total_results
                     )
                     progress_tracker[1].refresh()
         except KeyboardInterrupt as exc:
@@ -764,3 +752,23 @@ class Measurement(SequenceBase):
         if progress_tracker is not None:
             progress_tracker[1].update(progress_tracker[0], completed = batch_count)
         self.nr_registered_results += self.sweep_size
+
+    def _mock_wait_until_result_buffer_full(
+            self, progress_tracker: tuple, bar_title: str) -> None:
+        """
+        Mock implementation of wait_until_result_buffer_full for testing purposes
+
+        Args:
+            progress_tracker (tuple): Tuple containing the progress bar and the
+                total number of results
+            bar_title (str): Title for the progress bar
+        """
+        step_chunk = self.sweep_size // 10
+        for i in range(10+1):
+            progress_tracker[1].update(
+                progress_tracker[0],
+                completed = (i+1)*step_chunk,
+                description = f"{bar_title}{i*step_chunk}/{self.sweep_size}"
+            )
+            progress_tracker[1].refresh()
+            time.sleep(0.1)
