@@ -234,7 +234,7 @@ class SequenceBase(InstrumentModule):
             ### If parent sequence is present the sweep generation is added
             if hasattr(self.measurement, 'sweeps'):
                 self.recursive_sweep_generation(
-                    list(reversed(self.measurement.sweeps)))
+                    self.measurement.sweeps)
             else:
                 self.recursive_qua_generation(seq_type = 'sequence')
 
@@ -271,6 +271,7 @@ class SequenceBase(InstrumentModule):
         Args:
             sweeps (list): list of Sweep objects
         """
+        print([x.length for x in sweeps])
         if len(sweeps) == 0:
             ### this condition gets triggered if we arrive at the innermost loop
             self.recursive_qua_generation(
@@ -279,8 +280,8 @@ class SequenceBase(InstrumentModule):
             self.recursive_qua_generation(
                 'after_sequence', skip_duplicates = True)
             return
-        new_sweeps = sweeps[:-1]
-        current_sweep = sweeps[-1]
+        new_sweeps = sweeps[1:]
+        current_sweep = sweeps[0]
         logging.debug("Adding qua loop for %s",
             [par.name for par in current_sweep.parameters])
 
@@ -288,7 +289,7 @@ class SequenceBase(InstrumentModule):
         # for example the snake variable needs to be reset each outer loop.
         next_sweep = None
         if len(new_sweeps):
-            next_sweep = new_sweeps[-1]
+            next_sweep = new_sweeps[0]
         current_sweep.qua_generate_parameter_sweep(
             lambda: self.recursive_sweep_generation(new_sweeps),
             next_sweep
