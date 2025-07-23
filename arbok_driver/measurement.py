@@ -380,7 +380,7 @@ class Measurement(SequenceBase):
             ### Reversing the sweeps is necessary to have the outermost sweep
             ### loop first (e.g last element in the list is the innermost sweep)
             self.recursive_sweep_generation(
-                list(reversed(copy.copy(self.sweeps)))
+                copy.copy(self.sweeps)
                 )
         with qua.stream_processing():
             self.recursive_qua_generation(seq_type = 'stream')
