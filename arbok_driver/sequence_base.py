@@ -233,7 +233,8 @@ class SequenceBase(InstrumentModule):
             ### qua_sequence methods of sub_sequences are called recursively
             ### If parent sequence is present the sweep generation is added
             if hasattr(self.measurement, 'sweeps'):
-                self.recursive_sweep_generation(self.measurement.sweeps)
+                self.recursive_sweep_generation(
+                    list(reversed(self.measurement.sweeps)))
             else:
                 self.recursive_qua_generation(seq_type = 'sequence')
 

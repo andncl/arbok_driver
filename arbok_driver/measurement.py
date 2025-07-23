@@ -377,8 +377,11 @@ class Measurement(SequenceBase):
                 seq_type = 'before_sweep', skip_duplicates = True)
 
             ### The sweep loop is defined for each sub-sequence recursively
+            ### Reversing the sweeps is necessary to have the outermost sweep
+            ### loop first (e.g last element in the list is the innermost sweep)
             self.recursive_sweep_generation(
-                copy.copy(self.sweeps))
+                list(reversed(copy.copy(self.sweeps)))
+                )
         with qua.stream_processing():
             self.recursive_qua_generation(seq_type = 'stream')
 
@@ -386,6 +389,7 @@ class Measurement(SequenceBase):
         """Compiles the QUA code and runs it"""
         self.reset_registered_gettables()
         self.register_gettables(*list(self.gettables.values()))
+
         self.nr_registered_results = 0
         qua_program = self.get_qua_program()
         print('QUA program compiled')
@@ -606,18 +610,6 @@ class Measurement(SequenceBase):
             return current_attr()
         else:
             return current_attr
-
-    def reshape_results_from_sweeps(self, results: np.ndarray) -> np.ndarray:
-        """
-        Reshapes the results array to the shape of the setpoints from sweeps
-        TODO: CHECK IF THIS IS STILL NEEDED!
-        Args:
-            results (np.ndarray): Results array
-
-        Returns:
-            np.ndarray: Reshaped results array
-        """
-        return results.reshape(tuple((reversed(s.length) for s in self.sweeps)))
 
     def add_step_requirement(self, requirement) -> None:
         """Adds a bool qua variable as a step requirement for the measurement"""
