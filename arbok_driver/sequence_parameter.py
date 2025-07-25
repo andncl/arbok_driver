@@ -26,20 +26,19 @@ class SequenceParameter(Parameter):
     value = None
     can_be_parameterized = False
 
-    def __init__(self, element, config_name, var_type, *args, **kwargs):
+    def __init__(self, *args, var_type = None, element = None, **kwargs):
         """
         Constructor for 'SequenceParameter' class
 
         Args:
             elements (list): Elements that should be influenced by parameter
-            batched (bool): Is the variab
             config_name (str): Name of the parameter in the sequence config dict
                 essentially name without the element
         """
         super().__init__(*args, **kwargs)
         self.element = element
-        self.config_name = config_name
-        self.var_type = var_type
+        if var_type is not None:
+            self.var_type = var_type
 
     @property
     def sequence_path(self) -> str:

@@ -151,29 +151,28 @@ class SequenceBase(InstrumentModule):
         if config is None:
             logging.info("No params added to %s (no sequence_config)", self.name)
             return
-        if not isinstance(config, dict):
+        elif not isinstance(config, dict):
             raise ValueError(
                 f"Conf for {self.name} must be of type dict, is {type(config)}")
         if 'parameters' in config:
             config = config['parameters']
             logging.info(
-                "Set para subset of given conf file as param conf for in %s",
+                "Set param subset of given conf file as param conf for in %s",
                 self.name
                 )
         for param_name, param_dict in config.items():
-            self._add_param(param_name, param_name, param_dict)
+            self._add_param(param_name, param_dict)
 
     def draw_sub_sequence_tree(
             self,
             draw_style: BoxStyle = BoxStyle(gfx=BOX_LIGHT, horiz_len=1),
-        ) -> str:
+        ) -> None:
         """
         Draws a tree of the subsequences of the sequence with their names and
         types
+
         Args:
             box_style (BoxStyle): Style of the box to draw the tree with
-        Returns:
-            str: String representation of the tree
         """
         tr = LeftAligned(draw=draw_style)
         print(tr(self.sub_sequence_dict))
@@ -271,7 +270,6 @@ class SequenceBase(InstrumentModule):
         Args:
             sweeps (list): list of Sweep objects
         """
-        print([x.length for x in sweeps])
         if len(sweeps) == 0:
             ### this condition gets triggered if we arrive at the innermost loop
             self.recursive_qua_generation(
@@ -355,7 +353,7 @@ class SequenceBase(InstrumentModule):
                 del globals()[sub.short_name]
         self._sub_sequences = []
 
-    def _add_param(self, param_name: str, cfg_name: str, param_dict):
+    def _add_param(self, param_name: str, param_dict: dict):
         """
         Adds parameter based on the given parameter configuration
         
@@ -365,63 +363,106 @@ class SequenceBase(InstrumentModule):
                 or 'elements' for element wise defined parameters
         """
         logging.debug("Adding %s to %s", param_name, self.name)
-        if 'type' not in param_dict:
+        param_dict = self._reshape_param_dict(param_name, param_dict)
+        if 'elements' in param_dict:
+            self._add_element_params(param_name, param_dict)
+            return
+        self._check_param_dict(param_name, param_dict)
+        # If the parameter already exists on another sub-sequence or measurement
+        # we add the sequence name to the parameter name to avoid conflicts
+        # To reference the parameter later, we also add the short name of the
+        # sequence to the parameter name
+        attr_exists_already = hasattr(self, param_name)
+        if attr_exists_already:
+            short_param_name = param_name
+            param_name = f"{self.short_name}__{param_name}"
+        new_param = self.add_parameter(
+            name  = param_name,
+            get_cmd = None,
+            set_cmd = None,
+            register_name = f"{self.short_name}__{param_name}",
+            **param_dict
+        )
+        if attr_exists_already:
+            setattr(self, short_param_name, new_param)
+
+    def _reshape_param_dict(
+            self, param_name: str, param_dict: dict
+            ) -> dict:
+        """
+        Reshapes the parameter dict to fit the requirements of the respective
+        'SequenceParameter' constructor and checks if the parameter dict is ok.
+
+        Args:
+            param_name (str): Name of the parameter
+            param_dict (dict): Dictionary containing the parameter configuration
+                to be reshaped
+
+        Returns:
+            dict: Reshaped parameter dict
+        """
+        if 'type' in param_dict:
+            param_dict['parameter_class'] = param_dict['type']
+        else:
             param_dict['type'] = SequenceParameter
+        del param_dict['type']
+        if 'value' in param_dict:
+            param_dict['initial_value'] = param_dict['value']
+            del param_dict['value']
         if 'label' not in param_dict:
             param_dict['label'] = param_name
-        if 'elements' in param_dict:
-            for element, value in param_dict['elements'].items():
-                scale = None
-                if element in self.device.divider_config:
-                    scale = self.device.divider_config[element]['division']
-                new_param_dict = {
-                    'value' : value,
-                    'scale' : scale,
-                    'label' : f"{element}: {param_dict['label']}",
-                    }
-                param_dict_copy = copy.deepcopy(param_dict)
-                del param_dict_copy['label']
-                new_param_dict.update(param_dict_copy) # ensure overrides take precedence
-                del new_param_dict['elements']
+        return param_dict
 
-                self._add_param(f'{param_name}_{element}', cfg_name, new_param_dict)
-        elif 'value' in param_dict:
-            # set defaults and merge in changes
-            appl_dict = {
-                'element' : None,
-                'scale' : None,
-                'validator' : param_dict['type'].validator,
-                'qua_type' : param_dict['type'].qua_type,
-                'unit' : param_dict['type'].unit,
+    def _add_element_params(self, param_name: str, param_dict: dict):
+        """
+        Adds element wise parameter based on the given parameter configuration
+        
+        Args:
+            param_name (str): Name of the parameter
+            param_dict (dict): Must contain 'elements' key and optionally 'value'
+                or 'elements' for element wise defined parameters
+        """
+        for element, value in param_dict['elements'].items():
+            element_param_dict = {
+                'element' : element,
+                'value' : value,
+                'label' : f"{element}: {param_dict['label']}",
                 }
-            appl_dict.update(param_dict) # ensure overrides take precedence
-            attr_exists_already = hasattr(self, param_name)
-            if attr_exists_already:
-                short_param_name = param_name
-                param_name = f"{self.short_name}__{param_name}"
-            new_param = self.add_parameter(
-                name  = param_name,
-                register_name = f"{self.short_name}__{param_name}",
-                config_name = cfg_name,
-                unit = appl_dict["unit"],
-                initial_value = appl_dict["value"],
-                parameter_class = appl_dict["type"],
-                element = appl_dict['element'],
-                get_cmd = None,
-                set_cmd = None,
-                scale = appl_dict['scale'],
-                vals = appl_dict['validator'],
-                var_type = appl_dict['qua_type'],
-                label = appl_dict['label']
-            )
-            if attr_exists_already:
-                setattr(self, short_param_name, new_param)
-                print(getattr(self, short_param_name)())
-        else:
-            raise KeyError(
-                f"The config of parameter {param_name} does not have "
-                    "elements or value"
-                    )
+            if element in self.device.divider_config:
+                scale = self.device.divider_config[element]['division']
+                element_param_dict['scale'] = scale
+
+            param_dict_copy = copy.deepcopy(param_dict)
+            del param_dict_copy['label']
+            element_param_dict.update(param_dict_copy)
+            del element_param_dict['elements']
+
+            self._add_param(
+                param_name = f'{param_name}_{element}',
+                param_dict = element_param_dict
+                )
+
+    def _check_param_dict(self, param_name: str, param_dict: dict) -> None:
+        """
+        Checks if the given parameter dict is valid. Raises an error if not.
+        
+        Args:
+            param_dict (dict): Dictionary containing the parameter configuration
+        """
+        if 'parameter_class' not in param_dict:
+            raise ValueError(
+                f"Parameter {param_name} does not contain a 'parameter_class'")
+        if 'label' not in param_dict:
+            raise ValueError(
+                f"Parameter {param_name} does not contain a 'label' key")
+        if 'initial_value' not in param_dict and 'elements' not in param_dict:
+            raise ValueError(
+                f"Parameter {param_name} does not contain an 'value'"
+                " key")
+        if 'elements' in param_dict:
+            raise KeyError(f"Config for parameter {param_name} contains"
+                           "'elements' key. Error in preparation. Check" \
+                           "`_add_element_params` method.")
 
     def run_remote_simulation(self, host, port, duration: int):
         """
