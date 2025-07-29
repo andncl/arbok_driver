@@ -17,10 +17,10 @@ class Time(SequenceParameter):
     """ Default: 'cycles' """
     var_type = int
     """ Default: int """
-    validator = Ints()
+    vals = Ints()
     scale = 1
     sweep_validator = None
-    ### TODO: Implement validator. User should only be able to set ints (cycles)
+    ### TODO: Implement vals. User should only be able to set ints (cycles)
     """ Default: Numbers """
 
     def convert_to_real_units(self, value):
@@ -31,7 +31,7 @@ class String(SequenceParameter):
     """ Default: 'N/A' """
     var_type = str
     """ Default: str """
-    validator = Strings()
+    vals = Strings()
     scale = None
     """ Default: Strings """
     sweep_validator = MultiTypeOr(Strings(), Arrays(valid_types = [None]))
@@ -41,7 +41,7 @@ class Voltage(SequenceParameter):
     """ Default: 'V' """
     var_type = qua.fixed
     """ Default: fixed """
-    validator = Numbers()
+    vals = Numbers()
     scale = 1
     sweep_validator = MultiTypeOr(Numbers(), Arrays(valid_types = [float]))
     """ Default: Numbers """
@@ -51,7 +51,7 @@ class Frequency(SequenceParameter):
     """ Default: 'Hz' """
     var_type = int
     """ Default: 'qua.fixed' """
-    validator = Numbers()
+    vals = Numbers()
     scale = 1
     sweep_validator = MultiTypeOr(Numbers(), Arrays(valid_types = [int]))
     """ Default: Numbers """
@@ -60,7 +60,7 @@ class Amplitude(SequenceParameter):
     unit = None
     var_type = qua.fixed
     """ Default: fixed """
-    validator = Numbers(min_value = -2, max_value = 2)
+    vals = Numbers(min_value = -2, max_value = 2)
     scale = 1
     sweep_validator = MultiTypeOr(
         Numbers(min_value = -2, max_value = 2),
@@ -73,7 +73,7 @@ class List(SequenceParameter):
     """ Default: 'N/A' """
     var_type = None
     """ Default: str """
-    validator = Sequence()
+    vals = Sequence()
     scale = None
     """ Default: Strings """
     sweep_validator = Sequence()
@@ -81,21 +81,21 @@ class List(SequenceParameter):
 class Int(SequenceParameter):
     var_type = int
     """ Default: int """
-    validator = Ints()
+    vals = Ints()
     scale = 1
     sweep_validator = MultiTypeOr(Numbers(), Arrays(valid_types = [int]))
 
 class Boolean(SequenceParameter):
     var_type = bool
     """ Default: int """
-    validator = Bool()
+    vals = Bool()
     scale = None
     sweep_validator = None
 
 class Radian(SequenceParameter):
     unit = 'pi'
     var_type = qua.fixed
-    validator = Numbers(min_value = -2*np.pi, max_value = 2*np.pi)
+    vals = Numbers(min_value = -2*np.pi, max_value = 2*np.pi)
     scale = 1
     sweep_validator = MultiTypeOr(
         Numbers(min_value = -2*np.pi, max_value = 2*np.pi),
@@ -106,7 +106,7 @@ class Pi(SequenceParameter):
     unit = 'pi'
     var_type = qua.fixed
     scale = 1
-    validator = Numbers(min_value = -2, max_value = 2)
+    vals = Numbers(min_value = -2, max_value = 2)
     sweep_validator = MultiTypeOr(
         Numbers(min_value = -2, max_value = 2),
         Arrays(valid_types = [float])
