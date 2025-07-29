@@ -403,14 +403,18 @@ class SequenceBase(InstrumentModule):
         """
         if 'type' in param_dict:
             param_dict['parameter_class'] = param_dict['type']
+            del param_dict['type']
         else:
-            param_dict['type'] = SequenceParameter
-        del param_dict['type']
+            param_dict['parameter_class'] = SequenceParameter
         if 'value' in param_dict:
             param_dict['initial_value'] = param_dict['value']
             del param_dict['value']
         if 'label' not in param_dict:
             param_dict['label'] = param_name
+        for key in ['unit', 'var_type', 'vals', 'scale']:
+            if key not in param_dict:
+                param_dict[key] = getattr(
+                    param_dict['parameter_class'], key, None)
         return param_dict
 
     def _add_element_params(self, param_name: str, param_dict: dict):
