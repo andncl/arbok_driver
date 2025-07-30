@@ -26,7 +26,7 @@ class SequenceParameter(Parameter):
     qua_var = None
     value = None
     can_be_parameterized = False
-    scale = None
+    scale = 1
 
     def __init__(self, *args, var_type = None, element = None, **kwargs):
         """
