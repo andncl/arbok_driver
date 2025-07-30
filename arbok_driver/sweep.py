@@ -136,6 +136,13 @@ class Sweep:
                 value = self.config[parameter]
                 setpoints = parameter.convert_to_real_units(self.config[parameter])
                 if isinstance(value, (list, np.ndarray)):
+                    if parameter.scale is None:
+                        raise ValueError(
+                            f"Parameter scale of '{parameter.full_name}' is None."
+                            " Must be set for sweep arrays. Check the type of"
+                            " the parameter in the config file. If it does not"
+                            " have a type, set the scale manually."
+                            )
                     parameter.set(setpoints)
                     self._config_to_register[parameter] = setpoints*parameter.scale
                 elif isinstance(value, int):
