@@ -492,7 +492,7 @@ class Measurement(SequenceBase):
         for i, (_, gettable) in enumerate(self.gettables.items()):
             gettable.setpoints = self._setpoints_for_gettables
             gettable.configure_from_measurement()
-            
+
     def _check_given_gettables(self, gettables: dict) -> None:
         """
         Check validity of given gettables
@@ -531,21 +531,21 @@ class Measurement(SequenceBase):
             self._qua_declare_input_stream_type(qua_type)
 
     def _qua_declare_input_stream_type(
-        self, type: int | bool | qua.fixed) -> None:
+        self, qua_type: int | bool | qua.fixed) -> None:
         length = 0
         for param in self.input_stream_parameters:
-            if param.var_type == type:
+            if param.var_type == qua_type:
                 length += 1
                 param.qua_var = qua.declare(param.var_type)
                 param.qua_sweeped = True
         if length > 0:
             input_stream = qua.declare_input_stream(
-                type,
-                name = f"{self.short_name}_{type.__name__}_input_stream",
+                qua_type,
+                name = f"{self.short_name}_{qua_type.__name__}_input_stream",
                 size = length
             )
-            setattr(self, f"_qua_{type.__name__}_input_stream", input_stream)
-            self._input_stream_type_shapes[type.__name__] = length
+            setattr(self, f"_qua_{qua_type.__name__}_input_stream", input_stream)
+            self._input_stream_type_shapes[qua_type.__name__] = length
 
     def get_sequence_path(self):
         """Returns its name since Measurement is the top level"""
