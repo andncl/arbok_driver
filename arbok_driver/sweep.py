@@ -164,19 +164,21 @@ class Sweep:
         """
         Validates equal sizes of input arrays in three steps:
             1) Checks if all parameters are SequenceParameter/Parameter
-            2) Checks if all sweep setpoint arrays have same lengths
-            3) Checks if all input streams have the same dimension
+            2) Checks if var_type is int, bool or qua.fixed
+            3) Checks if all sweep setpoint arrays have same lengths
+            4) Checks if all input streams have the same dimension
         """
         self._config = self._convert_str_keys_to_param(self._config)
-        param_types_valid = []
         for param in self.config.keys():
-            param_types_valid.append(
-             isinstance(param,(SequenceParameter, Parameter))
-            )
-        if not all(param_types_valid):
-            raise TypeError(
-        "All given parameter must be of SequenceParameter or Parameter"
-        )
+            if not isinstance(param, (SequenceParameter, Parameter)):
+                raise TypeError(
+                    f"Key {param} in sweep config must be of type "
+                    "SequenceParameter or Parameter")
+            if not param.var_type in (int, bool, qua.fixed):
+                raise TypeError(
+                    f"Key {param.full_name} in sweep config must have a var_type"
+                    f" of int, bool, or qua.fixed. Is: {param.var_type}."
+                )
         param_arrays = []
         param_streams = []
         for values in self._config.values():
