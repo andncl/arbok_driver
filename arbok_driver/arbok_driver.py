@@ -1,5 +1,4 @@
 import copy
-from typing import Union
 
 import numpy as np
 
@@ -43,20 +42,22 @@ class ArbokDriver(qc.Instrument):
         self.result_handles = None
         self.no_pause = False
         self.is_mock = False
-        self._sequences = []
+        self._measurements = []
         self.add_parameter('iteration', get_cmd = None, set_cmd =None)
 
     @property
-    def sequences(self) -> list:
-        """Sequences to be run within program uploaded to the OPX"""
-        return self._sequences
+    def measurements(self) -> list:
+        """Measurements to be run within program uploaded to the OPX"""
+        return self._measurements
 
-    def reset_sequences(self) -> None:
+    def reset_measurements(self) -> None:
         """
-        Resets all sequences in the program
-        TODO: delete instances of those sequences
+        Resets all measurements in the program
+        TODO: delete instances of those measurements
         """
-        self._sequences = []
+        for measurement in self._measurements:
+            del measurement
+        self._measurements = []
         self.submodules = {}
 
     def connect_opx(
@@ -106,16 +107,16 @@ class ArbokDriver(qc.Instrument):
             self.qmm.close_all_quantum_machines()
         self.connect_opx(host_ip, qm_config, reconnect = True)
 
-    def add_sequence(self, new_sequence: SequenceBase):
+    def add_measurement(self, new_measurement: Measurement):
         """
-        Adds a class which inherits `SequenceBase` to the program and adds it
+        Adds a class which inherits `Measurement` to the program and adds it
         as a QCoDeS sub-module
         
         Args:
-            new_sequence (SequenceBase): The instance which inherits
-            SequenceBase to be added
+            new_measurement (Measurement): The instance which inherits
+            Measurement to be added
         """
-        self._sequences.append(new_sequence)
+        self._measurements.append(new_measurement)
 
     def run(self, qua_program, **kwargs):
         """
