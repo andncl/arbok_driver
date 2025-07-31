@@ -48,7 +48,7 @@ class Measurement(SequenceBase):
         self.measurement = self
         self._init_vars()
         self._reset_sweeps_setpoints()
-        parent.add_sequence(self)
+        parent.add_measurement(self)
 
         self._is_mock = False
         self._sweep_dims = None
