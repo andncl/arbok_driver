@@ -401,11 +401,16 @@ class SequenceBase(InstrumentModule):
         Returns:
             dict: Reshaped parameter dict
         """
+        if 'type' not in param_dict and 'parameter_class' not in param_dict:
+            raise KeyError(
+                f"Config for parameter '{param_name}' on '{self.full_name}'"
+                " does not contain a 'type' key."
+                " Please provide a type of the parameter to be added."
+                " Find available ones in arbok_driver/parameter_types.py."
+                " Or use a custom one.")
         if 'type' in param_dict:
             param_dict['parameter_class'] = param_dict['type']
             del param_dict['type']
-        else:
-            param_dict['parameter_class'] = SequenceParameter
         if 'value' in param_dict:
             param_dict['initial_value'] = param_dict['value']
             del param_dict['value']
