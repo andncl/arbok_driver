@@ -37,7 +37,12 @@ class SequenceParameter(Parameter):
             config_name (str): Name of the parameter in the sequence config dict
                 essentially name without the element
         """
-        super().__init__(*args, **kwargs)
+        try:
+            super().__init__(*args, **kwargs)
+        except Exception as e:
+            raise ValueError(
+                f"Error initializing SequenceParameter: {kwargs['name']}: {e}"
+                ) from e
         self.element = element
         if var_type is not None:
             self.var_type = var_type
