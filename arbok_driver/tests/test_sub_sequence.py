@@ -26,11 +26,11 @@ def test_parent_child_sequence_behaviour(
         print(parent_sub_sequence.submodules)
 
 def test_qua_program_compilation_wo_sweeps(
-        dummy_sequence) -> None:
+        dummy_measurement) -> None:
     """Tests if any sub sequence within a sequence that has sweeps compiles 
     correctly to QUA code considering those sweeps """
-    dummy_sequence.set_sweeps(*set_sweeps_args(dummy_sequence))
-    qua_prog_str = dummy_sequence.dummy_parent_sub.get_qua_program_as_str()
+    dummy_measurement.set_sweeps(*set_sweeps_args(dummy_measurement))
+    qua_prog_str = dummy_measurement.dummy_parent_sub.get_qua_program_as_str()
     # we expect 8 declares: 2x3(2 per parameter -> sweep_arr + qua_var) 
     # + 2 as iterators for for loops (per sweep axis)
     assert len([m.start() for m in re.finditer('declare', qua_prog_str)]) == 8
@@ -39,7 +39,7 @@ def test_qua_program_compilation_wo_sweeps(
     # we expect 2 one per sweep axis
     assert len([m.start() for m in re.finditer('for_', qua_prog_str)]) == 2
     #breakpoint()
-    qua_prog_str = dummy_sequence.dummy_parent_sub.sub_seq1.get_qua_program_as_str()
+    qua_prog_str = dummy_measurement.dummy_parent_sub.sub_seq1.get_qua_program_as_str()
     assert len([m.start() for m in re.finditer('declare', qua_prog_str)]) == 8
     assert len([m.start() for m in re.finditer('assign', qua_prog_str)]) == 3
     assert len([m.start() for m in re.finditer('for_', qua_prog_str)]) == 2
@@ -59,10 +59,10 @@ def test_add_qc_params_from_config(sub_sequence_1) -> None:
             'par69': {'unit': 'cycles', 'toast': int(8)},
             })
 
-def test_find_measurement(mock_program, dummy_sequence) -> None:
+def test_find_measurement(mock_program, dummy_measurement) -> None:
     """Tests if parent sequence is found from sub sequences"""
-    mock_program.add_sequence(dummy_sequence)
-    parent = mock_program.dummy_sequence.measurement
-    assert parent == mock_program.dummy_sequence
-    parent = mock_program.dummy_sequence.dummy_parent_sub.measurement
-    assert parent == mock_program.dummy_sequence
+    mock_program.add_measurement(dummy_measurement)
+    parent = mock_program.dummy_measurement.measurement
+    assert parent == mock_program.dummy_measurement
+    parent = mock_program.dummy_measurement.dummy_parent_sub.measurement
+    assert parent == mock_program.dummy_measurement
