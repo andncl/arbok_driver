@@ -2,57 +2,50 @@
 import logging
 from qcodes.validators import Arrays
 
-from .sub_sequence import SubSequence
-from .signal import Signal
+from .abstract_readout import AbstractReadout
+from .device import Device
 from .gettable_parameter import GettableParameter
+from .signal import Signal
+from .sub_sequence import SubSequence
 
 class ReadSequence(SubSequence):
     """ Baseclass for sequences containing readouts """
     def __init__(
         self,
-        parent,
-        name,
-        device,
-        sequence_config,
-        available_abstract_readouts = {},
-        available_readout_points = {}
+        parent: SubSequence,
+        name: str,
+        device: Device,
+        sequence_config: dict,
         ):
         """
         Constructor class for ReadSequence class
         Args:
+            parent (SubSequence): Parent instrument module
             name (dict): name of the ReadSequence
             device (Device): device for which sequence is configured
-            seq_config (dict): Dict configuring all parameters for the given
+            sequence_config (dict): Dict configuring all parameters for the given
                 read-sequence and its read-points and abstract-readouts
-            available_abstract_readouts (None | dict): Optional, dictionairy with
-                available abstract readouts with method name as key and abstract
-                readout class as value
         """
-        super().__init__(parent, name, device, sequence_config)
-        self.seq_config = sequence_config
-        self.available_abstract_readouts = available_abstract_readouts
-        self.available_readout_points = available_readout_points
+        super().__init__(
+            parent=parent,
+            name=name,
+            device=device,
+            sequence_config=sequence_config
+            )
 
+        self._check_read_sequence_config(sequence_config)
+        self.sequence_config = sequence_config
         self._signals = {}
-        self._readout_points = {}
         self._readout_groups = {}
         self._abstract_readouts = {}
-        if 'signals' in self.seq_config:
-            logging.debug("Adding signals to ReadSequence: %s", self.name)
-            self._add_signals_from_config(self.seq_config['signals'])
-            self._add_gettables_from_signals()
-        if "readout_groups" in self.seq_config:
-            logging.debug(
-                "Adding readout groups to ReadSequence: %s", self.name)
-            self._add_readout_groups_from_config(
-                self.seq_config["readout_groups"])
-            self._add_gettables_from_readouts()
-        self.measurement.add_available_gettables(self._gettables)
 
-    @property
-    def abstract_readouts(self):
-        """All abstract readouts in this read-sequence"""
-        return self._abstract_readouts
+        logging.debug("Adding signals to ReadSequence: %s", self.name)
+        self._add_signals_from_config(self.sequence_config['signals'])
+        logging.debug("Adding readout groups to ReadSequence: %s", self.name)
+        self._add_readout_groups_from_config(self.sequence_config["readout_groups"])
+
+        self._add_gettables_from_observables()
+        self.measurement.add_available_gettables(self._gettables)
 
     @property
     def signals(self):
@@ -65,18 +58,15 @@ class ReadSequence(SubSequence):
         return self._readout_groups
 
     @property
-    def readout_points(self):
-        """All configured readout points"""
-        return self._readout_points
+    def abstract_readouts(self):
+        """All abstract readouts in this read-sequence"""
+        return self._abstract_readouts
 
     def qua_declare(self):
         """
         QUA variable and stream declaration based on the given sequence
         configuration. Only to be called within qua.program() context manager!
         """
-        for point_name, readout_point in self.readout_points.items():
-            logging.debug("Declaring qua vars for %s", point_name)
-            readout_point.qua_declare_variables()
         for readout_name, abstract_readout in self._abstract_readouts.items():
             logging.debug("Declaring qua vars for %s", readout_name)
             abstract_readout.qua_declare_variables()
@@ -86,84 +76,190 @@ class ReadSequence(SubSequence):
         Saves acquired results to qua stream
         Only to be called within qua.program() context manager!
         """
-        for _, signal in self.signals.items():
-            signal.qua_save_streams()
-            logging.debug("Saving streams of signal %s", signal.name)
         for readout_name, abstract_readout in self._abstract_readouts.items():
             logging.debug("Saving streams of abstract readout %s", readout_name)
             abstract_readout.qua_save_streams()
             continue
 
-    def _add_signals_from_config(self, signal_config: dict):
+    def _add_signals_from_config(self, signal_name_list: list):
         """
-        Creates all signals and their readout points from config
+        Creates all signals on the ReadSequence from the given config.
+        Checks validity of signal names and adds them to the sequence.
+        Signals are added as attributes to the sequence with the same name.
+        Signals are also added to the signals property of the sequence.
+
+        Args:
+            signal_name_list (list): List of signal names to be added to the
+
+        Raises:
+            TypeError: If signal name is not a list
+            ValueError: If signal name is not a string or already exists
+            AttributeError: If signal name is already an attribute of the sequence
         """
-        for name, config in signal_config.items():
-            logging.debug("Adding signal %s to %s", name, self.name)
-            new_signal = Signal(name, self, config,
-                self.available_readout_points)
-            setattr(self, name, new_signal)
-            self._signals[new_signal.name] = new_signal
-
-    def _add_gettables_from_signals(self):
-        """Adds gettables from all given signals"""
-        for _, signal in self.signals.items():
-            for _, readout_point in signal.readout_points.items():
-                for obs_name, observable in readout_point.observables.items():
-                    logging.debug("Adding gettable from observable %s to %s",
-                        obs_name, self.name)
-                    self._add_gettable_from_observable(observable)
-
-    def _add_gettables_from_readouts(self):
-        """Adds gettables from all abstract readouts e.g difference/threshold"""
-        for _, readouts in self.readout_groups.items():
-            for _, readout in readouts.items():
-                for _, observable in readout.observables.items():
-                    self._add_gettable_from_observable(observable)
-
-    def _add_readout_groups_from_config(self, groups_config: dict):
-        """Creates readout grops from config file"""
-        for group_name, group_conf in groups_config.items():
-            setattr(self, group_name, {})
-            readout_group = getattr(self, group_name)
-            logging.debug("Creating readout group %s", group_name)
-            for readout_name, readout_conf in group_conf.items():
-                method = readout_conf["method"]
-                if method in self.available_abstract_readouts:
-                    ReadoutClass = self.available_abstract_readouts[method]
-                else:
-                    raise ValueError(
-                        f"{method} not available!",
-                        "check your available_abstract_readouts"
-                    )
-                logging.debug(
-                    "Adding '%s' readout to sequence '%s' with name '%s'",
-                    method,
-                    self,
-                    readout_name,
-                    )
-                if "save_results" in readout_conf:
-                    save_results = readout_conf["save_results"]
-                else:
-                    save_results = True
-                if "params" in readout_conf:
-                    params = readout_conf["params"]
-                else:
-                    params = {}
-
-                abstract_readout = ReadoutClass(
-                    name = readout_name,
-                    attr_name = readout_conf["name"],
-                    sequence = self,
-                    save_results = save_results,
-                    params = params,
+        if not isinstance(signal_name_list, list):
+            raise ValueError(
+                f"Signals in sequence config of {self.full_name} must be a list!"
+            )
+        for signal_name in signal_name_list:
+            logging.debug("Adding signal %s to %s", signal_name, self.full_name)
+            if not isinstance(signal_name, str):
+                raise ValueError(
+                    f"Signal name {signal_name} in sequence config of"
+                    f" {self.full_name} must be a string!"
                 )
-                readout_group[readout_name] = abstract_readout
-                self._abstract_readouts[readout_name] = abstract_readout
-            self._readout_groups[group_name] = readout_group
+            if hasattr(self, signal_name):
+                raise AttributeError(
+                    f"Attribute '{signal_name}' already exists on {self.full_name}!"
+                    " Cant add signal with the same name."
+                )
+            new_signal = Signal(name=signal_name, read_sequence = self)
+            self._signals[new_signal.name] = new_signal
+            setattr(self, signal_name, new_signal)
+
+    def _check_read_sequence_config(self, sequence_config: dict):
+        """
+        Checks the given sequence config for validity
+        Args:
+            sequence_config (dict): Dict configuring all parameters for the given
+                read-sequence and its read-points and abstract-readouts
+        """
+        if 'signals' not in sequence_config:
+            raise ValueError(
+                f"No signals configured in sequence config for {self.full_name}!"
+                )
+        if 'readout_groups' not in sequence_config:
+            raise ValueError(
+                "No readout groups configured in sequence config for"
+                f"{self.full_name}!"
+            )
+        group_configs = sequence_config['readout_groups'].values()
+        if not all([isinstance(conf, dict) for conf in group_configs]):
+            raise TypeError(
+                f"Readout groups configs in sequence config of {self.full_name}"
+                " must be dicts!"
+            )
+
+    def _add_readout_groups_from_config(self, groups_config: dict) -> None:
+        """
+        Creates readout groups from config file
+
+        Args:
+            groups_config (dict): Dict containing readout groups and their
+                readouts. The keys are the group names and the values are dicts
+                containing readout names and their configurations.
+        Raises:
+            TypeError: If readout config is not a dict
+        """
+        for group_name, group_conf in groups_config.items():
+            logging.debug("Creating readout group %s", group_name)
+            self._readout_groups[group_name] = {}
+            for readout_name, readout_conf in group_conf.items():
+                if not isinstance(readout_conf, dict):
+                    raise TypeError(
+                        f"Readout config of {readout_name} in group {group_name}"
+                        f" of {self.full_name} must be a dict!"
+                    )
+                abstract_readout = self._add_abstract_readout(
+                    readout_conf, readout_name, group_name
+                )
+                self._readout_groups[group_name][readout_name] = abstract_readout
+
+    def _add_abstract_readout(
+        self,
+        readout_conf: dict,
+        readout_name: str,
+        group_name: str
+    ) -> AbstractReadout:
+        """
+        Adds an abstract readout to the sequence from the given configuration.
+        
+        Args:
+            readout_conf (dict): Configuration dict of the readout
+            readout_name (str): Name of the readout
+            group_name (str): Name of the readout group
+        Raises:
+            ValueError: If signal is not found in the sequence signals
+        Returns:
+            AbstractReadout: The created abstract readout object
+        """
+        full_readout_name = f"{group_name}__{readout_name}"
+        self._check_readout_config(readout_conf, full_readout_name, group_name)
+        logging.debug(
+            "Adding '%s' readout to sequence '%s' with name '%s'",
+            readout_conf['readout_class'].__name__,
+            self.full_name,
+            full_readout_name,
+        )
+        if "save_results" in readout_conf:
+            save_results = readout_conf["save_results"]
+        else:
+            save_results = True
+        kwargs = readout_conf['kwargs'] if 'kwargs' in readout_conf else {}
+        params = readout_conf["parameters"] if "parameters" in readout_conf else None
+        if readout_conf['signal'] not in self.signals:
+            raise ValueError(
+                f"Signal {readout_conf['signal']} not found in read sequence"
+                f"{self.full_name}. Available signals: {list(self.signals.keys())}"
+            )
+        abstract_readout = readout_conf['readout_class'](
+            name = full_readout_name,
+            read_sequence = self,
+            signal = self.signals[readout_conf['signal']],
+            save_results = save_results,
+            parameters = params,
+            **kwargs
+        )
+        self._abstract_readouts[full_readout_name] = abstract_readout
+        return abstract_readout
+
+    def _check_readout_config(
+            self, readout_conf: dict, readout_name: str, group_name: str) -> None:
+        """
+        Checks the given readout configuration for validity.
+        
+        Args:
+            readout_conf (dict): Configuration dict of the readout
+            readout_name (str): Name of the readout
+            group_name (str): Name of the readout group
+        Raises:
+            KeyError: If 'readout_class' or 'signal' is not in the config
+            TypeError: If 'readout_class' is not a subclass of AbstractReadout
+        """
+        if 'readout_class' not in readout_conf:
+            raise KeyError(
+                f"'readout_class' not found in readout config for {readout_name}"
+                f" in group {group_name} on {self.full_name}!."
+                f" Config is: {readout_conf}"
+            )
+        if 'signal' not in readout_conf:
+            raise KeyError(
+                f"'signal' not found in readout config for {readout_name}"
+                f" in group {group_name} on {self.full_name}!"
+                )
+        if not issubclass(readout_conf['readout_class'], AbstractReadout):
+            raise TypeError(
+                f"Readout class {readout_conf['readout_class'].__name__} is not"
+                f" a subclass of AbstractReadout ({self.full_name},"
+                f" {group_name}__{readout_name})!"
+            )
+
+    def _add_gettables_from_observables(self):
+        """
+        Adds gettables to the read sequence from all observables in the
+        abstract readouts. This is used to make the observables fetchable
+        during a measurement.
+        """
+        for readout in self._abstract_readouts.values():
+            for observable in readout.observables.values():
+                self._add_gettable_from_observable(observable)
 
     def _add_gettable_from_observable(self, observable):
-        """Adds a gettable to the given readout sequence from an observable"""
+        """
+        Adds a gettable to the given readout sequence from an observable
+
+        Args:
+            observable (Observable): Observable to be added as gettable
+        """
         logging.debug(
             "Adding gettable %s from readout %s to signal %s",
             observable.full_name,
@@ -220,3 +316,9 @@ class ReadSequence(SubSequence):
             qm_elements += signal.readout_elements.values()
         # this is meant to be deterministic with non duplicates in the list.
         return list(dict.fromkeys(qm_elements))
+
+    def _add_gettables_from_readouts(self) -> None:
+        """Adds gettables from all abstract readouts e.g difference/threshold"""
+        for readout in self._abstract_readouts.values():
+            for observable in readout.observables.values():
+                self._add_gettable_from_observable(observable)
