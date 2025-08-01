@@ -2,6 +2,7 @@
 import logging
 import copy
 import time
+import warnings
 
 import numpy as np
 from rich.progress import Progress
@@ -111,13 +112,19 @@ class MeasurementRunner:
 
         ### The first axis will be popped from the list and iterated over
         sweep_dict = sweep_list.pop(0)
-        for idx in range(len(list(sweep_dict.values())[0])):
+        sweep_axis_size = len(list(sweep_dict.values())[0])
+        if len(sweep_list) < 3:
+            warnings.warn(
+                "Measurements with axis sizes less of 2 or less are not recommended."
+                " Results may not be displayable with plottr."
+            )
+        for idx in range(sweep_axis_size):
             ### The parameter values are set for the current iteration
             for param, values in sweep_dict.items():
                 value = values[idx]
                 logging.debug('Setting %s to %s', param.instrument.name, value)
                 param.set(value)
-
+            
                 ### The parameter is added to the result arguments dict if its
                 ### dict entry is registered
                 if param in self.result_args_dict:
@@ -140,8 +147,9 @@ class MeasurementRunner:
         self.counter += 1
         result_args_temp = []
         for _, gettable in self.measurement.gettables.items():
+            result = gettable.fetch_results()
             result_args_temp.append(
-                (gettable, gettable.fetch_results())
+                (gettable, result)
             )
         ### Retreived results are added to the datasaver
         result_args_temp += list(self.result_args_dict.values())
@@ -157,7 +165,8 @@ class MeasurementRunner:
 
     def _get_result_arguments(self, register_all: bool = False) -> dict:
         """
-        Generates a list of parameters that are varied in the sweep and a dict
+        Generates a dict of parameters that are varied in the sweeps.
+        The dict will be used to register the results in the measurement.
         
         Args:
             register_all (bool): If True, all settables will be registered in the
@@ -184,6 +193,13 @@ class MeasurementRunner:
         """
         Prepare parameters and gettables for the measurement.
         """
+        if len(self.result_args_dict) == 0:
+            raise ValueError(
+                "No results registered in the measurement. "
+                "Please register at least one result. "
+                "You can see the registered results via measurement.gettables"
+                " and all available ones via measurement.available_gettables"
+            )
         for param, _ in self.result_args_dict.items():
             logging.debug(
                 "Registering sequence parameter %s", param.full_name)
