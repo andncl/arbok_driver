@@ -43,8 +43,6 @@ class ReadSequence(SubSequence):
         self._add_signals_from_config(self.sequence_config['signals'])
         logging.debug("Adding readout groups to ReadSequence: %s", self.name)
         self._add_readout_groups_from_config(self.sequence_config["readout_groups"])
-
-        self._add_gettables_from_observables()
         self.measurement.add_available_gettables(self._gettables)
 
     @property
@@ -243,69 +241,19 @@ class ReadSequence(SubSequence):
                 f" {group_name}__{readout_name})!"
             )
 
-    def _add_gettables_from_observables(self):
+    def add_gettable(self, gettable: 'GettableParameter') -> None:
         """
-        Adds gettables to the read sequence from all observables in the
-        abstract readouts. This is used to make the observables fetchable
-        during a measurement.
-        """
-        for readout in self._abstract_readouts.values():
-            for observable in readout.observables.values():
-                self._add_gettable_from_observable(observable)
-
-    def _add_gettable_from_observable(self, observable):
-        """
-        Adds a gettable to the given readout sequence from an observable
+        Adds a gettable parameter to the read sequence. This is used to make
+        the gettable fetchable during a measurement.
 
         Args:
-            observable (Observable): Observable to be added as gettable
+            gettable (GettableParameter): Gettable parameter to be added
         """
-        logging.debug(
-            "Adding gettable %s from readout %s to signal %s",
-            observable.full_name,
-            observable.readout.name,
-            observable.signal.name
-        )
-        self.add_parameter(
-            parameter_class = GettableParameter,
-            name = observable.full_name,
-            register_name = observable.full_name,
-            sequence = self,
-            vals = Arrays(shape = (1,))
-        )
-        new_gettable = getattr(self, observable.full_name)
-        observable.gettable = new_gettable
-        self._gettables.append(new_gettable)
-
-    def _add_opx_gettable_parameter(
-        self,
-        readout_name: str,
-        qua_variable_name: str
-        ):
-        """
-        Creates GettableParameter in the ReadSequence that will be fetchable
-        during a measurement. The name of the created parameter has to coincide
-        with the name of the buffered stream (Refer to the generated qua script)
-            
-        Args:
-            readout_name (str): Name of the abstract readout or readout point
-            qua_variable_name (str): Name of the qua variable to be recorded
-        """
-        logging.debug(
-            "Added stream %s from %s to %s",
-            readout_name,
-            qua_variable_name,
-            self.name
-        )
-        gettable_name = f"{readout_name}__{qua_variable_name}"
-        gettable_name = qua_variable_name
-        self.add_parameter(
-            parameter_class = GettableParameter,
-            name = gettable_name,
-            sequence = self,
-            vals = Arrays(shape = (1,))
-        )
-        self._gettables.append(getattr(self, gettable_name))
+        if not isinstance(gettable, GettableParameter):
+            raise TypeError(
+                f"Expected GettableParameter, got {type(gettable)}"
+            )
+        self._gettables.append(gettable)
 
     def get_qm_elements_from_signals(self):
         """
@@ -316,9 +264,3 @@ class ReadSequence(SubSequence):
             qm_elements += signal.readout_elements.values()
         # this is meant to be deterministic with non duplicates in the list.
         return list(dict.fromkeys(qm_elements))
-
-    def _add_gettables_from_readouts(self) -> None:
-        """Adds gettables from all abstract readouts e.g difference/threshold"""
-        for readout in self._abstract_readouts.values():
-            for observable in readout.observables.values():
-                self._add_gettable_from_observable(observable)

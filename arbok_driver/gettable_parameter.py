@@ -4,6 +4,8 @@ import hashlib
 import warnings
 import numpy as np
 
+from qm import qua
+
 from qcodes.validators import Arrays
 from qcodes.parameters import ParameterWithSetpoints
 
@@ -18,7 +20,8 @@ class GettableParameter(ParameterWithSetpoints):
         unit (str): Unit of the parameter
         label (label): Label for parameter (printed on axis)
         readout (Readout): `Readout` instance that created this parameter
-        sequence (Sequence): `Sequence` managing the sequence of QUA program
+        read_sequence (ReadSequence): `ReadSequence` managing the sequence of
+            QUA program
         qm_job (RunningQmJob): Running job on the opx to interact with
         buffer (obj): QM buffer to get results from
         buffer_val (array): flat numpy array containing results of opx fetch
@@ -26,18 +29,35 @@ class GettableParameter(ParameterWithSetpoints):
         batch_size (tuple): Shape of one OPX batch
         count (int): Amount of successful `get` executions
     """
-    def __init__(self, name, sequence, *args, **kwargs) -> None:
+    def __init__(
+            self,
+            name: str,
+            read_sequence: 'ReadSequence',
+            var_type: int | bool | qua.fixed,
+            *args,
+            **kwargs
+            ) -> None:
         """
         Constructor class for ReadSequence class
         Args:
             name (dict): name of the GettableParameter
             readout (Readout): Readout class summarizing data streams and variables
         """
-        super().__init__(name, *args, **kwargs)
-        self.unit = ""
-        self.label = ""
+        super().__init__(name, *args, vals=Arrays(shape=(1,)), **kwargs)
+        ### The following attributes hold the QUA variables and streams
+        ### those can only be generated upon qua program compilation
+        self.qua_var = None
+        self.qua_buffer = None
+        self.qua_stream = None
 
-        self.measurement = sequence.measurement
+        # self.unit = ""
+        # self.label = ""
+
+        self.var_type = var_type
+        self.read_sequence = read_sequence
+        self.read_sequence.add_gettable(self)
+        self.measurement = read_sequence.measurement
+        
         self.reset_measuerement_attributes()
 
         self.qm_job = None

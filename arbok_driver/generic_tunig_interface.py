@@ -14,7 +14,7 @@ from IPython import display
 
 from arbok_driver import measurement
 from .gettable_parameter import GettableParameter
-from .observable import Observable
+from .gettable import gettable
 
 class GenericTuningInterface:
     """Generic streaming interface for ML tuning."""
@@ -24,7 +24,7 @@ class GenericTuningInterface:
     input_stream_params = None
     program = None
     measurement = None
-    observables = None
+    gettables = None
     qua_program = None
 
     @abstractmethod
@@ -33,7 +33,7 @@ class GenericTuningInterface:
 
     @abstractmethod
     def get_cost(self, obserbables: dict) -> float:
-        """Takes all measured observables and returns the cost"""
+        """Takes all measured gettables and returns the cost"""
 
     def add_parameters(self, parameter_dicts: dict, verbose: bool = False):
         """
@@ -76,27 +76,27 @@ class GenericTuningInterface:
 
         self.measurement.input_stream_parameters = self.input_stream_params
 
-    def add_observales_and_sweeps(
-            self, nr_shots: int = 500, **tags_and_observables):
+    def add_gettables_and_sweeps(
+            self, nr_shots: int = 500, **tags_and_gettables):
         """
-        Adds observables to the interface and sets the number of shots.
+        Adds gettables to the interface and sets the number of shots.
         
         Args:
             nr_shots (int): Number of shots to run for each parameter set.
-            tags_and_observables (dict): Dictionary containing the tags and
-                observables to be added to the interface.
+            tags_and_gettables (dict): Dictionary containing the tags and
+                gettables to be added to the interface.
         """
-        self.observables = {}
-        for tag, observable in tags_and_observables.items():
-            if isinstance(observable, Observable):
-                new_obs = observable.gettable
-            elif isinstance(observable, GettableParameter):
-                new_obs = observable
+        self.gettables = {}
+        for tag, gettable in tags_and_gettables.items():
+            if isinstance(gettable, gettable):
+                new_obs = gettable.gettable
+            elif isinstance(gettable, GettableParameter):
+                new_obs = gettable
             else:
                 raise ValueError(
-                    "Observable must be either a GettableParameter or "
-                    f"Observable. Is {type(observable)}")
-            self.observables[tag] = new_obs
+                    "gettable must be either a GettableParameter or "
+                    f"gettable. Is {type(gettable)}")
+            self.gettables[tag] = new_obs
 
         if nr_shots is not None and nr_shots > 1:
             self.measurement.set_sweeps(
@@ -124,7 +124,7 @@ class GenericTuningInterface:
 
         Returns:
             float: Reward/cost of the parameter set
-            dict: All measured observables for the parameter set
+            dict: All measured gettables for the parameter set
             dict: All parameters of the parameter set
         """
         input_param_dict = {}
@@ -139,16 +139,16 @@ class GenericTuningInterface:
         self.measurement.insert_single_value_input_streams(input_param_dict)
         self.program.qm_job.resume()
 
-        observable_results = {}
-        for i, (tag, obs) in enumerate(self.observables.items()):
+        gettable_results = {}
+        for i, (tag, obs) in enumerate(self.gettables.items()):
             if i > 0:
                 progress_bar = None
-            observable_results[tag] = obs.get_raw(progress_bar = progress_bar)
-        cost = self.get_cost(observable_results)
+            gettable_results[tag] = obs.get_raw(progress_bar = progress_bar)
+        cost = self.get_cost(gettable_results)
         saved_params = {}
         for param_name, value in zip(self.parameter_dict.keys(), input_param_dict.values()):
             saved_params[param_name] = value
-        return float(cost), observable_results, saved_params
+        return float(cost), gettable_results, saved_params
 
     def run_cross_entropy_devicer(
             self, populations: list,
@@ -167,11 +167,11 @@ class GenericTuningInterface:
                 names to plot during the sampling process
 
         Returns:
-            xr.Dataset: Dataset containing all observables, parameters and
+            xr.Dataset: Dataset containing all gettables, parameters and
                 rewards
         """
         all_rewards = []
-        all_obs = {name: [] for name in self.observables.keys()}
+        all_obs = {name: [] for name in self.gettables.keys()}
         all_params = {name: [] for name in self.parameter_dict.keys()}
         all_bounds = {name: [] for name in self.bounds.keys()}
         current_bounds = copy.deepcopy(self.bounds)
@@ -248,7 +248,7 @@ class GenericTuningInterface:
         
         Args:
             all_rewards (list): List of rewards for the current iteration
-            all_obs (dict): Dict of observable names and values
+            all_obs (dict): Dict of gettable names and values
             all_params (dict): Dict of par names and values for the last population
 
         Returns:
@@ -263,7 +263,7 @@ class GenericTuningInterface:
             dims = ('index')
             )
         dataset['rewards'] = dataset.rewards.assign_attrs(type = 'reward')
-        ### Saving observables
+        ### Saving gettables
         for obs_name, data in all_obs.items():
             data = np.array(data)
             dataset[obs_name] = xr.DataArray(
@@ -272,7 +272,7 @@ class GenericTuningInterface:
                         'shot_nr': np.arange(np.shape(data)[1])},
                 dims = ('index', 'shot_nr')
                 )
-            dataset[obs_name] = dataset[obs_name].assign_attrs(type = 'observable')
+            dataset[obs_name] = dataset[obs_name].assign_attrs(type = 'gettable')
         ### Saving parameters
         for par_name, data in all_params.items():
             data = np.array(data)
@@ -284,7 +284,7 @@ class GenericTuningInterface:
             dataset[par_name] = dataset[par_name].assign_attrs(type = 'parameter')
         ### Adding metadata
         dataset = dataset.assign_attrs(parameters = list(all_params.keys()))
-        dataset = dataset.assign_attrs(observables = list(all_obs.keys()))
+        dataset = dataset.assign_attrs(gettables = list(all_obs.keys()))
         return dataset
 
     def _update_sobol_bounds(

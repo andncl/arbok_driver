@@ -113,7 +113,7 @@ class MeasurementRunner:
         ### The first axis will be popped from the list and iterated over
         sweep_dict = sweep_list.pop(0)
         sweep_axis_size = len(list(sweep_dict.values())[0])
-        if len(sweep_list) < 3:
+        if sweep_axis_size <= 2:
             warnings.warn(
                 "Measurements with axis sizes less of 2 or less are not recommended."
                 " Results may not be displayable with plottr."
@@ -124,7 +124,6 @@ class MeasurementRunner:
                 value = values[idx]
                 logging.debug('Setting %s to %s', param.instrument.name, value)
                 param.set(value)
-            
                 ### The parameter is added to the result arguments dict if its
                 ### dict entry is registered
                 if param in self.result_args_dict:

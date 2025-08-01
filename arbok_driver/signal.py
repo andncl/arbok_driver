@@ -15,31 +15,37 @@ class Signal:
         a
         Args:
             name (str): Name of the signal
-            readout_points (dict): List of readout points
-            readout_elements (dict): List of readout elements
+            read_sequence (arbok_driver.ReadSequence): ReadSequence performing the
+                abstract readout
         """
         self.name = name
         self.read_sequence = read_sequence
 
-        self._observables = {}
+        self._gettables = {}
 
     @property
-    def observables(self):
-        """Dictionary with all observables registered on the signal"""
-        return self._observables
+    def gettables(self):
+        """Dictionary with all gettables registered on the signal"""
+        return self._gettables
 
-    def add_observable(self, observable: 'Observable') -> None:
+    def add_gettable(self, gettable: 'GettableParameter') -> None:
         """
-        Adds an observable to the signal
+        Adds a gettable parameter to the signal
 
         Args:
-            observable (Observable): Observable to be added
+            gettable (GettableParameter): Gettable parameter to be added
         """
         logging.debug(
-            "Adding observable %s to signal %s", observable.name, self.name)
-        if observable.name in self._observables:
+            "Adding gettable %s to signal %s", gettable.name, self.name)
+        if gettable.name in self._gettables:
             raise ValueError(
-                f"Observable with name {observable.name} already exists in"
+                f"gettable with name {gettable.name} already exists in"
                 f" signal '{self.name}'."
             )
-        self._observables[observable.name] = observable
+        self._gettables[gettable.name] = gettable
+        if hasattr(self, gettable.name):
+            raise ValueError(
+                f"Attribute with name {gettable.name} already exists on"
+                f" signal '{self.name}'. Choose a different name for the gettable."
+            )
+        setattr(self, gettable.name, gettable)
