@@ -118,6 +118,11 @@ class GettableParameter(ParameterWithSetpoints):
                 self.name
             )
             data = self._generate_synthetic_data()
+        if data is None:
+            raise RuntimeError(
+                f"GettableParameter {self.name} has no data in the buffer. "
+                "Make sure the QUA program has run and the buffer is full."
+            )
         return self._reshape_data(data, self.sweep_dims, self.snaked)
 
     def _fetch_opx_buffer(self):
