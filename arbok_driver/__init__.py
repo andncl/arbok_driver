@@ -7,7 +7,7 @@ from .generic_tunig_interface import GenericTuningInterface
 from .gettable_parameter import GettableParameter
 from .measurement import Measurement
 from .measurement_runner import MeasurementRunner
-from .observable import Observable, AbstractObservable, ObservableBase
+from .observable import Observable
 from .read_sequence import ReadSequence
 from .sequence_parameter import SequenceParameter
 from .signal import Signal
