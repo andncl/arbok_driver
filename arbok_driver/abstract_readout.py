@@ -3,8 +3,9 @@ from abc import ABC, abstractmethod
 import logging
 
 from qm import qua
-from .read_sequence import ReadSequence
-from .observable import ObservableBase
+
+from .observable import Observable
+from .signal import Signal
 
 class AbstractReadout(ABC):
     """
@@ -15,30 +16,50 @@ class AbstractReadout(ABC):
     def __init__(
         self,
         name: str,
-        sequence: ReadSequence,
-        attr_name: str,
+        read_sequence: 'ReadSequence',
+        signal: Signal,
         save_results: bool = True,
-        params: dict = {}
+        parameters: dict | None = None
     ):
         """
         Constructor method of `AbstractReadout`
         
         Args:
             name (str): name of readout
-            sequence (ReadSequence): Sequence generating the given readout
-            attr_name (str): Name of the attribute as which the readout will be
-                added in the signal
+            read_sequence (ReadSequence): Sequence generating the given readout
+            signal (Signal): Signal to be used in the readout
             save_results (bool, optional): Whether to save the results
             params (dict, optional): Parameters to be added to the read sequence
+
+        Info:
+            Parameters can be added via this abstract readout to the
+            read sequence. The parameters are added with the prefix of the
+            readout name. For example, if the readout is called 'my_readout'
+            and the parameter is called 'my_param', it will be added to the
+            read sequence as 'my_readout__my_param'. Parameters are declared
+            only on the read sequence and not on the abstract readout.
+            The naming convention prevents name clashes with other
+            readouts of the same type. You would want to declare some readout
+            attributes as parameters, e.g. the voltage points in order to
+            sweep and modify them in real time.
         """
         self.name = name
-        self.sequence = sequence
-        self.attr_name = attr_name
+        self.read_sequence = read_sequence
+        self.signal = signal
         self.save_results = save_results
         self.observables = {}
+        self.parameters = {}
 
         ### Parameters are added to the sequence with the readout prefix
-        self.add_qc_params_from_config(params)
+        if parameters is not None:
+            self.add_qc_params_from_config(parameters)
+
+    @abstractmethod
+    def qua_measure(self):
+        """Measures the qua variables for the given abstract readout"""
+        raise NotImplementedError(
+            "Abstract method 'qua_measure' not implemented in child class"
+        )
 
     def qua_declare_variables(self):
         """Declares all necessary qua variables for readout"""
@@ -66,7 +87,7 @@ class AbstractReadout(ABC):
                 logging.debug(
                     "Saving streams of observable %s on abstract readout %s",
                     observable_name, self.name)
-                sweep_size = self.sequence.measurement.sweep_size
+                sweep_size = self.read_sequence.measurement.sweep_size
                 buffer = observable.qua_stream.buffer(sweep_size)
                 buffer.save(f"{observable.full_name}_buffer")
         else:
@@ -86,11 +107,65 @@ class AbstractReadout(ABC):
             params (list): List of parameter names to be added to the sequence
         """
         full_params = {f'{self.name}__{k}': v for k, v in param_dict.items()}
-        self.sequence.add_qc_params_from_config(full_params)
+        self.read_sequence.add_qc_params_from_config(full_params)
         for param_name, conf in param_dict.items():
-            if 'value' in conf:
-                parameter = getattr(self.sequence, f"{self.name}__{param_name}")
+            if 'initial_value' in conf:
+                logging.debug(
+                    "Adding parameter %s with initial value %s to read sequence"
+                    " '%s'",
+                    param_name, conf['initial_value'], self.read_sequence.name
+                    )
+                parameter = getattr(self.read_sequence, f"{self.name}__{param_name}")
                 setattr(self, param_name, parameter)
+                self.parameters[param_name] = parameter
+
+    def get_observable_from_path(self, attr_path: str) -> Observable:
+        """
+        Returns the observable from a given path from a given string. If the
+        string leads to an AbstractReadout it is being tried to find a single
+        observable associated to that AbstractReadout
+        
+        Args:
+            attr_path (str): Path to the given observable relative to the
+                ReadSequence with the format 'signal.observable_name'
+        
+        Returns:
+            Observable: The found observable from the given path
+
+        Raises:
+            ValueError: If the path is not in the format 'signal.observable_name'
+            KeyError: If the signal or observable is not found in the read sequence
+            TypeError: If the found object is not a child class of Observable
+        """
+        attributes = attr_path.split('.')
+        if len(attributes) != 2:
+            raise ValueError(
+                f"Path {attr_path} does not lead to a single observable. "
+                "Please provide a path with the format 'signal.observable_name'"
+            )
+        signal, observable_name = attributes
+        if signal not in self.read_sequence.signals:
+            raise KeyError(
+                f"Signal {signal} not found in read sequence"
+                f" '{self.read_sequence.name}'. Available signals: "
+                f"{self.read_sequence.signals.keys()}"
+            )
+        signal = self.read_sequence.signals[signal]
+        if observable_name not in signal.observables:
+            raise KeyError(
+                f"Observable {observable_name} not found in signal {signal.name}"
+                f" of read sequence '{self.read_sequence.name}'. "
+                f"Available observables: {signal.observables.keys()}"
+            )
+        observable = signal.observables[observable_name]
+        if not isinstance(observable, Observable):
+            raise ValueError(
+                f"The given path {attr_path} yields a {type(observable)}-type",
+                "not a child class of Observable"
+            )
+        return observable
+
+### REVIEW ALL OF THE BELOW METHODS
 
     def get_params_with_prefix(self, prefix: str) -> dict:
         """
@@ -102,7 +177,7 @@ class AbstractReadout(ABC):
         Returns:
             dict: Dictionary with elemets as keys and parameters as values
         """
-        all_params = self.sequence.parameters
+        all_params = self.read_sequence.parameters
         full_prefix = f"{self.name}__{prefix}"
         param_names = [x for x in all_params if full_prefix in x]
         element_list = [x.split(full_prefix)[-1].split('_')[-1] for x in param_names]
@@ -123,39 +198,8 @@ class AbstractReadout(ABC):
         """
         obs_dict = {}
         for signal, obs in self.get_params_with_prefix(prefix).items():
-            obs_dict[signal] = self._find_observable_from_path(obs())
+            obs_dict[signal] = self.get_observable_from_path(obs())
         return obs_dict
-
-    def _find_observable_from_path(self, attr_path: str) -> ObservableBase:
-        """
-        Returns the observable from a given path from a given string. If the
-        string leads to an AbstractReadout it is being tried to find a single
-        observable associated to that AbstractReadout
-        
-        Args:
-            attr_path (str): Path to the given observable relative to the
-                ReadSequence
-        
-        Returns:
-            ObservableBase: The found observable from the given path
-        """
-        attributes = attr_path.split('.')
-        current_obj = self.sequence
-        for attr_name in attributes:
-            try:
-                current_obj = getattr(current_obj, attr_name)
-            except AttributeError as exc:
-                raise AttributeError(
-                    f'Attribute {attr_name} not found in {current_obj.name}'
-                ) from exc
-        if isinstance(current_obj, AbstractReadout):
-            current_obj = current_obj.observable
-        if not isinstance(current_obj, ObservableBase):
-            raise ValueError(
-                f"The given path {attr_path} yields a {type(current_obj)}-type",
-                "not a child class of ObservableBase"
-            )
-        return current_obj
 
     def get_qm_elements_from_observables(self):
         """
@@ -170,6 +214,3 @@ class AbstractReadout(ABC):
             qm_elements += obs.qm_elements
         return list(dict.fromkeys(qm_elements))
 
-    @abstractmethod
-    def qua_measure(self):
-        """Measures the qua variables for the given abstract readout"""
