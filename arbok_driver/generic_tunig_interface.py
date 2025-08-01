@@ -14,7 +14,7 @@ from IPython import display
 
 from arbok_driver import measurement
 from .gettable_parameter import GettableParameter
-from .observable import ObservableBase
+from .observable import Observable
 
 class GenericTuningInterface:
     """Generic streaming interface for ML tuning."""
@@ -88,14 +88,14 @@ class GenericTuningInterface:
         """
         self.observables = {}
         for tag, observable in tags_and_observables.items():
-            if isinstance(observable, ObservableBase):
+            if isinstance(observable, Observable):
                 new_obs = observable.gettable
             elif isinstance(observable, GettableParameter):
                 new_obs = observable
             else:
                 raise ValueError(
                     "Observable must be either a GettableParameter or "
-                    f"ObservableBase. Is {type(observable)}")
+                    f"Observable. Is {type(observable)}")
             self.observables[tag] = new_obs
 
         if nr_shots is not None and nr_shots > 1:

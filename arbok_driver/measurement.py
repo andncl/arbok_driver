@@ -5,6 +5,7 @@ import copy
 import logging
 import os
 from collections import Counter
+import warnings
 
 import numpy as np
 from qm import qua, generate_qua_script
@@ -12,7 +13,7 @@ import qcodes as qc
 
 from .measurement_runner import MeasurementRunner
 from .gettable_parameter import GettableParameter
-from .observable import ObservableBase
+from .observable import Observable
 from .sequence_parameter import SequenceParameter
 from .device import Device
 from .sequence_base import SequenceBase
@@ -319,7 +320,10 @@ class Measurement(SequenceBase):
                 keywords = [keywords]
             if isinstance(keywords, list):
                 for keyword in keywords:
-                    gettables.extend(self._find_gettables_from_keyword(keyword))
+                    found_gettables = self._find_gettables_from_keyword(keyword)
+                    for g in found_gettables:
+                        print(f"From 'keyword' {keyword} adding: {g.full_name}")
+                    gettables.extend(found_gettables)
             else:
                 raise TypeError(
                     f"Keywords must be of type str or list. Is {type(keywords)}")
@@ -329,6 +333,9 @@ class Measurement(SequenceBase):
         self._check_given_gettables(gettables)
 
         self._gettables = gettables
+        if len(self._gettables) == 0:
+            warnings.warn(
+                "No gettables registered for measurement %s", self.name)
         self._configure_gettables()
 
     def _find_gettables_from_keyword(self, keyword: str | tuple) -> list:
@@ -505,13 +512,13 @@ class Measurement(SequenceBase):
             AttributeError: If not all gettables belong to self
         """
         ### Replace observables with their gettables if present
-        gettables_without_observabels = []
+        gettables_without_observables = []
         for _, gettable in gettables.items():
-            if isinstance(gettable, ObservableBase):
-                gettables_without_observabels.append(gettable.gettable)
+            if isinstance(gettable, Observable):
+                gettables_without_observables.append(gettable.gettable)
             else:
-                gettables_without_observabels.append(gettable)
-        gettables = gettables_without_observabels
+                gettables_without_observables.append(gettable)
+        gettables = gettables_without_observables
         ### Check if gettables are of type GettableParameter and belong to self
         all_gettable_parameters = all(
             isinstance(gettable, GettableParameter) for gettable in gettables)

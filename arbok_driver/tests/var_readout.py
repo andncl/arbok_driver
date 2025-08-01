@@ -1,7 +1,7 @@
 """Module containing threshold readout helper"""
 import logging
 from qm import qua
-from arbok_driver import ReadSequence, AbstractReadout, AbstractObservable
+from arbok_driver import ReadSequence, AbstractReadout, Observable
 
 class VarReadout(AbstractReadout):
     """Helper class enabling variable readout from a given signal"""
@@ -46,7 +46,7 @@ class VarReadout(AbstractReadout):
         self.signal_names = self.variables.keys()
         for signal_name, var in self.variables.items():
             self.variables[signal_name] = getattr(self.sequence, var())
-            self.variable_obs[signal_name] = obs = AbstractObservable(
+            self.variable_obs[signal_name] = obs = Observable(
                 observable_name = f'{self.attr_name}_{signal_name}',
                 abstract_readout = self,
                 signal = signal_name, #self.sequence.signals[signal_name],
