@@ -509,6 +509,8 @@ class Measurement(SequenceBase):
             TypeError: If not all gettables are of type GettableParameter
             AttributeError: If not all gettables belong to self
         """
+        ### Replace observables with their gettables if present
+        gettables = gettables.values()
         ### Check if gettables are of type GettableParameter and belong to self
         all_gettable_parameters = all(
             isinstance(gettable, GettableParameter) for gettable in gettables)
