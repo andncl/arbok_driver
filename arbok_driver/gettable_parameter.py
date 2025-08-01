@@ -60,7 +60,6 @@ class GettableParameter(ParameterWithSetpoints):
         
         self.reset_measuerement_attributes()
 
-        self.qm_job = None
         self.buffer = None
         self.buffer_val = None
         self.sweep_dims = None
@@ -77,7 +76,6 @@ class GettableParameter(ParameterWithSetpoints):
 
     def reset_measuerement_attributes(self):
         """Resets all job specific attributes"""
-        self.qm_job = None
         self.buffer = None
         self.buffer_val = None
         self.sweep_dims = None
