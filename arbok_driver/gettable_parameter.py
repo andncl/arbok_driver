@@ -108,6 +108,27 @@ class GettableParameter(ParameterWithSetpoints):
         if self.measurement.driver.is_mock:
             return True
         return False
+    
+    def set_qm_buffer(self, qm_job: 'RunningQmJob') -> None:
+        """
+        Fetches the QM buffer result from the QM driver and assigns it to the
+        `buffer` attribute.
+        
+        Args:
+            qm_driver (RunningQmJob): The QM driver instance to fetch the buffer from.
+        """
+        buffer_name = f"{self.full_name}_buffer"
+        if buffer_name not in qm_job.result_handles.keys():
+            raise ValueError(
+                f"Buffer {buffer_name} not found in QM job result handles. "
+                f"Use one of the available ones:\n {qm_job.result_handles.keys()}"
+            )
+        self.buffer = getattr(qm_job.result_handles, buffer_name)
+        if self.buffer is None:
+            raise RuntimeError(
+                f"Buffer for {self.full_name} is not available. "
+                "Make sure the QUA program has run and the buffer is full."
+            )
 
     def get_raw(self) -> np.ndarray:
         """ 
