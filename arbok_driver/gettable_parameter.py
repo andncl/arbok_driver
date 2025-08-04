@@ -124,11 +124,6 @@ class GettableParameter(ParameterWithSetpoints):
                 f"Use one of the available ones:\n {qm_job.result_handles.keys()}"
             )
         self.buffer = getattr(qm_job.result_handles, buffer_name)
-        if self.buffer is None:
-            raise RuntimeError(
-                f"Buffer for {self.full_name} is not available. "
-                "Make sure the QUA program has run and the buffer is full."
-            )
 
     def get_raw(self) -> np.ndarray:
         """ 
