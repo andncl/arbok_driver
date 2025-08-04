@@ -7,7 +7,6 @@ import os
 from collections import Counter
 import warnings
 
-import numpy as np
 from qm import qua, generate_qua_script
 import qcodes as qc
 
@@ -124,12 +123,12 @@ class Measurement(SequenceBase):
             gettable.reset_measuerement_attributes()
 
     @property
-    def sweeps(self) -> list:
+    def sweeps(self) -> list[Sweep]:
         """List of Sweep objects for `SubSequence`"""
         return self._sweeps
 
     @property
-    def gettables(self) -> dict:
+    def gettables(self) -> dict[str, GettableParameter]:
         """List of `GettableParameter`s for data acquisition"""
         return self._gettables
 
@@ -141,13 +140,13 @@ class Measurement(SequenceBase):
         return self._sweep_size
 
     @property
-    def sweep_dims(self) -> int:
+    def sweep_dims(self) -> tuple[int]:
         """Dimensionality of sweep axes"""
         self._sweep_dims = tuple((sweep.length for sweep in self.sweeps))
         return self._sweep_dims
 
     @property
-    def input_stream_parameters(self) -> list:
+    def input_stream_parameters(self) -> list[SequenceParameter]:
         """Registered input stream parameters"""
         return self._input_stream_parameters
 
@@ -157,7 +156,7 @@ class Measurement(SequenceBase):
         return self._step_requirements
 
     @property
-    def available_gettables(self) -> list:
+    def available_gettables(self) -> list[GettableParameter]:
         """List of all available gettables from all sub sequences"""
         return self._available_gettables
 
@@ -321,7 +320,7 @@ class Measurement(SequenceBase):
                 for keyword in keywords:
                     found_gettables = self._find_gettables_from_keyword(keyword)
                     for g in found_gettables:
-                        print(f"From 'keyword' {keyword} adding: {g.full_name}")
+                        print(f"From keyword '{keyword}' adding: {g.full_name}")
                     gettables.extend(found_gettables)
             else:
                 raise TypeError(
@@ -428,8 +427,7 @@ class Measurement(SequenceBase):
     def _add_streams_to_gettables(self):
         for _, gettable in self.gettables.items():
             gettable.qm_job = self.driver.qm_job
-            gettable.buffer = getattr(
-                self.driver.qm_job.result_handles, f"{gettable.name}_buffer")
+            gettable.set_qm_buffer(self.driver.qm_job)
 
     def insert_single_value_input_streams(self, value_dict: dict) -> None:
         """
@@ -670,8 +668,7 @@ class Measurement(SequenceBase):
                 If you want to sweep params concurrently enter more entries into
                 their sweep dict
         """
-        if self.is_mock:
-            self.compile_qua_and_run(save_path = qua_program_save_path)
+        self.compile_qua_and_run(save_path = qua_program_save_path)
         self.measurement_runner = self.get_measurement_runner(sweep_list)
         self.measurement_runner.run_arbok_measurement(
             inner_func = inner_func)
