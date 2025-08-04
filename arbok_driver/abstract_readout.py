@@ -95,7 +95,6 @@ class AbstractReadout(ABC):
             var_type = var_type
         )
         self.signal.add_gettable(gettable)
-        print('fresh_name', gettable.full_name)
         self._gettables[gettable.full_name] = gettable
         return gettable
 
