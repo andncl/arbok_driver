@@ -2,7 +2,7 @@
 import logging
 from qm import qua
 from arbok_driver import (
-    ReadSequence, Signal, AbstractReadout, AbstractObservable
+    ReadSequence, Signal, AbstractReadout, Observable
 )
 
 class Difference(AbstractReadout):
@@ -33,7 +33,7 @@ class Difference(AbstractReadout):
         super().__init__(name, sequence, attr_name, save_results)
         self.minuend_path = minuend
         self.subtrahend_path = subtrahend
-        self.observable = AbstractObservable(
+        self.observable = Observable(
             observable_name = self.attr_name,
             abstract_readout = self,
             signal = signal,

@@ -378,7 +378,7 @@ class Sweep:
             reverse (bool): Whether the sweep is reversed (from stop to start)
 
         Raises:
-            TypeError: If qua_type is not int or fixed
+            TypeError: If var_type is not int or fixed
 
         Returns:
             None
@@ -386,14 +386,14 @@ class Sweep:
         ### Note this implementation is written in a very explicit way avoiding
         ### multiplications to save lines of code. This is done to avoid
         ### multiplications in the FPGA code (e.g (-1)*x)
-        if param.qua_type == int:
+        if param.var_type == int:
             if not reverse:
                 qua.assign(
                     param.qua_var, sss['start'] + sss['step']*sweep_idx_var)
             else:
                 qua.assign(
                     param.qua_var, sss['stop'] - sss['step']*sweep_idx_var)
-        elif param.qua_type == qua.fixed:
+        elif param.var_type == qua.fixed:
             if not reverse:
                 qua.assign(
                     param.qua_var,

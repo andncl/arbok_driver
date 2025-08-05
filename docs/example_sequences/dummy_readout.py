@@ -1,6 +1,6 @@
 """ Module containing PSB 6 dot readout """
 from qm import qua
-from arbok_driver import ReadSequence, Sample, qua_helpers
+from arbok_driver import ReadSequence,  qua_helpers
 from .average_readout import Average
 from .difference import Difference
 
@@ -24,9 +24,10 @@ class DummyReadout(ReadSequence):
             sequence_config (dict): Dict configuring sequence
         """
         super().__init__(
-            parent, name, sample, sequence_config,
-            {'difference': Difference},
-            {'average': Average}
+            parent = parent,
+            name = name,
+            device = device,
+            sequence_config = sequence_config,
             )
 
     def qua_sequence(self):

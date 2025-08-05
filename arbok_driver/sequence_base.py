@@ -443,12 +443,12 @@ class SequenceBase(InstrumentModule):
 
             param_dict_copy = copy.deepcopy(param_dict)
             del param_dict_copy['label']
-            element_param_dict.update(param_dict_copy)
-            del element_param_dict['elements']
+            param_dict_copy.update(element_param_dict)
+            del param_dict_copy['elements']
 
             self._add_param(
                 param_name = f'{param_name}_{element}',
-                param_dict = element_param_dict
+                param_dict = param_dict_copy
                 )
 
     def _check_param_dict(self, param_name: str, param_dict: dict) -> None:
@@ -547,14 +547,12 @@ class SequenceBase(InstrumentModule):
             namespace_to_add_to (dict): Name space to insert the
                 subsequence into (e.g locals(), globals()) defaults to None
         """
-        try:
-            subsequence = sequence_config['sequence']
-        except KeyError as exc:
+        if 'sequence' not in sequence_config:
             raise KeyError(
-                f"The given config for {self.name} does not contain a "
+                f"The given config for {self.full_name}__{name} does not contain a "
                 "'sequence' key with a subsequence type to configure for."
-                ) from exc
-
+                )
+        subsequence = sequence_config['sequence']
         if not issubclass(subsequence, SequenceBase):
             raise TypeError(
                 "Subsequence must be of type SubSequence")
@@ -631,10 +629,12 @@ class SequenceBase(InstrumentModule):
                 raise ValueError(
                     f"Subsequence config ({name}) must be of type dict,"
                     f" is {type(sub_seq_conf)}")
-            if 'parameters' in seq_conf['config']:
-                sub_seq_conf = seq_conf['config']
-            else:
-                sub_seq_conf = {'parameters': seq_conf['config']}
+            if 'parameters' not in seq_conf['config']:
+                raise KeyError(
+                    f"Config for {self.full_name}__{name} does not contain "
+                    "'parameters' key."
+                )
+            sub_seq_conf = seq_conf['config']
         ### Check if kwargs available and of type dict
         if 'kwargs' in seq_conf:
             kwargs = seq_conf['kwargs']
