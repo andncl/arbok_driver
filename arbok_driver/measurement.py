@@ -9,6 +9,7 @@ import warnings
 
 from qm import qua, generate_qua_script
 import qcodes as qc
+import xarray
 
 from .measurement_runner import MeasurementRunner
 from .gettable_parameter import GettableParameter
@@ -301,8 +302,12 @@ class Measurement(SequenceBase):
             f" of size {self.sweep_size} {[s.length for s in self.sweeps]}"
         )
 
-    def register_gettables(self, *args, keywords: str | list | tuple = None
-                           ) -> None:
+    def register_gettables(
+            self,
+            *args,
+            keywords: str | list | tuple = None,
+            verbose: bool = False
+    ) -> None:
         """
         Registers GettableParameters that will be retreived during measurement.
         Gettable parameters can be given as arguments or automatically seached
@@ -320,7 +325,9 @@ class Measurement(SequenceBase):
                 for keyword in keywords:
                     found_gettables = self._find_gettables_from_keyword(keyword)
                     for g in found_gettables:
-                        print(f"From keyword '{keyword}' adding: {g.full_name}")
+                        if verbose:
+                            print(
+                               f"From keyword '{keyword}' adding: '{g.full_name}'")
                     gettables.extend(found_gettables)
             else:
                 raise TypeError(
@@ -334,6 +341,7 @@ class Measurement(SequenceBase):
         if len(self._gettables) == 0:
             warnings.warn(f"No gettables registered for measurement {self.name}")
         self._configure_gettables()
+        print(f"Registered {len(self._gettables)} gettables for measurement")
 
     def _find_gettables_from_keyword(self, keyword: str | tuple) -> list:
         """Returns all gettables that contain the given keyword"""
@@ -410,8 +418,6 @@ class Measurement(SequenceBase):
                     generate_qua_script(qua_program, self.parent.device.config))
         print('QUA program saved')
 
-        ### I think this should be implemented with is_dummy attribute
-        ### on driver
         if not self.driver.is_mock:
             # This is the real run, not a dummy run
             self.driver.run(qua_program)
@@ -421,8 +427,8 @@ class Measurement(SequenceBase):
                 self.driver.qm_job.result_handles,
                 f"{self.name}_shots"
             )
-
         print('QUA program compiled and is running')
+        return qua_program
 
     def _add_streams_to_gettables(self):
         for _, gettable in self.gettables.items():
@@ -652,11 +658,25 @@ class Measurement(SequenceBase):
             exp = self.qc_experiment, name = measurement_name)
         return self.qc_measurement
 
+    def get_xr_dataset_and_id(self) -> xarray.Dataset:
+        """
+        Creates a QCoDeS dataset from the given experiment
+
+        Returns:
+            qc_dataset (qc.dataset.Dataset): Dataset instance
+        """
+        dataset = self.qc_experiment.data_sets()[-1]
+        meas_id = dataset.run_id
+        xdata = dataset.to_xarray_dataset()
+        print(f"Returning last dataset of experiment type with id {meas_id}")
+        return xdata, meas_id
+
     def run_measurement(
             self,
             sweep_list: list[dict],
             inner_func = None,
-            qua_program_save_path: str = None
+            qua_program_save_path: str = None,
+            opx_address: str = None,
             ) -> "dataset":
         """
         Runs the measurement with the given sweep list based on MeasurementRunner
@@ -668,7 +688,10 @@ class Measurement(SequenceBase):
                 If you want to sweep params concurrently enter more entries into
                 their sweep dict
         """
-        self.compile_qua_and_run(save_path = qua_program_save_path)
+        if opx_address is not None:
+            self.driver.connect_opx(opx_address)
+        qua_prog = self.compile_qua_and_run(save_path = qua_program_save_path)
+
         self.measurement_runner = self.get_measurement_runner(sweep_list)
         self.measurement_runner.run_arbok_measurement(
             inner_func = inner_func)
@@ -728,7 +751,7 @@ class Measurement(SequenceBase):
                     count = f"{batch_count}/{self.sweep_size}\n"
                     if batch_count > 0:
                         time_per_shot = 1e3*(time.time()-t0)/(batch_count)
-                    shot_timing = f"{time_per_shot:.1f} ms per shot\n"
+                    shot_timing = f" {time_per_shot:.1f}ms/shot\n"
                     progress_tracker[1].update(
                         progress_tracker[0],
                         completed = batch_count,
