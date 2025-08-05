@@ -23,7 +23,7 @@ class Device():
             name (str): Name of the used device
             opx_config (dict): Configuration dictionary for the OPX
             divider_config (dict): Configuration dictionary for the divider
-            master (dict): Configuration dictionary for universally accessible
+            master_config (dict): Configuration dictionary for universally accessible
                 parameters across all sub-sequences as well as default
                 sequence configurations.
         """
@@ -31,6 +31,18 @@ class Device():
         self.config = opx_config
         self.elements = list(self.config['elements'].keys())
         self.divider_config = divider_config
+        self._update_master_config(master_config)
+
+    def _update_master_config(self, master_config = None):
+        """
+        Given a master config, update.
+
+        Args:
+            master_config (dict): Configuration dictionary for universally accessible
+                parameters across all sub-sequences as well as default
+                sequence configurations.
+        """
+
         if master_config is None:
             master_config = {}
             warnings.warn("No master_config provided.")
@@ -80,21 +92,7 @@ class Device():
                 "Dictionary 'config' not found in the file: "
                 f"{self._master_config_path}"
                 )
-        self.master_config = mc.config
-        # check if sequences_config is in the mc if not then put empty format.
-        if hasattr(mc, 'sequences_config'):
-            self.sequences_config = mc.sequences_config
-        else:
-            self.sequences_config = {
-                'spin_init': {
-                    'sequence': None,
-                    'config': None
-                },
-                'spin_readout': {
-                    'sequence': None,
-                    'config': None
-                }
-            }
+        self._update_master_config(mc.config)
 
     def reload_master_config(self):
         """
