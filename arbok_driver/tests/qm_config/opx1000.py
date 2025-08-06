@@ -106,10 +106,10 @@ config = {
         },
     },
     "waveforms": {
-        "const_wf": {"type": "constant", "sample": 0.249},
-        "readout_wf": {"type": "constant", "sample": 0}
+        "const_wf": {"type": "constant", "device": 0.249},
+        "readout_wf": {"type": "constant", "device": 0}
     },
     "digital_waveforms": {
-        "ON": {"samples": [(1, 0)]},
+        "ON": {"devices": [(1, 0)]},
     },
 }

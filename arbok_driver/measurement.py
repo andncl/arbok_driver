@@ -1,19 +1,20 @@
 """Module containing the Measurement class"""
 import math
+import time
 import copy
 import logging
+import os
 from collections import Counter
+import warnings
 
-import numpy as np
 from qm import qua, generate_qua_script
 import qcodes as qc
-from qcodes.validators import Arrays
+import xarray
 
-from .measurement_helpers import create_measurement_loop
+from .measurement_runner import MeasurementRunner
 from .gettable_parameter import GettableParameter
-from .observable import ObservableBase
 from .sequence_parameter import SequenceParameter
-from .sample import Sample
+from .device import Device
 from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
 from .sweep import Sweep
@@ -28,7 +29,7 @@ class Measurement(SequenceBase):
             self,
             parent,
             name: str,
-            sample: Sample,
+            device: Device,
             sequence_config: dict | None = None,
             ) -> None:
         """
@@ -36,45 +37,54 @@ class Measurement(SequenceBase):
 
         Args:
             name (str): Name of the measurement
-            sample (Sample): Sample object describing the device in use
+            device (Device): Device object describing the device in use
             sequence_config (dict): Config containing all measurement params and
                 their initial values and units0
             **kwargs: Key word arguments for InstrumentModule
         """
-        conf = self.merge_with_sample_config(sample, sequence_config)
-        super().__init__(parent, name, sample, conf)
+        conf = self.merge_with_device_config(device, sequence_config)
+        super().__init__(parent, name, device, conf)
         self.driver = parent
         self.measurement = self
         self._init_vars()
         self._reset_sweeps_setpoints()
-        parent.add_sequence(self)
+        parent.add_measurement(self)
 
-    def merge_with_sample_config(self, sample, sequence_config):
+        self._is_mock = False
+        self._sweep_dims = None
+        self._sweep_size = None
+        self.measurement_runner = None
+
+        self.shot_tracker_qua_var = None
+        self.shot_tracker_qua_stream = None
+        self.nr_registered_results = 0
+
+    def merge_with_device_config(self, device, sequence_config):
         """
-        Merges a sequence configuration with a sample's master configuration.
+        Merges a sequence configuration with a device's master configuration.
 
-        If both sequence_config and sample.master_config are provided, the
-        sample's master configuration takes precedence in case of key
+        If both sequence_config and device.master_config are provided, the
+        device's master configuration takes precedence in case of key
         conflicts.
 
         Args:
-            sample: An object with a 'master_config' attribute (dict or None).
+            device: An object with a 'master_config' attribute (dict or None).
             sequence_config: A dictionary representing the sequence configuration,
                              or None.
 
         Returns:
             A new dictionary containing the merged configurations. If neither
-            sequence_config nor sample.master_config is provided, an empty
+            sequence_config nor device.master_config is provided, an empty
             dictionary is returned.
         """
         # update the master_config overrides sequence_config, if present
         s_c = {}
         if sequence_config is not None:
             s_c.update(sequence_config)
-        # refresh the master config and overwrite the sample config with it
-        sample.reload_master_config()
-        if sample.master_config is not None:
-            s_c.update(sample.master_config)
+        # refresh the master config and overwrite the device config with it
+        device.reload_master_config()
+        if device.master_config is not None:
+            s_c.update(device.master_config)
         return s_c
 
     def _init_vars(self) -> None:
@@ -83,6 +93,7 @@ class Measurement(SequenceBase):
         """
         self._gettables = []
         self._sweep_size = 1
+        self._sweep_dims = ()
         self.shot_tracker_qua_var = None
         self.shot_tracker_qua_stream = None
         self._step_requirements = []
@@ -109,16 +120,16 @@ class Measurement(SequenceBase):
 
     def reset_registered_gettables(self) -> None:
         """Resets gettables to prepare for new measurement"""
-        for gettable in self.gettables:
+        for _, gettable in self.gettables.items():
             gettable.reset_measuerement_attributes()
 
     @property
-    def sweeps(self) -> list:
+    def sweeps(self) -> list[Sweep]:
         """List of Sweep objects for `SubSequence`"""
         return self._sweeps
 
     @property
-    def gettables(self) -> list:
+    def gettables(self) -> dict[str, GettableParameter]:
         """List of `GettableParameter`s for data acquisition"""
         return self._gettables
 
@@ -130,13 +141,13 @@ class Measurement(SequenceBase):
         return self._sweep_size
 
     @property
-    def sweep_dims(self) -> int:
+    def sweep_dims(self) -> tuple[int]:
         """Dimensionality of sweep axes"""
-        self._sweep_dims = (sweep.length for sweep in self.sweeps)
-        return self._sweep_size
+        self._sweep_dims = tuple((sweep.length for sweep in self.sweeps))
+        return self._sweep_dims
 
     @property
-    def input_stream_parameters(self) -> list:
+    def input_stream_parameters(self) -> list[SequenceParameter]:
         """Registered input stream parameters"""
         return self._input_stream_parameters
 
@@ -146,9 +157,16 @@ class Measurement(SequenceBase):
         return self._step_requirements
 
     @property
-    def available_gettables(self) -> list:
+    def available_gettables(self) -> list[GettableParameter]:
         """List of all available gettables from all sub sequences"""
         return self._available_gettables
+
+    @property
+    def is_mock(self) -> bool:
+        """Returns True if the measurement is a mock measurement"""
+        if self.driver.is_mock:
+            return True
+        return self._is_mock
 
     @input_stream_parameters.setter
     def input_stream_parameters(self, parameters: list) -> None:
@@ -284,8 +302,12 @@ class Measurement(SequenceBase):
             f" of size {self.sweep_size} {[s.length for s in self.sweeps]}"
         )
 
-    def register_gettables(self, *args, keywords: str | list | tuple = None
-                           ) -> None:
+    def register_gettables(
+            self,
+            *args,
+            keywords: str | list | tuple = None,
+            verbose: bool = False
+    ) -> None:
         """
         Registers GettableParameters that will be retreived during measurement.
         Gettable parameters can be given as arguments or automatically seached
@@ -301,16 +323,25 @@ class Measurement(SequenceBase):
                 keywords = [keywords]
             if isinstance(keywords, list):
                 for keyword in keywords:
-                    gettables.extend(self._find_gettables_from_keyword(keyword))
+                    found_gettables = self._find_gettables_from_keyword(keyword)
+                    for g in found_gettables:
+                        if verbose:
+                            print(
+                               f"From keyword '{keyword}' adding: '{g.full_name}'")
+                    gettables.extend(found_gettables)
             else:
                 raise TypeError(
                     f"Keywords must be of type str or list. Is {type(keywords)}")
         ### Remove duplicates
         gettables = list(dict.fromkeys(gettables))
+        gettables = {g.name: g for g in gettables}
         self._check_given_gettables(gettables)
-        self._gettables = list(gettables)
+
+        self._gettables = gettables
+        if len(self._gettables) == 0:
+            warnings.warn(f"No gettables registered for measurement {self.name}")
         self._configure_gettables()
-        self.sweeps.reverse()
+        print(f"Registered {len(self._gettables)} gettables for measurement")
 
     def _find_gettables_from_keyword(self, keyword: str | tuple) -> list:
         """Returns all gettables that contain the given keyword"""
@@ -358,22 +389,51 @@ class Measurement(SequenceBase):
                 seq_type = 'before_sweep', skip_duplicates = True)
 
             ### The sweep loop is defined for each sub-sequence recursively
+            ### Reversing the sweeps is necessary to have the outermost sweep
+            ### loop first (e.g last element in the list is the innermost sweep)
             self.recursive_sweep_generation(
-                copy.copy(self.sweeps))
+                copy.copy(self.sweeps)
+                )
         with qua.stream_processing():
             self.recursive_qua_generation(seq_type = 'stream')
 
     def compile_qua_and_run(self, save_path: str = None) -> None:
         """Compiles the QUA code and runs it"""
         self.reset_registered_gettables()
+        self.register_gettables(*list(self.gettables.values()))
+
+        self.nr_registered_results = 0
         qua_program = self.get_qua_program()
         print('QUA program compiled')
         if save_path:
+            # Check if the directory exists
+            directory = os.path.dirname(save_path)
+            if directory and not os.path.exists(directory):
+                raise FileNotFoundError(
+                    f"Directory '{directory}' does not exist. "
+                    f"Please create the directory before saving the QUA script."
+                )
             with open(save_path, 'w', encoding="utf-8") as file:
-                file.write(generate_qua_script(qua_program))
+                file.write(
+                    generate_qua_script(qua_program, self.parent.device.config))
         print('QUA program saved')
-        self.driver.run(qua_program)
+
+        if not self.driver.is_mock:
+            # This is the real run, not a dummy run
+            self.driver.run(qua_program)
+            self.qm_job = self.driver.qm_job
+            self._add_streams_to_gettables()
+            self.batch_counter = getattr(
+                self.driver.qm_job.result_handles,
+                f"{self.name}_shots"
+            )
         print('QUA program compiled and is running')
+        return qua_program
+
+    def _add_streams_to_gettables(self):
+        for _, gettable in self.gettables.items():
+            gettable.qm_job = self.driver.qm_job
+            gettable.set_qm_buffer(self.driver.qm_job)
 
     def insert_single_value_input_streams(self, value_dict: dict) -> None:
         """
@@ -438,14 +498,11 @@ class Measurement(SequenceBase):
         Configures all gettables to be measured. Sets batch_size, can_resume,
         setpoints and vals
         """
-        for i, gettable in enumerate(self.gettables):
-            gettable.batch_size = self.sweep_size
-            gettable.can_resume = True if i==(len(self.gettables)-1) else False
+        for i, (_, gettable) in enumerate(self.gettables.items()):
             gettable.setpoints = self._setpoints_for_gettables
-            gettable.vals = Arrays(
-                shape = tuple(sweep.length for sweep in self.sweeps))
+            gettable.configure_from_measurement()
 
-    def _check_given_gettables(self, gettables: list) -> None:
+    def _check_given_gettables(self, gettables: dict) -> None:
         """
         Check validity of given gettables
 
@@ -457,18 +514,12 @@ class Measurement(SequenceBase):
             AttributeError: If not all gettables belong to self
         """
         ### Replace observables with their gettables if present
-        gettables_without_observabels = []
-        for gettable in gettables:
-            if isinstance(gettable, ObservableBase):
-                gettables_without_observabels.append(gettable.gettable)
-            else:
-                gettables_without_observabels.append(gettable)
-        gettables = gettables_without_observabels
+        gettables = gettables.values()
         ### Check if gettables are of type GettableParameter and belong to self
         all_gettable_parameters = all(
             isinstance(gettable, GettableParameter) for gettable in gettables)
         all_gettables_from_self = all(
-            gettable.sequence.measurement == self for gettable in gettables)
+            gettable.measurement == self for gettable in gettables)
         if not all_gettable_parameters:
             raise TypeError(
                 f"All args need to be GettableParameters, Are: {gettables}")
@@ -483,21 +534,21 @@ class Measurement(SequenceBase):
             self._qua_declare_input_stream_type(qua_type)
 
     def _qua_declare_input_stream_type(
-        self, type: int | bool | qua.fixed) -> None:
+        self, qua_type: int | bool | qua.fixed) -> None:
         length = 0
         for param in self.input_stream_parameters:
-            if param.var_type == type:
+            if param.var_type == qua_type:
                 length += 1
                 param.qua_var = qua.declare(param.var_type)
                 param.qua_sweeped = True
         if length > 0:
             input_stream = qua.declare_input_stream(
-                type,
-                name = f"{self.short_name}_{type.__name__}_input_stream",
+                qua_type,
+                name = f"{self.short_name}_{qua_type.__name__}_input_stream",
                 size = length
             )
-            setattr(self, f"_qua_{type.__name__}_input_stream", input_stream)
-            self._input_stream_type_shapes[type.__name__] = length
+            setattr(self, f"_qua_{qua_type.__name__}_input_stream", input_stream)
+            self._input_stream_type_shapes[qua_type.__name__] = length
 
     def get_sequence_path(self):
         """Returns its name since Measurement is the top level"""
@@ -563,61 +614,31 @@ class Measurement(SequenceBase):
         else:
             return current_attr
 
-    def reshape_results_from_sweeps(self, results: np.ndarray) -> np.ndarray:
-        """
-        Reshapes the results array to the shape of the setpoints from sweeps
-
-        Args:
-            results (np.ndarray): Results array
-
-        Returns:
-            np.ndarray: Reshaped results array
-        """
-        return results.reshape(tuple((reversed(s.length) for s in self.sweeps)))
-
     def add_step_requirement(self, requirement) -> None:
         """Adds a bool qua variable as a step requirement for the measurement"""
         logging.debug('Adding step requirement: %s', requirement)
         self._step_requirements.append(requirement)
 
-    def _add_subsequence(
-        self,
-        name: str,
-        subsequence: SubSequence,
-        sequence_config: dict = None,
-        insert_sequences_into_name_space: dict = None,
-        **kwargs
-        ) -> None:
+    def add_subsequences_from_dict(
+            self,
+            subsequence_dict: dict,
+            namespace_to_add_to: dict = None) -> None:
         """
-        Adds a subsequence to the sequence
-        
+        Adds subsequences to the sequence from a given dictionary
+
         Args:
-            name (str): Name of the subsequence
-            subsequence (SubSequence): Subsequence to be added
-            sequence_config (dict): Config containing all measurement params
-            insert_sequences_into_name_space (dict): Name space to insert the
+            subsequence_dict (dict): Dictionary containing the subsequences
+            namespace_to_add_to (dict): Name space to insert the
                 subsequence into (e.g locals(), globals()) defaults to None
         """
-        if subsequence == 'default':
-            subsequence = SubSequence
-        if not issubclass(subsequence, SubSequence):
-            raise TypeError(
-                "Subsequence must be of type SubSequence or str: 'default'")
-        seq_instance = subsequence(
-            parent = self,
-            name = name,
-            sample = self.sample,
-            sequence_config = sequence_config,
-            **kwargs
-            )
-        setattr(self, name, seq_instance)
-        if insert_sequences_into_name_space is not None:
-            name_space = insert_sequences_into_name_space
-            name_space[name] = seq_instance
-        return seq_instance
+        super()._add_subsequences_from_dict(
+            default_sequence = SubSequence,
+            subsequence_dict = subsequence_dict,
+            namespace_to_add_to = namespace_to_add_to
+        )
 
     def get_qc_measurement(
-            self, measurement_name: str) -> qc.dataset.Measurement:
+            self, measurement_name: str = None) -> qc.dataset.Measurement:
         """
         Creates a QCoDeS measurement from the given experiment
         
@@ -628,31 +649,137 @@ class Measurement(SequenceBase):
         Returns:
             qc_measurement (qc.dataset.Measurement): Measurement instance
         """
+        if measurement_name is None:
+            if self.qc_measurement_name is None:
+                raise ValueError(
+                    "No measurement name given and no default set")
+            measurement_name = self.qc_measurement_name
         self.qc_measurement = qc.dataset.Measurement(
             exp = self.qc_experiment, name = measurement_name)
         return self.qc_measurement
 
-    def get_measurement_loop_function(self, sweep_list_arg: list) -> callable:
+    def get_xr_dataset_and_id(self) -> xarray.Dataset:
         """
-        Returns the measurement loop function
-        
-        Args:
-            sweep_list_arg (list): List of of sweep dicts for external instruments
+        Creates a QCoDeS dataset from the given experiment
 
         Returns:
-            run_loop (callable): Measurement loop function
+            qc_dataset (qc.dataset.Dataset): Dataset instance
         """
-        if self.qc_experiment is None:
-            raise ValueError("No QCoDeS experiment set")
-        if self.qc_measurement is None:
-            _ = self.get_qc_measurement(self.qc_measurement_name)
-        if self.sweeps is None:
-            raise ValueError("No sweeps set")
+        dataset = self.qc_experiment.data_sets()[-1]
+        meas_id = dataset.run_id
+        xdata = dataset.to_xarray_dataset()
+        print(f"Returning last dataset of experiment type with id {meas_id}")
+        return xdata, meas_id
 
-        @create_measurement_loop(
-            sequence = self,
-            measurement = self.qc_measurement,
-            sweep_list = sweep_list_arg)
-        def run_loop():
-            pass
-        return run_loop
+    def run_measurement(
+            self,
+            sweep_list: list[dict],
+            inner_func = None,
+            qua_program_save_path: str = None,
+            opx_address: str = None,
+            ) -> "dataset":
+        """
+        Runs the measurement with the given sweep list based on MeasurementRunner
+        class
+
+        Args:
+            sweep_list (list[dict]): List of dictionaries with parameters as keys
+                and np.ndarrays as setpoints. Each list entry creates one sweep axis.
+                If you want to sweep params concurrently enter more entries into
+                their sweep dict
+        """
+        if opx_address is not None:
+            self.driver.connect_opx(opx_address)
+        qua_prog = self.compile_qua_and_run(save_path = qua_program_save_path)
+
+        self.measurement_runner = self.get_measurement_runner(sweep_list)
+        self.measurement_runner.run_arbok_measurement(
+            inner_func = inner_func)
+
+    def get_measurement_runner(
+            self, sweep_list: list[dict] = None) -> MeasurementRunner:
+        """
+        Returns the measurement runner for the current measurement
+
+        Args:
+            sweep_list (list[dict]): List of dictionaries with parameters as keys
+                and np.ndarrays as setpoints. Each list entry creates one sweep axis.
+                If you want to sweep params concurrently enter more entries into
+                their sweep dict
+
+        Returns:
+            MeasurementRunner: The measurement runner instance
+        """
+        if self.measurement_runner is None:
+            self.measurement_runner = MeasurementRunner(
+                measurement = self,
+                sweep_list = sweep_list)
+        return self.measurement_runner
+
+    def wait_until_result_buffer_full(self, progress_tracker: tuple = None):
+        """
+        Waits until the result buffer is full and updates the progress bar if given
+
+        Args:
+            progress_bar (tuple): Tuple containing the progress bar and the
+                total number of results
+        """
+        bar_title = "[slate_blue1]Batch progress\n "
+        batch_count = 0
+        time_per_shot = 0
+        shot_timing = "Calculate timing...\n"
+        total_results = "Total results: ..."
+        t0 = time.time()
+        if self.is_mock:
+            self._mock_wait_until_result_buffer_full(progress_tracker, bar_title)
+            return
+        ### Add checks if job exists and is running
+        ### Also check if streams are available
+        try:
+            is_paused = self.driver.qm_job.is_paused()
+            while batch_count < self.sweep_size: # or not is_paused:
+                logging.debug(
+                    "Waiting for buffer to fill (%s/%s), %s",
+                    batch_count, self.sweep_size, self.driver.qm_job.is_paused()
+                    )
+                shot_count_result = self.batch_counter.fetch_all()
+                if shot_count_result is not None:
+                    batch_count = shot_count_result[0]
+                    total_nr_results = batch_count + self.nr_registered_results
+                    total_results = f"Total results: {total_nr_results}"
+                if progress_tracker is not None:
+                    count = f"{batch_count}/{self.sweep_size}\n"
+                    if batch_count > 0:
+                        time_per_shot = 1e3*(time.time()-t0)/(batch_count)
+                    shot_timing = f" {time_per_shot:.1f}ms/shot\n"
+                    progress_tracker[1].update(
+                        progress_tracker[0],
+                        completed = batch_count,
+                        description = bar_title+count+shot_timing+total_results
+                    )
+                    progress_tracker[1].refresh()
+        except KeyboardInterrupt as exc:
+            raise KeyboardInterrupt('Measurement interrupted by user') from exc
+        if progress_tracker is not None:
+            progress_tracker[1].update(progress_tracker[0], completed = batch_count)
+        self.nr_registered_results += self.sweep_size
+
+    def _mock_wait_until_result_buffer_full(
+            self, progress_tracker: tuple, bar_title: str) -> None:
+        """
+        Mock implementation of wait_until_result_buffer_full for testing purposes
+
+        Args:
+            progress_tracker (tuple): Tuple containing the progress bar and the
+                total number of results
+            bar_title (str): Title for the progress bar
+        """
+        step_chunk = self.sweep_size // 10
+        for i in range(10+1):
+            progress_tracker[1].update(
+                progress_tracker[0],
+                completed = (i+1)*step_chunk,
+                description = f"{bar_title}{i*step_chunk}/{self.sweep_size}"
+            )
+            progress_tracker[1].refresh()
+            time.sleep(0.1)

@@ -2,7 +2,7 @@
 import logging
 from typing import Any
 
-from .sample import Sample
+from .device import Device
 from .sequence_base import SequenceBase
 
 class SubSequence(SequenceBase):
@@ -13,7 +13,7 @@ class SubSequence(SequenceBase):
             self,
             parent,
             name: str,
-            sample: Sample,
+            device: Device,
             sequence_config: dict | None = None,
             check_step_requirements: bool = False,
             **kwargs
@@ -23,18 +23,34 @@ class SubSequence(SequenceBase):
         
         Args:
             name (str): Name of the program
-            sample (Sample): Sample class describing phyical device
+            device (Device): Device class describing phyical device
             param_config (dict): Dictionary containing all device parameters
             **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(
-            parent, name, sample, sequence_config, check_step_requirements, **kwargs)
+            parent, name, device, sequence_config, check_step_requirements, **kwargs)
         self.parent.add_subsequence(self)
 
     @property
     def measurement(self):
         """Returns parent (sub) sequence"""
         return self.find_measurement()
+
+    def add_subsequences_from_dict(
+            self,
+            subsequence_dict: dict,
+            namespace_to_add_to: dict = None) -> None:
+        """
+        Adds subsequences to the sequence from a given dictionary
+
+        Args:
+            subsequence_dict (dict): Dictionary containing the subsequences
+        """
+        super()._add_subsequences_from_dict(
+            default_sequence = SubSequence,
+            subsequence_dict = subsequence_dict,
+            namespace_to_add_to = namespace_to_add_to
+        )
 
     def find_measurement(self):
         """Recursively searches the parent sequence"""
@@ -44,7 +60,7 @@ class SubSequence(SequenceBase):
             return self.parent.find_measurement()
         else:
             raise ValueError(
-                "Parent sequence must be of type Sequence"
+                "Parent sequence must be of type Sequence. "
                 f"Is of type {self.parent.__class__.__name__}")
 
     def get_sequence_path(self, path: str = None) -> str:
@@ -57,32 +73,6 @@ class SubSequence(SequenceBase):
             return f"{self.short_name}__{path}"
         else:
             return self.parent.get_sequence_path(f"{self.short_name}__{path}")
-
-    def _add_subsequence(
-        self,
-        name: str,
-        subsequence: SequenceBase | str,
-        sequence_config: dict = None,
-        insert_sequences_into_name_space: dict = None,
-        **kwargs) -> None:
-        """Adds a subsequence to the sequence"""
-        if subsequence == 'default':
-            subsequence = SubSequence
-        if not issubclass(subsequence, SubSequence):
-            raise TypeError(
-                "Subsequence must be of type SubSequence or str: 'default'")
-        seq_instance = subsequence(
-            parent = self,
-            name = name,
-            sample = self.sample,
-            sequence_config = sequence_config,
-            **kwargs
-            )
-        setattr(self, name, seq_instance)
-        if insert_sequences_into_name_space is not None:
-            name_space = insert_sequences_into_name_space
-            name_space[name] = seq_instance
-        return seq_instance
 
     def __getattr__(self, key: str) -> Any:
         """Returns parameter from self. If parameter is not found in self, 

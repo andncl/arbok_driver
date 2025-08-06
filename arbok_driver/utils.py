@@ -8,15 +8,15 @@ from qcodes.instrument import Instrument
 from qcodes.station import Station
 from importlib.util import spec_from_file_location, module_from_spec
 
-def plot_qmm_simulation_results(simulated_samples):
+def plot_qmm_simulation_results(simulated_devices):
     """ 
     Visualizes analog and digital channel simulation results 
-    TODO: Check type of `simulated_samples`
+    TODO: Check type of `simulated_devices`
     """
     fig, [a, b] = plt.subplots(2, sharex= True)
-    for channel, data in simulated_samples.analog.items():
+    for channel, data in simulated_devices.analog.items():
         a.plot(data, label = channel)
-    for channel, data in simulated_samples.digital.items():
+    for channel, data in simulated_devices.digital.items():
         b.plot(data, label = channel)
 
     ncols_a = int((len(a.lines)-1)/10) + 1
@@ -34,17 +34,17 @@ def plot_qmm_simulation_results(simulated_samples):
     b.set_ylabel("Digital Signal")
     fig.subplots_adjust(wspace=0, hspace=0)
 
-def plotly_sim_results(simulated_samples):
+def plotly_sim_results(simulated_devices):
     """
     Plots one graph for each analog and digital simulation result per controller
     
     Args:
-        simulated_results: simulated samples from qm simulator
+        simulated_results: simulated devices from qm simulator
         
     Returns:
         plotly figure
     """
-    controller_dict = get_all_controller_results(simulated_samples)
+    controller_dict = get_all_controller_results(simulated_devices)
     fig = make_subplots(rows=1, cols=1)
     for index, results in controller_dict.items():
         for i in range(1, 11):
@@ -82,17 +82,17 @@ def plotly_sim_results(simulated_samples):
     )
     return fig
 
-def plotly_sim_results_separate(simulated_samples):
+def plotly_sim_results_separate(simulated_devices):
     """
     Plots one graph for each analog and digital simulation result per controller
     
     Args:
-        simulated_results: simulated samples from qm simulator
+        simulated_results: simulated devices from qm simulator
         
     Returns:
         plotly figure
     """
-    controller_dict = get_all_controller_results(simulated_samples)
+    controller_dict = get_all_controller_results(simulated_devices)
     subplot_titles = []
     for index, _ in controller_dict.items():
         subplot_titles.append(f"Con{index}: analog")
@@ -155,11 +155,11 @@ def plotly_sim_results_separate(simulated_samples):
     )
     return fig
 
-def get_all_controller_results(simulated_samples: any) -> dict:
-    """Takes simulated samples and returns a dict with all controller results"""
+def get_all_controller_results(simulated_devices: any) -> dict:
+    """Takes simulated devices and returns a dict with all controller results"""
     controller_dict = {}
 
-    for name, attr in simulated_samples.__dict__.items():
+    for name, attr in simulated_devices.__dict__.items():
         if 'con' in name:
             controller_dict[name.split('con')[1]] = attr
     if len(controller_dict) == 0:

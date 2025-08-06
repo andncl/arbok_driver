@@ -57,7 +57,7 @@ class Sweep:
 
     @property
     def length(self):
-        """ Number of samples for parameters on the given axis """
+        """ Number of devices for parameters on the given axis """
         return self._length
 
     @property
@@ -136,6 +136,13 @@ class Sweep:
                 value = self.config[parameter]
                 setpoints = parameter.convert_to_real_units(self.config[parameter])
                 if isinstance(value, (list, np.ndarray)):
+                    if parameter.scale is None:
+                        raise ValueError(
+                            f"Parameter scale of '{parameter.full_name}' is None."
+                            " Must be set for sweep arrays. Check the type of"
+                            " the parameter in the config file. If it does not"
+                            " have a type, set the scale manually."
+                            )
                     parameter.set(setpoints)
                     self._config_to_register[parameter] = setpoints*parameter.scale
                 elif isinstance(value, int):
@@ -157,19 +164,21 @@ class Sweep:
         """
         Validates equal sizes of input arrays in three steps:
             1) Checks if all parameters are SequenceParameter/Parameter
-            2) Checks if all sweep setpoint arrays have same lengths
-            3) Checks if all input streams have the same dimension
+            2) Checks if var_type is int, bool or qua.fixed
+            3) Checks if all sweep setpoint arrays have same lengths
+            4) Checks if all input streams have the same dimension
         """
         self._config = self._convert_str_keys_to_param(self._config)
-        param_types_valid = []
         for param in self.config.keys():
-            param_types_valid.append(
-             isinstance(param,(SequenceParameter, Parameter))
-            )
-        if not all(param_types_valid):
-            raise TypeError(
-        "All given parameter must be of SequenceParameter or Parameter"
-        )
+            if not isinstance(param, (SequenceParameter, Parameter)):
+                raise TypeError(
+                    f"Key {param} in sweep config must be of type "
+                    "SequenceParameter or Parameter")
+            if not param.var_type in (int, bool, qua.fixed):
+                raise TypeError(
+                    f"Key {param.full_name} in sweep config must have a var_type"
+                    f" of int, bool, or qua.fixed. Is: {param.var_type}."
+                )
         param_arrays = []
         param_streams = []
         for values in self._config.values():
@@ -369,7 +378,7 @@ class Sweep:
             reverse (bool): Whether the sweep is reversed (from stop to start)
 
         Raises:
-            TypeError: If qua_type is not int or fixed
+            TypeError: If var_type is not int or fixed
 
         Returns:
             None
@@ -377,14 +386,14 @@ class Sweep:
         ### Note this implementation is written in a very explicit way avoiding
         ### multiplications to save lines of code. This is done to avoid
         ### multiplications in the FPGA code (e.g (-1)*x)
-        if param.qua_type == int:
+        if param.var_type == int:
             if not reverse:
                 qua.assign(
                     param.qua_var, sss['start'] + sss['step']*sweep_idx_var)
             else:
                 qua.assign(
                     param.qua_var, sss['stop'] - sss['step']*sweep_idx_var)
-        elif param.qua_type == qua.fixed:
+        elif param.var_type == qua.fixed:
             if not reverse:
                 qua.assign(
                     param.qua_var,

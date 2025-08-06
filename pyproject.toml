@@ -15,6 +15,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
+    "asciitree==0.3.3",
     "jupyterlab",
     "numpy >= 1.23",
     "matplotlib",
@@ -22,10 +23,10 @@ dependencies = [
     "ipython",
     "scipy",
     "qm-qua == 1.2.1",
-    "qcodes == 0.43",
+    "qcodes == 0.53",
     "qualang_tools == 0.19.1",
-    "qcodes-contrib-drivers == 0.18",
-    "rich == 13.7.1",
+    "qcodes-contrib-drivers == 0.23",
+    "rich ~= 14.0",
 ]
 dynamic = ["version"]
 

@@ -21,60 +21,116 @@ class AbstractReadout(ABC):
     def __init__(
         self,
         name: str,
-        sequence: ReadSequence,
-        attr_name: str,
+        read_sequence: 'ReadSequence',
+        signal: Signal,
         save_results: bool = True,
-        params: dict = {}
+        parameters: dict | None = None
     ):
         """
         Constructor method of `AbstractReadout`
         
         Args:
             name (str): name of readout
-            sequence (ReadSequence): Sequence generating the given readout
-            attr_name (str): Name of the attribute as which the readout will be
-                added in the signal
+            read_sequence (ReadSequence): Sequence generating the given readout
+            signal (Signal): Signal to be used in the readout
             save_results (bool, optional): Whether to save the results
             params (dict, optional): Parameters to be added to the read sequence
+
+        Info:
+            Parameters can be added via this abstract readout to the
+            read sequence. The parameters are added with the prefix of the
+            readout name. For example, if the readout is called 'my_readout'
+            and the parameter is called 'my_param', it will be added to the
+            read sequence as 'my_readout__my_param'. Parameters are declared
+            only on the read sequence and not on the abstract readout.
+            The naming convention prevents name clashes with other
+            readouts of the same type. You would want to declare some readout
+            attributes as parameters, e.g. the voltage points in order to
+            sweep and modify them in real time.
         """
         self.name = name
-        self.read_sequence: ReadSequence = read_sequence
-        self.signal: Signal = signal
+        self.read_sequence = read_sequence
+        self.signal = signal
         self.save_results = save_results
-        self.observables = {}
+        self._parameters = {}
+        self._gettables = {}
 
         ### Parameters are added to the sequence with the readout prefix
-        self.add_qc_params_from_config(params)
+        if parameters is not None:
+            self.add_qc_params_from_config(parameters)
+
+    @abstractmethod
+    def qua_measure(self):
+        """Measures the qua variables for the given abstract readout"""
+        raise NotImplementedError(
+            "Abstract method 'qua_measure' not implemented in child class"
+        )
+
+    @property
+    def parameters(self):
+        """Returns the parameters of the readout"""
+        return self._parameters
+
+    @property
+    def gettables(self):
+        """Returns the gettables of the readout"""
+        return self._gettables
+
+    def create_gettable(
+        self,
+        gettable_name: str,
+        var_type: int | bool | qua.fixed,
+        ):
+        """
+        Creates a new gettable for the AbstractReadout. The gettable is added to
+        the read sequence as a parameter and registered under the given name.
+        
+        Args:
+            gettable_name (str): Name of the gettable to be created
+            var_type (int | bool | qua.fixed): Type of the gettable variable
+
+        Returns:
+            GettableParameter: The created gettable parameter"""
+        #gettable_name = f"{self.read_sequence.name}__{gettable_name}"
+        gettable = self.read_sequence.add_parameter(
+            parameter_class = GettableParameter,
+            name = gettable_name,
+            read_sequence = self.read_sequence,
+            #register_name = name,
+            var_type = var_type
+        )
+        self.signal.add_gettable(gettable)
+        self._gettables[gettable.full_name] = gettable
+        return gettable
 
     def qua_declare_variables(self):
         """Declares all necessary qua variables for readout"""
-        for observable_name, observable in self.observables.items():
+        for gettable_name, gettable in self.gettables.items():
             logging.debug(
-                "Declaring variables for observable %s on abstract readout %s",
-                observable_name, self.name)
-            observable.qua_var = qua.declare(observable.qua_type)
-            observable.qua_stream = qua.declare_stream(
-                adc_trace = observable.adc_trace)
+                "Declaring variables for gettable %s on abstract readout %s",
+                gettable_name, self.name)
+            gettable.qua_var = qua.declare(gettable.var_type)
+            gettable.qua_stream = qua.declare_stream()
 
     def qua_save_variables(self):
-        """Saves the qua variables of all observables in this readout"""
+        """Saves the qua variables of all gettables in this readout"""
         if self.save_results:
-            for observable_name, observable in self.observables.items():
+            for gettable_name, gettable in self.gettables.items():
                 logging.debug(
-                    "Saving variables of observable %s on abstract readout %s",
-                    observable_name, self.name)
-                qua.save(observable.qua_var, observable.qua_stream)
+                    "Saving variables of gettable %s on abstract readout %s",
+                    gettable_name, self.name)
+                qua.save(gettable.qua_var, gettable.qua_stream)
 
     def qua_save_streams(self):
         """Saves acquired results to qua stream"""
         if self.save_results:
-            for observable_name, observable in self.observables.items():
+            for gettable_name, gettable in self.gettables.items():
                 logging.debug(
-                    "Saving streams of observable %s on abstract readout %s",
-                    observable_name, self.name)
-                sweep_size = self.sequence.measurement.sweep_size
-                buffer = observable.qua_stream.buffer(sweep_size)
-                buffer.save(f"{observable.full_name}_buffer")
+                    "Saving streams of gettable %s on abstract readout %s",
+                    gettable_name, self.name)
+                sweep_size = self.read_sequence.measurement.sweep_size
+                buffer = gettable.qua_stream.buffer(sweep_size)
+                buffer.save(f"{gettable.full_name}_buffer")
         else:
             logging.debug(
                 "NOT saving streams of abstract readout %s", self.name)
@@ -92,10 +148,15 @@ class AbstractReadout(ABC):
             params (list): List of parameter names to be added to the sequence
         """
         full_params = {f'{self.name}__{k}': v for k, v in param_dict.items()}
-        self.sequence.add_qc_params_from_config(full_params)
+        self.read_sequence.add_qc_params_from_config(full_params)
         for param_name, conf in param_dict.items():
-            if 'value' in conf:
-                parameter = getattr(self.sequence, f"{self.name}__{param_name}")
+            if 'initial_value' in conf:
+                logging.debug(
+                    "Adding parameter %s with initial value %s to read sequence"
+                    " '%s'",
+                    param_name, conf['initial_value'], self.read_sequence.name
+                    )
+                parameter = getattr(self.read_sequence, f"{self.name}__{param_name}")
                 setattr(self, param_name, parameter)
                 self.parameters[param_name] = parameter
 
@@ -118,31 +179,32 @@ class AbstractReadout(ABC):
             TypeError: If the found object is not a child class of gettable
         """
         attributes = attr_path.split('.')
-        if len(attributes) == 2:
-            signal_name, gettable_name = attributes
-            return get_gettable_from_read_sequence(
-                self.read_sequence, signal_name, gettable_name)
-
-        if len(attributes) > 2:
-            signal_name, gettable_name = attributes[-2:]
-            sub_sequence_path = attributes[:-2]
-            try:
-                read_sequence = reduce(
-                    getattr, sub_sequence_path, self.read_sequence.measurement)
-            except AttributeError as e:
-                raise ValueError(
-                    f"Error resolving given path: '{attr_path}' for "
-                    f" abstract readout {self.name}. Check error above."
-                ) from e
-            return get_gettable_from_read_sequence(
-                read_sequence, signal_name, gettable_name
-            )
-        else:
+        if len(attributes) != 2:
             raise ValueError(
                 f"Path {attr_path} does not lead to a single gettable. "
-                "Please provide a path with the format 'signal.gettable_name' "
-                "or 'sub_sequence_path.signal.gettable_name'."
+                "Please provide a path with the format 'signal.gettable_name'"
             )
+        signal, gettable_name = attributes
+        if signal not in self.read_sequence.signals:
+            raise KeyError(
+                f"Signal {signal} not found in read sequence"
+                f" '{self.read_sequence.name}'. Available signals: "
+                f"{self.read_sequence.signals.keys()}"
+            )
+        signal = self.read_sequence.signals[signal]
+        if gettable_name not in signal.gettables:
+            raise KeyError(
+                f"gettable {gettable_name} not found in signal {signal.name}"
+                f" of read sequence '{self.read_sequence.name}'. "
+                f"Available gettables: {signal.gettables.keys()}"
+            )
+        gettable = signal.gettables[gettable_name]
+        if not isinstance(gettable, GettableParameter):
+            raise ValueError(
+                f"The given path {attr_path} yields a {type(gettable)}-type",
+                "not a child class of gettable"
+            )
+        return gettable
 
 ### REVIEW ALL OF THE BELOW METHODS
 
@@ -156,71 +218,40 @@ class AbstractReadout(ABC):
         Returns:
             dict: Dictionary with elemets as keys and parameters as values
         """
-        all_params = self.sequence.parameters
+        all_params = self.read_sequence.parameters
         full_prefix = f"{self.name}__{prefix}"
         param_names = [x for x in all_params if full_prefix in x]
         element_list = [x.split(full_prefix)[-1].split('_')[-1] for x in param_names]
         return {e: all_params[p] for e, p in zip(element_list, param_names)}
 
-    def get_signals_and_observables(self, prefix: str) -> dict:
+    def get_signals_and_gettables(self, prefix: str) -> dict:
         """
-        Returns observables found at the path given from the param storing it.
+        Returns gettables found at the path given from the param storing it.
         Works very similarly to `get_params_with_prefix`. First finds params
-        with the given prefix and then tries to find the observable from the
+        with the given prefix and then tries to find the gettable from the
         path stored in the parameter
 
         Args:
             prefix (str): Prefix of the element parameters
         
         Returns:
-            dict: Dictionary with signals as keys and observables
+            dict: Dictionary with signals as keys and gettables
         """
         obs_dict = {}
         for signal, obs in self.get_params_with_prefix(prefix).items():
-            obs_dict[signal] = self._find_observable_from_path(obs())
+            obs_dict[signal] = self.get_gettable_from_path(obs())
         return obs_dict
 
-    def _find_observable_from_path(self, attr_path: str) -> ObservableBase:
+    def get_qm_elements_from_gettables(self):
         """
-        Returns the observable from a given path from a given string. If the
-        string leads to an AbstractReadout it is being tried to find a single
-        observable associated to that AbstractReadout
-        
-        Args:
-            attr_path (str): Path to the given observable relative to the
-                ReadSequence
-        
-        Returns:
-            ObservableBase: The found observable from the given path
-        """
-        attributes = attr_path.split('.')
-        current_obj = self.sequence
-        for attr_name in attributes:
-            try:
-                current_obj = getattr(current_obj, attr_name)
-            except AttributeError as exc:
-                raise AttributeError(
-                    f'Attribute {attr_name} not found in {current_obj.name}'
-                ) from exc
-        if isinstance(current_obj, AbstractReadout):
-            current_obj = current_obj.observable
-        if not isinstance(current_obj, ObservableBase):
-            raise ValueError(
-                f"The given path {attr_path} yields a {type(current_obj)}-type",
-                "not a child class of ObservableBase"
-            )
-        return current_obj
-
-    def get_qm_elements_from_observables(self):
-        """
-        Collects all qm read elements from the readouts observables and their
+        Collects all qm read elements from the readouts gettables and their
         signal. Duplicates are removed
 
         Returns:
-            list: List of read elements used in observables
+            list: List of read elements used in gettables
         """
         qm_elements = []
-        for _, obs in self.observables.items():
+        for _, obs in self.gettables.items():
             qm_elements += obs.qm_elements
         return list(dict.fromkeys(qm_elements))
 

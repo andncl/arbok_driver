@@ -13,7 +13,7 @@ divider_config = {
     }
 }
 
-unit_ramp_samples = np.linspace(0, 0.5, 20).tolist()
+unit_ramp_devices = np.linspace(0, 0.5, 20).tolist()
 
 dummy_qua_config = {
     'version': 1,
@@ -76,20 +76,20 @@ dummy_qua_config = {
     'waveforms': {
         'const_wf': {
             'type': 'constant',
-            'sample': 0.49
+            'device': 0.49
         },
         "step_wf": {
             'type': 'constant',
-            'sample': 0.5
+            'device': 0.5
             },
         'unit_ramp_wf_20ns':{
             'type':'arbitrary',
-            'samples': unit_ramp_samples
+            'devices': unit_ramp_devices
         }
     },
     'digital_waveforms': {
         'ON': {
-            'samples': [(1, 0)]
+            'devices': [(1, 0)]
         },
     },
     'integration_weights': {

@@ -2,9 +2,10 @@
 
 import copy
 import types
+import warnings
 from typing import Optional
 import logging
-from functools import reduce
+from functools import reduce                                                                                                                        
 
 from asciitree import LeftAligned
 from asciitree.drawing import BoxStyle, BOX_LIGHT
@@ -14,7 +15,7 @@ from qcodes.instrument import InstrumentModule
 from qm import SimulationConfig, generate_qua_script, qua, QuantumMachinesManager
 from qm.simulate.credentials import create_credentials
 
-from .sample import Sample
+from .device import Device
 from .sequence_parameter import SequenceParameter
 from . import utils
 
@@ -26,7 +27,7 @@ class SequenceBase(InstrumentModule):
             self,
             parent,
             name: str,
-            sample: Sample,
+            device: Device,
             sequence_config: Optional[dict | None] = None,
             check_step_requirements: Optional[bool] = False,
             **kwargs
@@ -36,7 +37,7 @@ class SequenceBase(InstrumentModule):
         
         Args:
             name (str): Name of the program
-            sample (Sample): Sample class describing phyical device
+            device (Device): Device class describing phyical device
             sequence_config (dict): Dictionary containing all device parameters
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
@@ -45,12 +46,13 @@ class SequenceBase(InstrumentModule):
         self.parent.add_submodule(self.name, self)
         setattr(self.parent, self.short_name, self)
 
-        self.sample = sample
-        self.elements = self.sample.elements
+        self.device = device
+        self.elements = self.device.elements
         self.sequence_config = sequence_config
         self.check_step_requirements = check_step_requirements
 
         self._sub_sequences = []
+        self._sub_sequence_dict = {}
         self._gettables = []
         self._qua_program_as_str = None
         self._init(**kwargs)
@@ -108,6 +110,23 @@ class SequenceBase(InstrumentModule):
         return self._sub_sequences
 
     @property
+    def sub_sequence_dict(self) -> dict:
+        """
+        List of `SubSequences`s that build the given sequence
+        """
+        # return 'hi'
+        structure_dict = {}
+        for sub_sequence in self._sub_sequences:
+            if len(sub_sequence.sub_sequences) > 0:
+                sub_dict = sub_sequence.sub_sequence_dict
+                structure_dict[sub_sequence.short_name] = sub_dict[sub_sequence.short_name]
+            else:
+                #name = f"{sub_sequence.short_name} [{sub_sequence.__name__}]"
+                #structure_dict[name] = {}
+                structure_dict[sub_sequence.short_name] = {}
+        return {self.short_name: structure_dict}
+
+    @property
     def gettables(self) -> list:
         """
         List of `GettableParameter`s that can be registered for acquisition
@@ -132,17 +151,31 @@ class SequenceBase(InstrumentModule):
         if config is None:
             logging.info("No params added to %s (no sequence_config)", self.name)
             return
-        if not isinstance(config, dict):
+        elif not isinstance(config, dict):
             raise ValueError(
                 f"Conf for {self.name} must be of type dict, is {type(config)}")
         if 'parameters' in config:
             config = config['parameters']
             logging.info(
-                "Set para subset of given conf file as param conf for in %s",
+                "Set param subset of given conf file as param conf for in %s",
                 self.name
                 )
         for param_name, param_dict in config.items():
-            self._add_param(param_name, param_name, param_dict)
+            self._add_param(param_name, param_dict)
+
+    def draw_sub_sequence_tree(
+            self,
+            draw_style: BoxStyle = BoxStyle(gfx=BOX_LIGHT, horiz_len=1),
+        ) -> None:
+        """
+        Draws a tree of the subsequences of the sequence with their names and
+        types
+
+        Args:
+            box_style (BoxStyle): Style of the box to draw the tree with
+        """
+        tr = LeftAligned(draw=draw_style)
+        print(tr(self.sub_sequence_dict))
 
     def get_qua_program_as_str(self) -> str:
         """Returns the qua program as str. Will be compiled if it wasnt yet"""
@@ -150,7 +183,7 @@ class SequenceBase(InstrumentModule):
             self.get_qua_program()
         return self._qua_program_as_str
 
-    def get_qua_program(self, simulate = False):
+    def get_qua_program(self, simulate = False, config = None):
         """
         Composes the entire sequence by searching recursively through init, 
         sequence and stream methods of all subsequences and their subsequences.
@@ -165,7 +198,7 @@ class SequenceBase(InstrumentModule):
         """
         with qua.program() as prog:
             self.get_qua_code(simulate)
-        self._qua_program_as_str = generate_qua_script(prog)
+        self._qua_program_as_str = generate_qua_script(prog, config)
         return prog
 
     def get_qua_code(self, simulate = False):
@@ -199,7 +232,8 @@ class SequenceBase(InstrumentModule):
             ### qua_sequence methods of sub_sequences are called recursively
             ### If parent sequence is present the sweep generation is added
             if hasattr(self.measurement, 'sweeps'):
-                self.recursive_sweep_generation(self.measurement.sweeps)
+                self.recursive_sweep_generation(
+                    self.measurement.sweeps)
             else:
                 self.recursive_qua_generation(seq_type = 'sequence')
 
@@ -244,8 +278,8 @@ class SequenceBase(InstrumentModule):
             self.recursive_qua_generation(
                 'after_sequence', skip_duplicates = True)
             return
-        new_sweeps = sweeps[:-1]
-        current_sweep = sweeps[-1]
+        new_sweeps = sweeps[1:]
+        current_sweep = sweeps[0]
         logging.debug("Adding qua loop for %s",
             [par.name for par in current_sweep.parameters])
 
@@ -253,7 +287,7 @@ class SequenceBase(InstrumentModule):
         # for example the snake variable needs to be reset each outer loop.
         next_sweep = None
         if len(new_sweeps):
-            next_sweep = new_sweeps[-1]
+            next_sweep = new_sweeps[0]
         current_sweep.qua_generate_parameter_sweep(
             lambda: self.recursive_sweep_generation(new_sweeps),
             next_sweep
@@ -319,7 +353,7 @@ class SequenceBase(InstrumentModule):
                 del globals()[sub.short_name]
         self._sub_sequences = []
 
-    def _add_param(self, param_name: str, cfg_name: str, param_dict):
+    def _add_param(self, param_name: str, param_dict: dict):
         """
         Adds parameter based on the given parameter configuration
         
@@ -329,56 +363,115 @@ class SequenceBase(InstrumentModule):
                 or 'elements' for element wise defined parameters
         """
         logging.debug("Adding %s to %s", param_name, self.name)
-        if 'type' not in param_dict:
-            param_dict['type'] = SequenceParameter
+        param_dict = self._reshape_param_dict(param_name, param_dict)
+        if 'elements' in param_dict:
+            self._add_element_params(param_name, param_dict)
+            return
+        self._check_param_dict(param_name, param_dict)
+        # If the parameter already exists on another sub-sequence or measurement
+        # we add the sequence name to the parameter name to avoid conflicts
+        # To reference the parameter later, we also add the short name of the
+        # sequence to the parameter name
+        attr_exists_already = hasattr(self, param_name)
+        if attr_exists_already:
+            short_param_name = param_name
+            param_name = f"{self.short_name}__{param_name}"
+        new_param = self.add_parameter(
+            name  = param_name,
+            get_cmd = None,
+            set_cmd = None,
+            register_name = f"{self.short_name}__{param_name}",
+            **param_dict
+        )
+        if attr_exists_already:
+            setattr(self, short_param_name, new_param)
+
+    def _reshape_param_dict(
+            self, param_name: str, param_dict: dict
+            ) -> dict:
+        """
+        Reshapes the parameter dict to fit the requirements of the respective
+        'SequenceParameter' constructor and checks if the parameter dict is ok.
+
+        Args:
+            param_name (str): Name of the parameter
+            param_dict (dict): Dictionary containing the parameter configuration
+                to be reshaped
+
+        Returns:
+            dict: Reshaped parameter dict
+        """
+        if 'type' not in param_dict and 'parameter_class' not in param_dict:
+            raise KeyError(
+                f"Config for parameter '{param_name}' on '{self.full_name}'"
+                " does not contain a 'type' key."
+                " Please provide a type of the parameter to be added."
+                " Find available ones in arbok_driver/parameter_types.py."
+                " Or use a custom one.")
+        if 'type' in param_dict:
+            param_dict['parameter_class'] = param_dict['type']
+            del param_dict['type']
+        if 'value' in param_dict:
+            param_dict['initial_value'] = param_dict['value']
+            del param_dict['value']
         if 'label' not in param_dict:
             param_dict['label'] = param_name
-        if 'elements' in param_dict:
-            for element, value in param_dict['elements'].items():
-                scale = 1
-                if element in self.sample.divider_config:
-                    scale = self.sample.divider_config[element]['division']
-                new_param_dict = {
-                    'value' : value,
-                    'scale' : scale,
-                    'label' : f"{element}: {param_dict['label']}",
-                    }
-                param_dict_copy = copy.deepcopy(param_dict)
-                del param_dict_copy['label']
-                new_param_dict.update(param_dict_copy) # ensure overrides take precedence
-                del new_param_dict['elements']
+        for key in ['unit', 'var_type', 'vals', 'scale']:
+            if key not in param_dict:
+                param_dict[key] = getattr(
+                    param_dict['parameter_class'], key, None)
+        return param_dict
 
-                self._add_param(f'{param_name}_{element}', cfg_name, new_param_dict)
-        elif 'value' in param_dict:
-            # set defaults and merge in changes
-            appl_dict = {
-                'element' : None,
-                'scale' : 1,
-                'validator' : param_dict['type'].validator,
-                'qua_type' : param_dict['type'].qua_type,
-                'unit' : param_dict['type'].unit,
+    def _add_element_params(self, param_name: str, param_dict: dict):
+        """
+        Adds element wise parameter based on the given parameter configuration
+        
+        Args:
+            param_name (str): Name of the parameter
+            param_dict (dict): Must contain 'elements' key and optionally 'value'
+                or 'elements' for element wise defined parameters
+        """
+        for element, value in param_dict['elements'].items():
+            element_param_dict = {
+                'element' : element,
+                'value' : value,
+                'label' : f"{element}: {param_dict['label']}",
                 }
-            appl_dict.update(param_dict) # ensure overrides take precedence
-            self.add_parameter(
-                name  = param_name,
-                register_name = f"{self.short_name}__{param_name}",
-                config_name = cfg_name,
-                unit = appl_dict["unit"],
-                initial_value = appl_dict["value"],
-                parameter_class = appl_dict["type"],
-                element = appl_dict['element'],
-                get_cmd = None,
-                set_cmd = None,
-                scale = appl_dict['scale'],
-                vals = appl_dict['validator'],
-                var_type = appl_dict['qua_type'],
-                label = appl_dict['label']
-            )
-        else:
-            raise KeyError(
-                f"The config of parameter {param_name} does not have "
-                    "elements or value"
-                    )
+            if element in self.device.divider_config:
+                scale = self.device.divider_config[element]['division']
+                element_param_dict['scale'] = scale
+
+            param_dict_copy = copy.deepcopy(param_dict)
+            del param_dict_copy['label']
+            param_dict_copy.update(element_param_dict)
+            del param_dict_copy['elements']
+
+            self._add_param(
+                param_name = f'{param_name}_{element}',
+                param_dict = param_dict_copy
+                )
+
+    def _check_param_dict(self, param_name: str, param_dict: dict) -> None:
+        """
+        Checks if the given parameter dict is valid. Raises an error if not.
+        
+        Args:
+            param_dict (dict): Dictionary containing the parameter configuration
+        """
+        if 'parameter_class' not in param_dict:
+            raise ValueError(
+                f"Parameter {param_name} does not contain a 'parameter_class'")
+        if 'label' not in param_dict:
+            raise ValueError(
+                f"Parameter {param_name} does not contain a 'label' key")
+        if 'initial_value' not in param_dict and 'elements' not in param_dict:
+            raise ValueError(
+                f"Parameter {param_name} does not contain an 'value'"
+                " key")
+        if 'elements' in param_dict:
+            raise KeyError(f"Config for parameter {param_name} contains"
+                           "'elements' key. Error in preparation. Check" \
+                           "`_add_element_params` method.")
 
     def run_remote_simulation(self, host, port, duration: int):
         """
@@ -397,13 +490,13 @@ class SequenceBase(InstrumentModule):
             credentials=create_credentials()
         )
         simulated_job = qmm.simulate(
-            self.sample.config,
+            self.device.config,
             self.get_qua_program(simulate = True),
             SimulationConfig(duration=duration)
             )
 
-        samples = simulated_job.get_simulated_samples()
-        utils.plot_qmm_simulation_results(samples)
+        devices = simulated_job.get_simulated_devices()
+        utils.plot_qmm_simulation_results(devices)
         return simulated_job
 
     def find_parameters_from_keywords(
@@ -425,7 +518,7 @@ class SequenceBase(InstrumentModule):
                 with element as key
         """
         if elements is None:
-            elements = list(self.sample.elements)
+            elements = list(self.device.elements)
         if isinstance(keys, str):
             keys = [keys]
         elif not isinstance(keys, list):
@@ -438,46 +531,135 @@ class SequenceBase(InstrumentModule):
                 element_dict[element][key] = param
         return element_dict
 
-    def add_subsequences_from_dict(
+    def _add_subsequence(
+        self,
+        name: str,
+        sequence_config: dict = None,
+        namespace_to_add_to: dict = None,
+        **kwargs
+        ) -> 'SequenceBase':
+        """
+        Adds a subsequence to the sequence
+        
+        Args:
+            name (str): Name of the subsequence
+            sequence_config (dict): Config containing all measurement params
+            namespace_to_add_to (dict): Name space to insert the
+                subsequence into (e.g locals(), globals()) defaults to None
+        """
+        if 'sequence' not in sequence_config:
+            raise KeyError(
+                f"The given config for {self.full_name}__{name} does not contain a "
+                "'sequence' key with a subsequence type to configure for."
+                )
+        subsequence = sequence_config['sequence']
+        if not issubclass(subsequence, SequenceBase):
+            raise TypeError(
+                "Subsequence must be of type SubSequence")
+        seq_instance = subsequence(
+            parent = self,
+            name = name,
+            device = self.device,
+            sequence_config = sequence_config,
+            **kwargs
+            )
+        setattr(self, name, seq_instance)
+        if namespace_to_add_to is not None:
+            name_space = namespace_to_add_to
+            name_space[name] = seq_instance
+        return seq_instance
+
+    def _add_subsequences_from_dict(
             self,
+            default_sequence,
             subsequence_dict: dict,
-            insert_sequences_into_name_space: dict = None) -> None:
+            namespace_to_add_to: dict = None) -> None:
         """
         Adds subsequences to the sequence from a given dictionary
 
         Args:
+            default_sequence (SubSequence): Default subsequence to be used if
+                no sequence is given in the subsequence_dict. Since is meant to
+                be SubSequence which is a child of SequenceBase, therefore it
+                cant be directly referenced here but is given from the
+                respective child
             subsequence_dict (dict): Dictionary containing the subsequences
-        """
+            namespace_to_add_to (dict): Name space to insert the
+                subsequence into (e.g locals(), globals()) defaults to None
+                    """
+        if type(self) is SequenceBase:
+            raise TypeError(
+                "Method is meant to be used in SubSequence or Measurement!")
         if isinstance(subsequence_dict, types.SimpleNamespace):
             subsequence_dict = vars(subsequence_dict)
         for name, seq_conf  in subsequence_dict.items():
-            if 'sequence' in seq_conf:
-                subsequence = seq_conf['sequence']
-                if 'config' in seq_conf:
-                    sub_seq_conf = seq_conf['config']
-                    
-                    if not isinstance(sub_seq_conf, dict):
-                        raise ValueError(
-                            f"Subsequence config ({name}) must be of type dict,"
-                            f" is {type(sub_seq_conf)}")
-                else:
-                    sub_seq_conf = None
-                if 'kwargs' in seq_conf:
-                    kwargs = seq_conf['kwargs']
-                    if not isinstance(kwargs, dict):
-                        raise ValueError(
-                            f"Kwargs must be of type dict, is {type(kwargs)}")
-                else:
-                    kwargs = {}
-                _ = self._add_subsequence(
-                    name, subsequence, sub_seq_conf,
-                    insert_sequences_into_name_space, **kwargs)
-
-            else:
+            ### Check whether a subsequence is configured or empty
+            if seq_conf is None:
+                raise ValueError(
+                    f"Conf for {name} is None, please provide dict. E.g: "
+                    r"{'sequence': SubSequence, 'config': {}}"
+                    )
+            if all(k not in seq_conf.keys() for k in ['sequence', 'config']):
+                ### If empty SubSequence, create one deeper nesting layer
+                sequence_config = {
+                    'sequence': default_sequence,
+                    'parameters': {},
+                    }
                 seq_instance = self._add_subsequence(
-                    name, 'default', None, insert_sequences_into_name_space)
+                    name = name,
+                    sequence_config = sequence_config,
+                    namespace_to_add_to = namespace_to_add_to
+                    )
                 seq_instance.add_subsequences_from_dict(
-                    seq_conf, insert_sequences_into_name_space)
+                    seq_conf, namespace_to_add_to)
+            else:
+                self._prepare_adding_subsequence(
+                    name, seq_conf, namespace_to_add_to)
+
+    def _prepare_adding_subsequence(
+        self,
+        name: str,
+        seq_conf: dict,
+        namespace_to_add_to: dict = None
+        ) -> None:
+        ### Check if config available and of type dict
+        sub_seq_conf = {'parameters': {}}
+        if 'config' in seq_conf:
+            if not isinstance(sub_seq_conf, dict):
+                raise ValueError(
+                    f"Subsequence config ({name}) must be of type dict,"
+                    f" is {type(sub_seq_conf)}")
+            if 'parameters' not in seq_conf['config']:
+                raise KeyError(
+                    f"Config for {self.full_name}__{name} does not contain "
+                    "'parameters' key."
+                )
+            sub_seq_conf = seq_conf['config']
+        ### Check if kwargs available and of type dict
+        if 'kwargs' in seq_conf:
+            kwargs = seq_conf['kwargs']
+            if not isinstance(kwargs, dict):
+                raise ValueError(
+                    f"Kwargs must be of type dict, is {type(kwargs)}")
+        else:
+            kwargs = {}
+        ### Check if sequence is available and of type SequenceBase
+        if 'sequence' in seq_conf:
+            if 'sequence' in sub_seq_conf:
+                warnings.warn(
+                    "If both 'config' and 'sequence' are given, 'sequence' "
+                    "will be used and the seq given in 'config' will be "
+                    "ignored. "
+                    f"{sub_seq_conf['sequence'].__name__} -> "
+                    f"{seq_conf['sequence'].__name__}",
+                )
+            sub_seq_conf['sequence'] = seq_conf['sequence']
+        _ = self._add_subsequence(
+            name = name,
+            sequence_config = sub_seq_conf,
+            namespace_to_add_to = namespace_to_add_to,
+            **kwargs
+            )
 
     def find_parameters(self, key: str, elements: list = None) -> dict:
         """
@@ -497,7 +679,7 @@ class SequenceBase(InstrumentModule):
         """
         parameters = {}
         if elements is None:
-            elements = self.sample.elements
+            elements = self.device.elements
         for element in elements:
             if hasattr(self, f"{key}_{element}"):
                 parameters[element] = getattr(self, f"{key}_{element}")
@@ -507,7 +689,16 @@ class SequenceBase(InstrumentModule):
         """Returns parameter with a certain key for a given element"""
         parameter = getattr(self, f"{key}_{element}")
         return parameter
-    
+                                                                                                                            
+    def get_attribute_by_path(self, path):                                                                                                               
+        """Access a nested attribute using a dot-separated string.
+        Args:
+            path: a dot delimited path to get the variable from.
+        Returns:
+            The variable matching the string path
+        """                                                                                   
+        return reduce(getattr, path.split('.'), self)     
+
     def find_parameter_from_str_path(self, path: str):
         """
         Returns the parameter from the given path

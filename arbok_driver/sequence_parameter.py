@@ -19,27 +19,33 @@ class SequenceParameter(Parameter):
     sweep_validator = None
     unit = ''
     qua_type = int
+    var_type = None
     input_stream = None
     qua_sweeped = False
     qua_sweep_arr = None
     qua_var = None
     value = None
     can_be_parameterized = False
+    scale = 1
 
-    def __init__(self, element, config_name, var_type, *args, **kwargs):
+    def __init__(self, *args, var_type = None, element = None, **kwargs):
         """
         Constructor for 'SequenceParameter' class
 
         Args:
             elements (list): Elements that should be influenced by parameter
-            batched (bool): Is the variab
             config_name (str): Name of the parameter in the sequence config dict
                 essentially name without the element
         """
-        super().__init__(*args, **kwargs)
+        try:
+            super().__init__(*args, **kwargs)
+        except Exception as e:
+            raise ValueError(
+                f"Error initializing SequenceParameter: {kwargs['name']}: {e}"
+                ) from e
         self.element = element
-        self.config_name = config_name
-        self.var_type = var_type
+        if var_type is not None:
+            self.var_type = var_type
 
     @property
     def sequence_path(self) -> str:
