@@ -4,6 +4,10 @@ import copy
 import types
 from typing import Optional
 import logging
+from functools import reduce
+
+from asciitree import LeftAligned
+from asciitree.drawing import BoxStyle, BOX_LIGHT
 
 from qcodes.instrument import InstrumentModule
 

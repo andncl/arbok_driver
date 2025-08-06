@@ -1,10 +1,16 @@
 """Module containing abstract class for dependent readouts"""
+from __future__ import annotations
 from abc import ABC, abstractmethod
 import logging
+from typing import TYPE_CHECKING
+from functools import reduce
 
 from qm import qua
-from .read_sequence import ReadSequence
-from .observable import ObservableBase
+
+from .gettable_parameter import GettableParameter
+from .signal import Signal
+if TYPE_CHECKING:
+    from .read_sequence import ReadSequence
 
 class AbstractReadout(ABC):
     """
@@ -32,8 +38,8 @@ class AbstractReadout(ABC):
             params (dict, optional): Parameters to be added to the read sequence
         """
         self.name = name
-        self.sequence = sequence
-        self.attr_name = attr_name
+        self.read_sequence: ReadSequence = read_sequence
+        self.signal: Signal = signal
         self.save_results = save_results
         self.observables = {}
 
@@ -73,9 +79,9 @@ class AbstractReadout(ABC):
             logging.debug(
                 "NOT saving streams of abstract readout %s", self.name)
 
-    def qua_measure_and_save(self):
-        """Measures ans saves the result of the given readout"""
-        self.qua_measure()
+    def qua_measure_and_save(self, *args, **kwargs):
+        """Measures and saves the result of the given readout"""
+        self.qua_measure(*args, **kwargs)
         self.qua_save_variables()
 
     def add_qc_params_from_config(self, param_dict: dict) -> None:
@@ -91,6 +97,54 @@ class AbstractReadout(ABC):
             if 'value' in conf:
                 parameter = getattr(self.sequence, f"{self.name}__{param_name}")
                 setattr(self, param_name, parameter)
+                self.parameters[param_name] = parameter
+
+    def get_gettable_from_path(self, attr_path: str) -> GettableParameter:
+        """
+        Returns the gettable from a given path from a given string. If the
+        string leads to an AbstractReadout it is being tried to find a single
+        gettable associated to that AbstractReadout
+        
+        Args:
+            attr_path (str): Path to the given gettable relative to the
+                ReadSequence with the format 'signal.gettable_name'
+        
+        Returns:
+            gettable: The found gettable from the given path
+
+        Raises:
+            ValueError: If the path is not in the format 'signal.gettable_name'
+            KeyError: If the signal or gettable is not found in the read sequence
+            TypeError: If the found object is not a child class of gettable
+        """
+        attributes = attr_path.split('.')
+        if len(attributes) == 2:
+            signal_name, gettable_name = attributes
+            return get_gettable_from_read_sequence(
+                self.read_sequence, signal_name, gettable_name)
+
+        if len(attributes) > 2:
+            signal_name, gettable_name = attributes[-2:]
+            sub_sequence_path = attributes[:-2]
+            try:
+                read_sequence = reduce(
+                    getattr, sub_sequence_path, self.read_sequence.measurement)
+            except AttributeError as e:
+                raise ValueError(
+                    f"Error resolving given path: '{attr_path}' for "
+                    f" abstract readout {self.name}. Check error above."
+                ) from e
+            return get_gettable_from_read_sequence(
+                read_sequence, signal_name, gettable_name
+            )
+        else:
+            raise ValueError(
+                f"Path {attr_path} does not lead to a single gettable. "
+                "Please provide a path with the format 'signal.gettable_name' "
+                "or 'sub_sequence_path.signal.gettable_name'."
+            )
+
+### REVIEW ALL OF THE BELOW METHODS
 
     def get_params_with_prefix(self, prefix: str) -> dict:
         """
@@ -170,6 +224,41 @@ class AbstractReadout(ABC):
             qm_elements += obs.qm_elements
         return list(dict.fromkeys(qm_elements))
 
-    @abstractmethod
-    def qua_measure(self):
-        """Measures the qua variables for the given abstract readout"""
+def get_gettable_from_read_sequence(
+        read_sequence: ReadSequence,
+        signal_name: str,
+        gettable_name: str,
+        ) -> GettableParameter:
+    """
+    Helper method to get a gettable from this readout. This is used
+
+    Args:
+        read_sequence (ReadSequence): The read sequence to get the gettable from
+        signal_name (str): Name of the signal
+        gettable_name (str): Name of the gettable
+    
+    Raises:
+        KeyError: If the signal or gettable is not found in the read sequence
+        KeyError: If the GettableParameter is not found in the signal
+        ValueError: If the found object is not a child class of GettableParameter
+    """
+    if signal_name not in read_sequence.signals:
+        raise KeyError(
+            f"Signal {signal_name} not found in read sequence"
+            f" '{read_sequence.name}'. Available signals: "
+            f"{read_sequence.signals.keys()}"
+        )
+    signal: Signal = read_sequence.signals[signal_name]
+    if gettable_name not in signal.gettables:
+        raise KeyError(
+            f"Gettable {gettable_name} not found in signal {signal.name}"
+            f" of read sequence '{read_sequence.name}'. "
+            f"Available gettables: {signal.gettables.keys()}"
+        )
+    gettable: GettableParameter = signal.gettables[gettable_name]
+    if not isinstance(gettable, GettableParameter):
+        raise ValueError(
+            f"The given path {signal_name}.{gettable_name} yields a ",
+            f"{type(gettable)}-type, not a child class of gettable"
+        )
+    return gettable
