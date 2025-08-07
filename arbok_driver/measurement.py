@@ -1,4 +1,6 @@
 """Module containing the Measurement class"""
+from __future__ import annotations
+from typing import TYPE_CHECKING
 import math
 import time
 import copy
@@ -18,6 +20,9 @@ from .device import Device
 from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
 from .sweep import Sweep
+
+if TYPE_CHECKING:
+    from .arbok_driver import ArbokDriver
 
 class Measurement(SequenceBase):
     """Class describing a Measurement in an OPX driver"""
@@ -44,11 +49,11 @@ class Measurement(SequenceBase):
         """
         conf = self.merge_with_device_config(device, sequence_config)
         super().__init__(parent, name, device, conf)
-        self.driver = parent
+        self.driver: ArbokDriver = parent
         self.measurement = self
         self._init_vars()
         self._reset_sweeps_setpoints()
-        parent.add_measurement(self)
+        self.driver.add_measurement(self)
 
         self._is_mock = False
         self._sweep_dims = None
