@@ -8,6 +8,7 @@ from functools import reduce
 from qm import qua
 
 from .gettable_parameter import GettableParameter
+from .import path_finders
 from .signal import Signal
 if TYPE_CHECKING:
     from .read_sequence import ReadSequence
@@ -49,8 +50,8 @@ class AbstractReadout(ABC):
             sweep and modify them in real time.
         """
         self.name = name
-        self.read_sequence = read_sequence
-        self.signal = signal
+        self.read_sequence: ReadSequence = read_sequence
+        self.signal: Signal = signal
         self.save_results = save_results
         self._parameters = {}
         self._gettables = {}
@@ -179,117 +180,23 @@ class AbstractReadout(ABC):
             TypeError: If the found object is not a child class of gettable
         """
         attributes = attr_path.split('.')
-        if len(attributes) != 2:
+        try:
+            if len(attributes) == 2:
+                signal_name, gettable_name = attributes
+                return path_finders.get_gettable_from_read_sequence(
+                    self.read_sequence, signal_name, gettable_name)
+            elif len(attributes) > 2:
+                return path_finders.get_gettable_from_measurement_path(
+                    self.read_sequence.measurement, attributes
+                )
+            else:
+                raise ValueError(
+                    f"Path {attr_path} does not lead to a single gettable. "
+                    "Please provide a path with the format 'signal.gettable_name' "
+                    "or 'sub_sequence_path.signal.gettable_name'."
+                )
+        except AttributeError as e:
             raise ValueError(
-                f"Path {attr_path} does not lead to a single gettable. "
-                "Please provide a path with the format 'signal.gettable_name'"
-            )
-        signal, gettable_name = attributes
-        if signal not in self.read_sequence.signals:
-            raise KeyError(
-                f"Signal {signal} not found in read sequence"
-                f" '{self.read_sequence.name}'. Available signals: "
-                f"{self.read_sequence.signals.keys()}"
-            )
-        signal = self.read_sequence.signals[signal]
-        if gettable_name not in signal.gettables:
-            raise KeyError(
-                f"gettable {gettable_name} not found in signal {signal.name}"
-                f" of read sequence '{self.read_sequence.name}'. "
-                f"Available gettables: {signal.gettables.keys()}"
-            )
-        gettable = signal.gettables[gettable_name]
-        if not isinstance(gettable, GettableParameter):
-            raise ValueError(
-                f"The given path {attr_path} yields a {type(gettable)}-type",
-                "not a child class of gettable"
-            )
-        return gettable
-
-### REVIEW ALL OF THE BELOW METHODS
-
-    def get_params_with_prefix(self, prefix: str) -> dict:
-        """
-        Finds the element parameters with the given prefix
-        
-        Args:
-            prefix (str): Prefix of the element parameters
-        
-        Returns:
-            dict: Dictionary with elemets as keys and parameters as values
-        """
-        all_params = self.read_sequence.parameters
-        full_prefix = f"{self.name}__{prefix}"
-        param_names = [x for x in all_params if full_prefix in x]
-        element_list = [x.split(full_prefix)[-1].split('_')[-1] for x in param_names]
-        return {e: all_params[p] for e, p in zip(element_list, param_names)}
-
-    def get_signals_and_gettables(self, prefix: str) -> dict:
-        """
-        Returns gettables found at the path given from the param storing it.
-        Works very similarly to `get_params_with_prefix`. First finds params
-        with the given prefix and then tries to find the gettable from the
-        path stored in the parameter
-
-        Args:
-            prefix (str): Prefix of the element parameters
-        
-        Returns:
-            dict: Dictionary with signals as keys and gettables
-        """
-        obs_dict = {}
-        for signal, obs in self.get_params_with_prefix(prefix).items():
-            obs_dict[signal] = self.get_gettable_from_path(obs())
-        return obs_dict
-
-    def get_qm_elements_from_gettables(self):
-        """
-        Collects all qm read elements from the readouts gettables and their
-        signal. Duplicates are removed
-
-        Returns:
-            list: List of read elements used in gettables
-        """
-        qm_elements = []
-        for _, obs in self.gettables.items():
-            qm_elements += obs.qm_elements
-        return list(dict.fromkeys(qm_elements))
-
-def get_gettable_from_read_sequence(
-        read_sequence: ReadSequence,
-        signal_name: str,
-        gettable_name: str,
-        ) -> GettableParameter:
-    """
-    Helper method to get a gettable from this readout. This is used
-
-    Args:
-        read_sequence (ReadSequence): The read sequence to get the gettable from
-        signal_name (str): Name of the signal
-        gettable_name (str): Name of the gettable
-    
-    Raises:
-        KeyError: If the signal or gettable is not found in the read sequence
-        KeyError: If the GettableParameter is not found in the signal
-        ValueError: If the found object is not a child class of GettableParameter
-    """
-    if signal_name not in read_sequence.signals:
-        raise KeyError(
-            f"Signal {signal_name} not found in read sequence"
-            f" '{read_sequence.name}'. Available signals: "
-            f"{read_sequence.signals.keys()}"
-        )
-    signal: Signal = read_sequence.signals[signal_name]
-    if gettable_name not in signal.gettables:
-        raise KeyError(
-            f"Gettable {gettable_name} not found in signal {signal.name}"
-            f" of read sequence '{read_sequence.name}'. "
-            f"Available gettables: {signal.gettables.keys()}"
-        )
-    gettable: GettableParameter = signal.gettables[gettable_name]
-    if not isinstance(gettable, GettableParameter):
-        raise ValueError(
-            f"The given path {signal_name}.{gettable_name} yields a ",
-            f"{type(gettable)}-type, not a child class of gettable"
-        )
-    return gettable
+                f"Error resolving given path: '{attr_path}' for "
+                f" abstract readout {self.name}. CHECK ERROR ABOVE!"
+            ) from e
