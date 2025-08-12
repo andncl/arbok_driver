@@ -1,4 +1,6 @@
 """Module containing the MeasurementRunner class."""
+from __future__ import annotations
+from typing import TYPE_CHECKING
 import logging
 import copy
 import time
@@ -7,6 +9,9 @@ import warnings
 import numpy as np
 from rich.progress import Progress
 
+if TYPE_CHECKING:
+    from arbok_driver import Measurement
+
 class MeasurementRunner:
     """
     Helper class constructing QCoDeS measurement loops
@@ -14,7 +19,7 @@ class MeasurementRunner:
 
     def __init__(
         self,
-        measurement: 'Measurement',
+        measurement: Measurement,
         sweep_list: list[dict],
         register_all: bool = False
         ):
@@ -102,7 +107,7 @@ class MeasurementRunner:
             ### Program is resumed and all gettables are fetched when ready
             if not self.measurement.driver.is_mock:
                 self.measurement.driver.qm_job.resume()
-            time.sleep(1)
+            time.sleep(0.1)
             logging.debug("Job resumed, Fetching gettables")
             self.measurement.wait_until_result_buffer_full(
                 (self.progress_bars['batch_progress'], self.progress_tracker)

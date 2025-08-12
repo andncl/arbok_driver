@@ -1,12 +1,16 @@
 """ Module with Sweep class """
+from __future__ import annotations
+from typing import TYPE_CHECKING
 import warnings
 import logging
 
 import numpy as np
 from qm import qua
-from qualang_tools import loops
 from qcodes.parameters import Parameter
+
 from .sequence_parameter import SequenceParameter
+if TYPE_CHECKING:
+    from .measurement import Measurement
 
 class Sweep:
     """ Class characterizing a parameter sweep along one axis in the OPX """
@@ -19,7 +23,7 @@ class Sweep:
     _can_be_parameterized = None
     snake_scan = False # Assume by default non snake scanning
 
-    def __init__(self, measurement, param_dict: dict, register_all = False):
+    def __init__(self, measurement : Measurement, param_dict: dict, register_all = False):
         """
         Constructor class of Sweep class
 
@@ -313,13 +317,7 @@ class Sweep:
                 qua.assign(
                     param.qua_var, param.input_stream[sweep_idx_var])
             next_action()
-
-            def step_counter():
-                qua.assign(sweep_idx_var, sweep_idx_var + 1)
-            if self.measurement.sweeps[0] == self:
-                self.measurement.qua_check_step_requirements(step_counter)
-            else:
-                step_counter()
+            self._advance_step_counter(sweep_idx_var)
 
     def _qua_parmetrized_loop(self, next_action: callable) -> None:
         """
@@ -358,14 +356,7 @@ class Sweep:
 
             ### This is where either the whole sequence or the next sweep is run
             next_action()
-
-            ### After the sequence the index variable is incremented by step
-            def step_counter():
-                qua.assign(sweep_idx_var, sweep_idx_var + 1)
-            if self.measurement.sweeps[0] == self:
-                self.measurement.qua_check_step_requirements(step_counter)
-            else:
-                step_counter()
+            self._advance_step_counter(sweep_idx_var)
 
     def _qua_calc_param_step(self, param, sss, sweep_idx_var, reverse):
         """
@@ -425,15 +416,7 @@ class Sweep:
                 qua.assign(
                     param.qua_var, param.qua_sweep_arr[sweep_idx_var])
             next_action()
-
-            ### After the sequence the parameter variable is incremented by step
-            # for param, in self.parameters():
-            def step_variable():
-                qua.assign(sweep_idx_var, sweep_idx_var + 1)
-            if self.measurement.sweeps[0] == self:
-                self.measurement.qua_check_step_requirements(step_variable)
-            else:
-                step_variable()
+            self._advance_step_counter(sweep_idx_var)
 
 
     def _parameterize_sweep_array(
@@ -497,3 +480,19 @@ class Sweep:
                     category=ResourceWarning
                     )
         return parameters_sss
+
+    def _advance_step_counter(self, sweep_idx_var):
+        """
+        Advances the sweep index variable by one step and checks if the
+        step requirements are met. This is ONLY doen for the inner most sweep
+        hence this will automatically stop advancement of the all outer sweeps
+
+        Args:
+            sweep_idx_var (qua variable): Sweep index variable to be advanced
+        """
+        def step_counter():
+            qua.assign(sweep_idx_var, sweep_idx_var + 1)
+        if self.measurement.sweeps[-1] == self:
+            self.measurement.qua_check_step_requirements(step_counter)
+        else:
+            step_counter()

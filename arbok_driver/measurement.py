@@ -742,10 +742,10 @@ class Measurement(SequenceBase):
         ### Also check if streams are available
         try:
             is_paused = self.driver.qm_job.is_paused()
-            while batch_count < self.sweep_size: # or not is_paused:
+            while batch_count < self.sweep_size and not is_paused:
                 logging.debug(
-                    "Waiting for buffer to fill (%s/%s), %s",
-                    batch_count, self.sweep_size, self.driver.qm_job.is_paused()
+                    "Waiting for buffer to fill (%s/%s), is paused: %s",
+                    batch_count, self.sweep_size, is_paused
                     )
                 shot_count_result = self.batch_counter.fetch_all()
                 if shot_count_result is not None:
