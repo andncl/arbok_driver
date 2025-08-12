@@ -1,17 +1,23 @@
+"""
+Module containing the ArbokDriver class for managing and running sequences
+on a physical OPX instrument.
+"""
+from __future__ import annotations
+from typing import TYPE_CHECKING
 import copy
 
 import numpy as np
-
 from qm import SimulationConfig, generate_qua_script
 from qm.quantum_machines_manager import QuantumMachinesManager
-
 import qcodes as qc
 
-from .experiment import Experiment
-from .measurement import Measurement
-from .sequence_base import SequenceBase
-from .device import Device
 from . import utils
+
+from .measurement import Measurement
+if TYPE_CHECKING:
+    from .device import Device
+    from .experiment import Experiment
+    from .measurement_runner import MeasurementRunner
 
 class ArbokDriver(qc.Instrument):
     """
@@ -46,7 +52,7 @@ class ArbokDriver(qc.Instrument):
         self.add_parameter('iteration', get_cmd = None, set_cmd =None)
 
     @property
-    def measurements(self) -> list:
+    def measurements(self) -> list[Measurement]:
         """Measurements to be run within program uploaded to the OPX"""
         return self._measurements
 
@@ -56,6 +62,7 @@ class ArbokDriver(qc.Instrument):
         TODO: delete instances of those measurements
         """
         for measurement in self._measurements:
+            print(f"Deleting measurement: {measurement.short_name}")
             del measurement
         self._measurements = []
         self.submodules = {}
@@ -230,9 +237,9 @@ class ArbokDriver(qc.Instrument):
 
     def create_measurement_from_experiment(
             self,
-            name: str,
             experiment: Experiment,
-            qc_measurement_name: str | None = None
+            qc_measurement_name: str | None = None,
+            name: str = 'measurement',
             ) -> Measurement:
         """
         Creates an arbok and QCoDeS measurement from an arbok-experiment
@@ -270,7 +277,7 @@ class ArbokDriver(qc.Instrument):
         gettable_keywords = None,
         sweep_list: list = None,
         qc_measurement_name = None
-        ) -> tuple['MeasurementRunner', Measurement]:
+        ) -> tuple[MeasurementRunner, Measurement]:
         """
         Adds a measurement to the arbok_driver based on the arbok_experiment and
         creates a QCoDeS measurement and experiment. Returns the measurement and
