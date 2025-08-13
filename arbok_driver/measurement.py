@@ -374,8 +374,7 @@ class Measurement(SequenceBase):
         """
         ### In the first step all variables of all sub-sequences are declared
         self.qua_declare_sweep_vars()
-        self.recursive_qua_generation(
-            seq_type = 'declare', skip_duplicates = True)
+        self.qua_declare()
 
         ### An infinite loop starting with a pause is defined to sync the
         ### client with the QMs
@@ -390,9 +389,7 @@ class Measurement(SequenceBase):
 
             ### The sub-sequences are run in the order they were added
             ### Before_sweep methods are run before the sweep loop
-            self.recursive_qua_generation(
-                seq_type = 'before_sweep', skip_duplicates = True)
-
+            self.qua_before_sweep()
             ### The sweep loop is defined for each sub-sequence recursively
             ### Reversing the sweeps is necessary to have the outermost sweep
             ### loop first (e.g last element in the list is the innermost sweep)
@@ -400,7 +397,7 @@ class Measurement(SequenceBase):
                 copy.copy(self.sweeps)
                 )
         with qua.stream_processing():
-            self.recursive_qua_generation(seq_type = 'stream')
+            self.qua_stream()
 
     def compile_qua_and_run(self, save_path: str = None) -> None:
         """Compiles the QUA code and runs it"""

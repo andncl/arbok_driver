@@ -69,38 +69,45 @@ class SequenceBase(InstrumentModule):
 
     @staticmethod
     def config_template():
-        """ The user can get an example config template.
-            This feature is useful if building from scratch or for UI 
-            prompting.
-              
-            Returns:
-                A dictionary with an example config template. 
+        """
+        The user can get an example config template.
+        This feature is useful if building from scratch or for UI 
+        prompting.
+            
+        Returns:
+            A dictionary with an example config template. 
         """
         return {}
 
     def qua_declare(self):
         """Contains raw QUA code to initialize the qua variables"""
-        return
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_declare()
 
     def qua_before_sweep(self):
         """Contains raw QUA code that is being executed before sweeps"""
-        return
-    
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_before_sweep()
+
     def qua_before_sequence(self):
         """Contains raw QUA code that is being executed before the sequence"""
-        return
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_before_sequence()
 
     def qua_sequence(self):
         """Contains raw QUA code to define the pulse sequence"""
-        return
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_sequence()
 
     def qua_after_sequence(self):
         """Contains raw QUA code that is being executed after the sequence"""
-        return
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_after_sequence()
 
     def qua_stream(self):
         """Contains raw QUA code to define streams"""
-        return
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_stream()
 
     @property
     def sub_sequences(self) -> list:
@@ -213,7 +220,7 @@ class SequenceBase(InstrumentModule):
             raise ReferenceError(
                 "The sub sequence {self.name} is not linked to a sequence")
         self.qua_declare_sweep_vars()
-        self.recursive_qua_generation(seq_type = 'declare')
+        self.qua_declare()
 
         ### An infinite loop starting with a pause is defined to sync the QM
         ### with the client
@@ -227,7 +234,8 @@ class SequenceBase(InstrumentModule):
                     qua.assign(qua_var, True)
             ### The sequences are run in the order they were added
             ### Before_sweep methods are run before the sweep loop
-            self.recursive_qua_generation(seq_type = 'before_sweep')
+            self.qua_before_sweep()
+            # self.recursive_qua_generation(seq_type = 'before_sweep')
 
             ### qua_sequence methods of sub_sequences are called recursively
             ### If parent sequence is present the sweep generation is added
@@ -235,11 +243,11 @@ class SequenceBase(InstrumentModule):
                 self.recursive_sweep_generation(
                     self.measurement.sweeps)
             else:
-                self.recursive_qua_generation(seq_type = 'sequence')
+                self.qua_sequence()
 
         ### Stream processing is added after the sequences
         with qua.stream_processing():
-            self.recursive_qua_generation(seq_type = 'stream')
+            self.qua_stream()
 
     def print_qua_program_to_file(self, file_name: str):
         """Creates file with 'filename' and prints the QUA code to this file"""
@@ -272,11 +280,9 @@ class SequenceBase(InstrumentModule):
         """
         if len(sweeps) == 0:
             ### this condition gets triggered if we arrive at the innermost loop
-            self.recursive_qua_generation(
-                'before_sequence', skip_duplicates = True)
-            self.recursive_qua_generation('sequence')
-            self.recursive_qua_generation(
-                'after_sequence', skip_duplicates = True)
+            self.qua_before_sequence()
+            self.qua_sequence()
+            self.qua_after_sequence()
             return
         new_sweeps = sweeps[1:]
         current_sweep = sweeps[0]
@@ -294,44 +300,44 @@ class SequenceBase(InstrumentModule):
             )
         return
 
-    def recursive_qua_generation(self, seq_type: str, skip_duplicates = False):
-        """
-        Recursively runs all QUA code stored in submodules of the given sequence
-        Differentiates between 'declare', 'stream' and `sequence`.
+    # def recursive_qua_generation(self, seq_type: str, skip_duplicates = False):
+    #     """
+    #     Recursively runs all QUA code stored in submodules of the given sequence
+    #     Differentiates between 'declare', 'stream' and `sequence`.
 
-        Args:
-            seq_type (str): Type of qua code containing method to look for
-            skip_duplicates (bool): Flag to skip duplicate calls of the same
-                given subsequence. Default is False
-        """
-        method_name = f"qua_{seq_type}"
-        if hasattr(self, method_name):
-            getattr(self, 'qua_' + str(seq_type))()
+    #     Args:
+    #         seq_type (str): Type of qua code containing method to look for
+    #         skip_duplicates (bool): Flag to skip duplicate calls of the same
+    #             given subsequence. Default is False
+    #     """
+    #     method_name = f"qua_{seq_type}"
+    #     if hasattr(self, method_name):
+    #         getattr(self, 'qua_' + str(seq_type))()
 
-        ### The innermost sequence is reached. Run the sequence code
-        if not self.submodules:
-            logging.debug(
-                "Reached low level seq running qua_%s code of %s",
-                seq_type, self.name)
-            getattr(self, method_name)()
-            return
+    #     ### The innermost sequence is reached. Run the sequence code
+    #     if not self.submodules:
+    #         logging.debug(
+    #             "Reached low level seq running qua_%s code of %s",
+    #             seq_type, self.name)
+    #         getattr(self, method_name)()
+    #         return
 
-        ### If the given seqeunce has subsequences, run the recursion of those
-        if skip_duplicates:
-            sequence_list = dict.fromkeys(self.sub_sequences)
-        else:
-            sequence_list = self.sub_sequences
-        for sub_sequence in sequence_list:
-            def next_recursion_step():
-                if not sub_sequence.submodules:
-                    if hasattr(sub_sequence, method_name):
-                        getattr(sub_sequence, method_name)()
-                else:
-                    sub_sequence.recursive_qua_generation(
-                        seq_type = seq_type,
-                        skip_duplicates = skip_duplicates
-                    )
-            next_recursion_step()
+    #     ### If the given seqeunce has subsequences, run the recursion of those
+    #     if skip_duplicates:
+    #         sequence_list = dict.fromkeys(self.sub_sequences)
+    #     else:
+    #         sequence_list = self.sub_sequences
+    #     for sub_sequence in sequence_list:
+    #         def next_recursion_step():
+    #             if not sub_sequence.submodules:
+    #                 if hasattr(sub_sequence, method_name):
+    #                     getattr(sub_sequence, method_name)()
+    #             else:
+    #                 sub_sequence.recursive_qua_generation(
+    #                     seq_type = seq_type,
+    #                     skip_duplicates = skip_duplicates
+    #                 )
+    #         next_recursion_step()
 
     def reset(self) -> None:
         """
