@@ -1,12 +1,16 @@
 """Module containing the ReadSequence class"""
+from __future__ import annotations
+from typing import TYPE_CHECKING
 import logging
 from qcodes.validators import Arrays
 
 from .abstract_readout import AbstractReadout
-from .device import Device
 from .gettable_parameter import GettableParameter
 from .signal import Signal
 from .sub_sequence import SubSequence
+
+if TYPE_CHECKING:
+    from .device import Device
 
 class ReadSequence(SubSequence):
     """ Baseclass for sequences containing readouts """
@@ -241,7 +245,7 @@ class ReadSequence(SubSequence):
                 f" {group_name}__{readout_name})!"
             )
 
-    def add_gettable(self, gettable: 'GettableParameter') -> None:
+    def add_gettable(self, gettable: GettableParameter) -> None:
         """
         Adds a gettable parameter to the read sequence. This is used to make
         the gettable fetchable during a measurement.
