@@ -34,7 +34,7 @@ class Experiment(ABC):
         """
         self._name = name
         self.device = device
-        self.configs = copy.deepcopy(device.default_sequence_configs)
+        self.configs: dict = copy.deepcopy(device.default_sequence_configs)
         if configs_to_prepare is not None:
             self._prepare_configs(configs_to_prepare)
 
