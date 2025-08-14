@@ -1,15 +1,11 @@
 """ Module containing BaseSequence class """
 from __future__ import annotations
-from ast import Sub
-from encodings.punycode import T
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 import copy
 import types
 import warnings
-from typing import Optional
 import logging
-from functools import reduce                                                                                                                        
-
+from functools import reduce
 from asciitree import LeftAligned
 from asciitree.drawing import BoxStyle, BOX_LIGHT
 
@@ -304,45 +300,6 @@ class SequenceBase(InstrumentModule):
             )
         return
 
-    # def recursive_qua_generation(self, seq_type: str, skip_duplicates = False):
-    #     """
-    #     Recursively runs all QUA code stored in submodules of the given sequence
-    #     Differentiates between 'declare', 'stream' and `sequence`.
-
-    #     Args:
-    #         seq_type (str): Type of qua code containing method to look for
-    #         skip_duplicates (bool): Flag to skip duplicate calls of the same
-    #             given subsequence. Default is False
-    #     """
-    #     method_name = f"qua_{seq_type}"
-    #     if hasattr(self, method_name):
-    #         getattr(self, 'qua_' + str(seq_type))()
-
-    #     ### The innermost sequence is reached. Run the sequence code
-    #     if not self.submodules:
-    #         logging.debug(
-    #             "Reached low level seq running qua_%s code of %s",
-    #             seq_type, self.name)
-    #         getattr(self, method_name)()
-    #         return
-
-    #     ### If the given seqeunce has subsequences, run the recursion of those
-    #     if skip_duplicates:
-    #         sequence_list = dict.fromkeys(self.sub_sequences)
-    #     else:
-    #         sequence_list = self.sub_sequences
-    #     for sub_sequence in sequence_list:
-    #         def next_recursion_step():
-    #             if not sub_sequence.submodules:
-    #                 if hasattr(sub_sequence, method_name):
-    #                     getattr(sub_sequence, method_name)()
-    #             else:
-    #                 sub_sequence.recursive_qua_generation(
-    #                     seq_type = seq_type,
-    #                     skip_duplicates = skip_duplicates
-    #                 )
-    #         next_recursion_step()
-
     def reset(self) -> None:
         """
         On reset, ensure param validators are no longer sweep_validators
@@ -547,7 +504,7 @@ class SequenceBase(InstrumentModule):
         sequence_config: dict = None,
         namespace_to_add_to: dict = None,
         **kwargs
-        ) -> 'SequenceBase':
+        ) -> SubSequence:
         """
         Adds a subsequence to the sequence
         
@@ -609,22 +566,37 @@ class SequenceBase(InstrumentModule):
                     f"Conf for {name} is None, please provide dict. E.g: "
                     r"{'sequence': SubSequence, 'config': {}}"
                     )
-            if all(k not in seq_conf.keys() for k in ['sequence', 'config']):
+            if 'sub_sequences' in seq_conf:
                 ### If empty SubSequence, create one deeper nesting layer
+                if any(k in seq_conf.keys() for k in ['sequence', 'config']):
+                    raise KeyError(
+                        f"Subsequence {name} contains 'sub_sequences' key but "
+                        "also 'sequence' or 'config' keys. If you give "
+                        f"sub_sequences, {name} has to be empty."
+                    )
                 sequence_config = {
                     'sequence': default_sequence,
                     'parameters': {},
                     }
+                kwargs = seq_conf['kwargs'] if 'kwargs' in seq_conf else None
                 seq_instance = self._add_subsequence(
                     name = name,
                     sequence_config = sequence_config,
-                    namespace_to_add_to = namespace_to_add_to
+                    namespace_to_add_to = namespace_to_add_to,
+                    **kwargs
                     )
                 seq_instance.add_subsequences_from_dict(
-                    seq_conf, namespace_to_add_to)
-            else:
+                    seq_conf["sub_sequences"], namespace_to_add_to)
+            elif any(k in seq_conf.keys() for k in ['sequence', 'config']):
                 self._prepare_adding_subsequence(
                     name, seq_conf, namespace_to_add_to)
+            elif not seq_conf:
+                pass
+            else:
+                raise KeyError(
+                    f"Someting is wrong with the conf for {name}. "
+                    f"Check the config {seq_conf}."
+                    )
 
     def _prepare_adding_subsequence(
         self,
