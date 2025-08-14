@@ -1,5 +1,8 @@
 """ Module containing BaseSequence class """
-
+from __future__ import annotations
+from ast import Sub
+from encodings.punycode import T
+from typing import TYPE_CHECKING
 import copy
 import types
 import warnings
@@ -18,6 +21,9 @@ from qm.simulate.credentials import create_credentials
 from .device import Device
 from .sequence_parameter import SequenceParameter
 from . import utils
+if TYPE_CHECKING:
+    from .measurement import Measurement
+    from .sub_sequence import SubSequence
 
 class SequenceBase(InstrumentModule):
     """
@@ -110,7 +116,7 @@ class SequenceBase(InstrumentModule):
             sub_sequence.qua_stream()
 
     @property
-    def sub_sequences(self) -> list:
+    def sub_sequences(self) -> list[SubSequence]:
         """
         List of `SubSequences`s that build the given sequence
         """
@@ -128,8 +134,6 @@ class SequenceBase(InstrumentModule):
                 sub_dict = sub_sequence.sub_sequence_dict
                 structure_dict[sub_sequence.short_name] = sub_dict[sub_sequence.short_name]
             else:
-                #name = f"{sub_sequence.short_name} [{sub_sequence.__name__}]"
-                #structure_dict[name] = {}
                 structure_dict[sub_sequence.short_name] = {}
         return {self.short_name: structure_dict}
 
