@@ -40,6 +40,15 @@ class SubSequence(SequenceBase):
         """Returns parent (sub) sequence"""
         return self.find_measurement()
 
+    def qua_sequence(self):
+        print('Checking step requirements:', self.name,  self.check_step_requirements)
+        if self.check_step_requirements:
+            self.measurement.qua_check_step_requirements(
+                super().qua_sequence
+            )
+        else:
+            super().qua_sequence()
+
     def add_subsequences_from_dict(
             self,
             subsequence_dict: dict,
