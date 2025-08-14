@@ -197,6 +197,8 @@ class Measurement(SequenceBase):
         self.shot_tracker_qua_var = qua.declare(int, value = 0)
         self.shot_tracker_qua_stream = qua.declare_stream()
         self._qua_declare_input_streams()
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_declare()
 
     def qua_before_sweep(self):
         """
@@ -249,11 +251,15 @@ class Measurement(SequenceBase):
         if simulate:
             for qua_var in self.step_requirements:
                 qua.assign(qua_var, True)
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_before_sequence()
 
     def qua_after_sequence(self):
         """
         Qua code to be executed after the measurement loop and the code it contains
         """
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_after_sequence()
         qua.align()
         self.qua_check_step_requirements(self.qua_increment_shot_tracker)
         qua.align()
@@ -277,6 +283,8 @@ class Measurement(SequenceBase):
                     stream.buffer(
                         self._input_stream_type_shapes[var_type]).save_all(
                             stream_name)
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_stream()
 
     def set_sweeps(self, *args) -> None:
         """
