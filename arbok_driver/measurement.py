@@ -197,6 +197,8 @@ class Measurement(SequenceBase):
         self.shot_tracker_qua_var = qua.declare(int, value = 0)
         self.shot_tracker_qua_stream = qua.declare_stream()
         self._qua_declare_input_streams()
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_declare()
 
     def qua_before_sweep(self):
         """
@@ -249,11 +251,15 @@ class Measurement(SequenceBase):
         if simulate:
             for qua_var in self.step_requirements:
                 qua.assign(qua_var, True)
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_before_sequence()
 
     def qua_after_sequence(self):
         """
         Qua code to be executed after the measurement loop and the code it contains
         """
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_after_sequence()
         qua.align()
         self.qua_check_step_requirements(self.qua_increment_shot_tracker)
         qua.align()
@@ -277,6 +283,8 @@ class Measurement(SequenceBase):
                     stream.buffer(
                         self._input_stream_type_shapes[var_type]).save_all(
                             stream_name)
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_stream()
 
     def set_sweeps(self, *args) -> None:
         """
@@ -374,8 +382,7 @@ class Measurement(SequenceBase):
         """
         ### In the first step all variables of all sub-sequences are declared
         self.qua_declare_sweep_vars()
-        self.recursive_qua_generation(
-            seq_type = 'declare', skip_duplicates = True)
+        self.qua_declare()
 
         ### An infinite loop starting with a pause is defined to sync the
         ### client with the QMs
@@ -390,9 +397,7 @@ class Measurement(SequenceBase):
 
             ### The sub-sequences are run in the order they were added
             ### Before_sweep methods are run before the sweep loop
-            self.recursive_qua_generation(
-                seq_type = 'before_sweep', skip_duplicates = True)
-
+            self.qua_before_sweep()
             ### The sweep loop is defined for each sub-sequence recursively
             ### Reversing the sweeps is necessary to have the outermost sweep
             ### loop first (e.g last element in the list is the innermost sweep)
@@ -400,7 +405,7 @@ class Measurement(SequenceBase):
                 copy.copy(self.sweeps)
                 )
         with qua.stream_processing():
-            self.recursive_qua_generation(seq_type = 'stream')
+            self.qua_stream()
 
     def compile_qua_and_run(self, save_path: str = None) -> None:
         """Compiles the QUA code and runs it"""
