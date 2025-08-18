@@ -13,6 +13,7 @@ from pathlib import Path
 
 from qm import qua, generate_qua_script
 import qcodes as qc
+from qcodes.dataset.data_set import DataSet
 import xarray
 
 from .measurement_runner import MeasurementRunner
@@ -68,6 +69,9 @@ class Measurement(SequenceBase):
 
         self.qm_job = None
         self.batch_counter = None
+        self._dataset = None
+        self._xr_dataset = None
+        self._run_id = None
 
     def merge_with_device_config(self, device, sequence_config):
         """
@@ -177,6 +181,21 @@ class Measurement(SequenceBase):
         if self.driver.is_mock:
             return True
         return self._is_mock
+
+    @property
+    def run_id(self) -> str:
+        """Run id of the measurement"""
+        return self._run_id
+
+    @property
+    def dataset(self) -> DataSet:
+        """Dataset of the measurement"""
+        return self._dataset
+
+    @property
+    def xr_dataset(self) -> DataSet:
+        """Extended Dataset of the measurement"""
+        return self._xr_dataset
 
     @input_stream_parameters.setter
     def input_stream_parameters(self, parameters: list) -> None:
@@ -513,7 +532,7 @@ class Measurement(SequenceBase):
         Configures all gettables to be measured. Sets batch_size, can_resume,
         setpoints and vals
         """
-        for i, (_, gettable) in enumerate(self.gettables.items()):
+        for _, gettable in self.gettables.items():
             gettable.setpoints = self._setpoints_for_gettables
             gettable.configure_from_measurement()
 
@@ -692,7 +711,7 @@ class Measurement(SequenceBase):
             inner_func = None,
             qua_program_save_path: str = None,
             opx_address: str = None,
-            ) -> "dataset":
+            ) -> DataSet:
         """
         Runs the measurement with the given sweep list based on MeasurementRunner
         class
@@ -703,6 +722,13 @@ class Measurement(SequenceBase):
                 and np.ndarrays as setpoints. Each list entry creates one sweep axis.
                 If you want to sweep params concurrently enter more entries into
                 their sweep dict
+            inner_func (callable): The function to be executed for each setpoint
+                in the sweep list (e.g on every opx data fetch)
+            qua_program_save_path (str): The file path to save the compiled
+                QUA program. Defaults to None. If not given, the program is
+                being auto-saved next to the database.
+            opx_address (str): The address of the OPX. Defaults to None. If not
+                given does not attempt to connect to the OPX.
         """
         if opx_address is not None:
             self.driver.connect_opx(opx_address)
@@ -712,6 +738,11 @@ class Measurement(SequenceBase):
         self.measurement_runner = self.get_measurement_runner(sweep_list)
         self.measurement_runner.run_arbok_measurement(
             inner_func = inner_func)
+        self._dataset = self.measurement_runner.datasaver.dataset
+        self._xr_dataset = self.dataset.to_xarray_dataset()
+        self._run_id = self.dataset.run_id
+        self._save_qua_program_as_metadata(qua_prog)
+        return self.dataset
 
     def get_measurement_runner(
             self, sweep_list: list[dict] = None) -> MeasurementRunner:
@@ -820,3 +851,18 @@ class Measurement(SequenceBase):
         with open(save_path, 'w', encoding="utf-8") as file:
             file.write(
                 generate_qua_script(qua_program, self.parent.device.config))
+
+    def _save_qua_program_as_metadata(self, qua_program: qua.program) -> None:
+        """
+        Saves the QUA program as metadata in the dataset.
+        """
+        if self.dataset is not None:
+            self.dataset.add_metadata(
+                "qua_program",
+                generate_qua_script(qua_program, self.parent.device.config)
+                )
+        else:
+            raise ValueError(
+                "Dataset is not available yet for saving QUA program metadata."
+                " Run measurement first."
+                )
