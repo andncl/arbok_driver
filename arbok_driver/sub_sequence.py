@@ -41,7 +41,6 @@ class SubSequence(SequenceBase):
         return self.find_measurement()
 
     def qua_sequence(self):
-        print('Checking step requirements:', self.name,  self.check_step_requirements)
         if self.check_step_requirements:
             self.measurement.qua_check_step_requirements(
                 super().qua_sequence

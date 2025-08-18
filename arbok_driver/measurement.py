@@ -1,6 +1,7 @@
 """Module containing the Measurement class"""
 from __future__ import annotations
 from typing import TYPE_CHECKING
+from datetime import datetime
 import math
 import time
 import copy
@@ -8,6 +9,7 @@ import logging
 import os
 from collections import Counter
 import warnings
+from pathlib import Path
 
 from qm import qua, generate_qua_script
 import qcodes as qc
@@ -63,6 +65,9 @@ class Measurement(SequenceBase):
         self.shot_tracker_qua_var = None
         self.shot_tracker_qua_stream = None
         self.nr_registered_results = 0
+
+        self.qm_job = None
+        self.batch_counter = None
 
     def merge_with_device_config(self, device, sequence_config):
         """
@@ -200,7 +205,7 @@ class Measurement(SequenceBase):
         for sub_sequence in self.sub_sequences:
             sub_sequence.qua_declare()
 
-    def qua_before_sweep(self):
+    def qua_before_sweep(self) -> None:
         """
         Qua code to be executed before the sweep loop but after the qua.pause
         statement that aligns the measurement results
@@ -224,7 +229,7 @@ class Measurement(SequenceBase):
                 'fixed', fixed_params, self._qua_fixed_input_stream, index)
 
     def _qua_advance_assign_save_input_streams(
-        self, var_type, input_params, input_stream, index = None):
+        self, var_type, input_params, input_stream, index = None) -> None:
         """
         Takes the given paramters to stream and the respective input stream and
         advances the input stream, assigns the values to the parameters and
@@ -691,6 +696,7 @@ class Measurement(SequenceBase):
         """
         Runs the measurement with the given sweep list based on MeasurementRunner
         class
+        TODO: add default save path! 
 
         Args:
             sweep_list (list[dict]): List of dictionaries with parameters as keys
@@ -701,7 +707,8 @@ class Measurement(SequenceBase):
         if opx_address is not None:
             self.driver.connect_opx(opx_address)
         qua_prog = self.compile_qua_and_run(save_path = qua_program_save_path)
-
+        if qua_program_save_path is None:
+            self._auto_save_qua_program(qua_prog)
         self.measurement_runner = self.get_measurement_runner(sweep_list)
         self.measurement_runner.run_arbok_measurement(
             inner_func = inner_func)
@@ -793,3 +800,23 @@ class Measurement(SequenceBase):
             )
             progress_tracker[1].refresh()
             time.sleep(0.1)
+
+    def _auto_save_qua_program(self, qua_program: qua.program) -> None:
+        """
+        Automatically saves the QUA program in a folder next to the database
+        if the folder 'qua_programs' does not exist it is created
+
+        Args:
+            qua_program (qua.program): The QUA program to save
+        """
+        print("Auto saving qua program next to database in './qua_programs/'")
+        db_path = os.path.abspath(qc.dataset.experiment_container.get_DB_location())
+        db_dir = os.path.dirname(db_path)
+        programs_dir = Path(db_dir) / "qua_programs/"
+        if not os.path.isdir(programs_dir):
+            os.makedirs(programs_dir)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_path = programs_dir / f"{timestamp}__{self.qc_measurement_name}.py"
+        with open(save_path, 'w', encoding="utf-8") as file:
+            file.write(
+                generate_qua_script(qua_program, self.parent.device.config))
