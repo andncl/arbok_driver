@@ -37,7 +37,9 @@ class MeasurementRunner:
         self.progress_bars = None
         self.counter = 0
 
-    def run_arbok_measurement(self, inner_func: callable = None) -> "dataset":
+        self.datasaver = None
+
+    def run_arbok_measurement(self, inner_func: callable = None):
         """
         Runs the measurement with the given inner function.
         
@@ -54,13 +56,11 @@ class MeasurementRunner:
         # Run the measurement with the recursive measurement loop
         try:
             logging.debug("Running measurement with %s", self.measurement.name)
-            datasaver = self._build_qc_measurement()
+            self.datasaver = self._build_qc_measurement()
         except KeyboardInterrupt:
-            logging.warning("Measurement interrupted by user.")
+            logging.debug("Measurement interrupted by user.")
             print("Measurement interrupted by user.")
-            return None
-
-        return datasaver.dataset
+            return
 
     def _build_qc_measurement(self):
         """
@@ -68,6 +68,7 @@ class MeasurementRunner:
         """
         self.counter = 0
         with self.qc_measurement.run() as datasaver:
+            self.datasaver = datasaver
             with Progress() as self.progress_tracker:
                 ### Adding progress bars
 
