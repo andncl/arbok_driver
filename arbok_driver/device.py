@@ -44,21 +44,14 @@ class Device():
         """
         if master_config is None:
             master_config = {}
-            warnings.warn("No master_config provided.")
         if 'parameters' in master_config:
             self.param_config = master_config['parameters']
         else:
             self.param_config = {}
-            warnings.warn(
-                "No parameters found in master_config."
-            )
         if 'default_sequence_configs' in master_config:
             self.default_sequence_configs = master_config['default_sequence_configs']
         else:
             self.default_sequence_configs = {}
-            warnings.warn(
-                "No default_sequence_configs found in master_config."
-            )
 
     @property
     def master_config_path(self):
