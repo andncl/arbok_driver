@@ -20,7 +20,7 @@ class MeasurementRunner:
     def __init__(
         self,
         measurement: Measurement,
-        sweep_list: list[dict],
+        sweep_list: list[dict] | None = None,
         register_all: bool = False
         ):
 
@@ -28,10 +28,18 @@ class MeasurementRunner:
         self.qc_measurement  = measurement.get_qc_measurement()
         self.sweep_list = sweep_list
 
-        self.result_args_dict = self._get_result_arguments(register_all)
+        if self.sweep_list is not None:
+            sweep_lengths = [len(next(iter(dic.values()))) for dic in sweep_list]
+            self.nr_total_results =  np.prod(sweep_lengths)
+        else:
+            self.nr_total_results = 1
+            self.sweep_list = []
+            warnings.warn(
+                "NO sweeps outside the OPX registerd. Thus the measurement only"
+                " fills the buffer once and finishes "
+                "(e.g only lower progres bar)")
 
-        sweep_lengths = [len(next(iter(dic.values()))) for dic in sweep_list]
-        self.nr_total_results =  np.prod(sweep_lengths)
+        self.result_args_dict = self._get_result_arguments(register_all)
         self.inner_func = None
         self.progress_tracker = None
         self.progress_bars = None
@@ -198,13 +206,6 @@ class MeasurementRunner:
         """
         Prepare parameters and gettables for the measurement.
         """
-        if len(self.result_args_dict) == 0:
-            raise ValueError(
-                "No results registered in the measurement. "
-                "Please register at least one result. "
-                "You can see the registered results via measurement.gettables"
-                " and all available ones via measurement.available_gettables"
-            )
         for param, _ in self.result_args_dict.items():
             logging.debug(
                 "Registering sequence parameter %s", param.full_name)

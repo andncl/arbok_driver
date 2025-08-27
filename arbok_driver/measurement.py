@@ -707,7 +707,7 @@ class Measurement(SequenceBase):
 
     def run_measurement(
             self,
-            sweep_list: list[dict],
+            sweep_list: list[dict] | None = None,
             inner_func = None,
             qua_program_save_path: str = None,
             opx_address: str = None,
@@ -745,7 +745,7 @@ class Measurement(SequenceBase):
         return self.dataset
 
     def get_measurement_runner(
-            self, sweep_list: list[dict] = None) -> MeasurementRunner:
+            self, sweep_list: list[dict] | None = None) -> MeasurementRunner:
         """
         Returns the measurement runner for the current measurement
 
