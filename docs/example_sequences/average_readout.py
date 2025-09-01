@@ -1,6 +1,6 @@
 """Module containing Average child class inheriting from ReadoutPoint"""
 from qm import qua
-from arbok_driver.readout_point import ReadoutPoint
+#rom arbok_driver.readout_point import ReadoutPoint
 
 class Average(ReadoutPoint):
     """
