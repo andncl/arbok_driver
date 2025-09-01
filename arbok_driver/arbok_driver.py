@@ -83,7 +83,7 @@ class ArbokDriver(qc.Instrument):
                 overwrites the device config.
             reconnect (bool): Whether to reconnect to the OPX if already
                 connected. Keeps QMM alive if true. Defaults to False.
-            **kargs: Arbitrary keyword arguments for QMM instanciation
+            **kwargs: Arbitrary keyword arguments for QMM instanciation
         """
         if not reconnect:
             self.qmm = QuantumMachinesManager(
