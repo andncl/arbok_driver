@@ -23,7 +23,6 @@ class ArbokDriver(qc.Instrument):
     """
     Class containing all functionality to manage and run modular sequences on a 
     physical OPX instrument
-    TODO: Add ask_raw and write_raw abstract methods
     """
 
     def __init__(

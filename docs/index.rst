@@ -3,15 +3,16 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-arbok_driver documentation
-==========================
+Documentation for the `arbok_driver` package
+=============================================
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
-
+A wonderful placeholder for a wonderful package
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
+   0_Measurement_example
+   1_parameterizing_sequences
+   2_Readout_sequences
+   modules
