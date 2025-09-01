@@ -1,10 +1,16 @@
 """Module containing the MeasurementRunner class."""
+from __future__ import annotations
+from typing import TYPE_CHECKING
 import logging
 import copy
 import time
+import warnings
 
 import numpy as np
 from rich.progress import Progress
+
+if TYPE_CHECKING:
+    from arbok_driver import Measurement
 
 class MeasurementRunner:
     """
@@ -13,8 +19,8 @@ class MeasurementRunner:
 
     def __init__(
         self,
-        measurement: 'Measurement',
-        sweep_list: list[dict],
+        measurement: Measurement,
+        sweep_list: list[dict] | None = None,
         register_all: bool = False
         ):
 
@@ -22,16 +28,26 @@ class MeasurementRunner:
         self.qc_measurement  = measurement.get_qc_measurement()
         self.sweep_list = sweep_list
 
-        self.result_args_dict = self._get_result_arguments(register_all)
+        if self.sweep_list is not None:
+            sweep_lengths = [len(next(iter(dic.values()))) for dic in sweep_list]
+            self.nr_total_results =  np.prod(sweep_lengths)
+        else:
+            self.nr_total_results = 1
+            self.sweep_list = []
+            warnings.warn(
+                "NO sweeps outside the OPX registerd. Thus the measurement only"
+                " fills the buffer once and finishes "
+                "(e.g only lower progres bar)")
 
-        sweep_lengths = [len(next(iter(dic.values()))) for dic in sweep_list]
-        self.nr_total_results =  np.prod(sweep_lengths)
+        self.result_args_dict = self._get_result_arguments(register_all)
         self.inner_func = None
         self.progress_tracker = None
         self.progress_bars = None
         self.counter = 0
 
-    def run_arbok_measurement(self, inner_func: callable = None) -> "dataset":
+        self.datasaver = None
+
+    def run_arbok_measurement(self, inner_func: callable = None):
         """
         Runs the measurement with the given inner function.
         
@@ -48,13 +64,11 @@ class MeasurementRunner:
         # Run the measurement with the recursive measurement loop
         try:
             logging.debug("Running measurement with %s", self.measurement.name)
-            datasaver = self._build_qc_measurement()
+            self.datasaver = self._build_qc_measurement()
         except KeyboardInterrupt:
-            logging.warning("Measurement interrupted by user.")
+            logging.debug("Measurement interrupted by user.")
             print("Measurement interrupted by user.")
-            return None
-
-        return datasaver.dataset
+            return
 
     def _build_qc_measurement(self):
         """
@@ -62,6 +76,7 @@ class MeasurementRunner:
         """
         self.counter = 0
         with self.qc_measurement.run() as datasaver:
+            self.datasaver = datasaver
             with Progress() as self.progress_tracker:
                 ### Adding progress bars
 
@@ -101,7 +116,7 @@ class MeasurementRunner:
             ### Program is resumed and all gettables are fetched when ready
             if not self.measurement.driver.is_mock:
                 self.measurement.driver.qm_job.resume()
-            time.sleep(1)
+            time.sleep(0.1)
             logging.debug("Job resumed, Fetching gettables")
             self.measurement.wait_until_result_buffer_full(
                 (self.progress_bars['batch_progress'], self.progress_tracker)
@@ -111,13 +126,18 @@ class MeasurementRunner:
 
         ### The first axis will be popped from the list and iterated over
         sweep_dict = sweep_list.pop(0)
-        for idx in range(len(list(sweep_dict.values())[0])):
+        sweep_axis_size = len(list(sweep_dict.values())[0])
+        if sweep_axis_size <= 2:
+            warnings.warn(
+                "Measurements with axis sizes less of 2 or less are not recommended."
+                " Results may not be displayable with plottr."
+            )
+        for idx in range(sweep_axis_size):
             ### The parameter values are set for the current iteration
             for param, values in sweep_dict.items():
                 value = values[idx]
                 logging.debug('Setting %s to %s', param.instrument.name, value)
                 param.set(value)
-
                 ### The parameter is added to the result arguments dict if its
                 ### dict entry is registered
                 if param in self.result_args_dict:
@@ -140,8 +160,9 @@ class MeasurementRunner:
         self.counter += 1
         result_args_temp = []
         for _, gettable in self.measurement.gettables.items():
+            result = gettable.fetch_results()
             result_args_temp.append(
-                (gettable, gettable.fetch_results())
+                (gettable, result)
             )
         ### Retreived results are added to the datasaver
         result_args_temp += list(self.result_args_dict.values())
@@ -157,7 +178,8 @@ class MeasurementRunner:
 
     def _get_result_arguments(self, register_all: bool = False) -> dict:
         """
-        Generates a list of parameters that are varied in the sweep and a dict
+        Generates a dict of parameters that are varied in the sweeps.
+        The dict will be used to register the results in the measurement.
         
         Args:
             register_all (bool): If True, all settables will be registered in the

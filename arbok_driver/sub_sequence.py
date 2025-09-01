@@ -1,9 +1,13 @@
 """ Module containing Sequence class """
+from __future__ import annotations
+from typing import TYPE_CHECKING, Any
 import logging
-from typing import Any
 
-from .device import Device
 from .sequence_base import SequenceBase
+
+if TYPE_CHECKING:
+    from .device import Device
+    from .measurement import Measurement
 
 class SubSequence(SequenceBase):
     """
@@ -32,9 +36,17 @@ class SubSequence(SequenceBase):
         self.parent.add_subsequence(self)
 
     @property
-    def measurement(self):
+    def measurement(self) -> Measurement:
         """Returns parent (sub) sequence"""
         return self.find_measurement()
+
+    def qua_sequence(self):
+        if self.check_step_requirements:
+            self.measurement.qua_check_step_requirements(
+                super().qua_sequence
+            )
+        else:
+            super().qua_sequence()
 
     def add_subsequences_from_dict(
             self,

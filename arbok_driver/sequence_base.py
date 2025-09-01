@@ -1,12 +1,11 @@
 """ Module containing BaseSequence class """
-
+from __future__ import annotations
+from typing import TYPE_CHECKING, Optional
 import copy
 import types
 import warnings
-from typing import Optional
 import logging
-from functools import reduce                                                                                                                        
-
+from functools import reduce
 from asciitree import LeftAligned
 from asciitree.drawing import BoxStyle, BOX_LIGHT
 
@@ -18,6 +17,9 @@ from qm.simulate.credentials import create_credentials
 from .device import Device
 from .sequence_parameter import SequenceParameter
 from . import utils
+if TYPE_CHECKING:
+    from .measurement import Measurement
+    from .sub_sequence import SubSequence
 
 class SequenceBase(InstrumentModule):
     """
@@ -69,41 +71,48 @@ class SequenceBase(InstrumentModule):
 
     @staticmethod
     def config_template():
-        """ The user can get an example config template.
-            This feature is useful if building from scratch or for UI 
-            prompting.
-              
-            Returns:
-                A dictionary with an example config template. 
+        """
+        The user can get an example config template.
+        This feature is useful if building from scratch or for UI 
+        prompting.
+            
+        Returns:
+            A dictionary with an example config template. 
         """
         return {}
 
     def qua_declare(self):
         """Contains raw QUA code to initialize the qua variables"""
-        return
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_declare()
 
     def qua_before_sweep(self):
         """Contains raw QUA code that is being executed before sweeps"""
-        return
-    
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_before_sweep()
+
     def qua_before_sequence(self):
         """Contains raw QUA code that is being executed before the sequence"""
-        return
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_before_sequence()
 
     def qua_sequence(self):
         """Contains raw QUA code to define the pulse sequence"""
-        return
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_sequence()
 
     def qua_after_sequence(self):
         """Contains raw QUA code that is being executed after the sequence"""
-        return
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_after_sequence()
 
     def qua_stream(self):
         """Contains raw QUA code to define streams"""
-        return
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_stream()
 
     @property
-    def sub_sequences(self) -> list:
+    def sub_sequences(self) -> list[SubSequence]:
         """
         List of `SubSequences`s that build the given sequence
         """
@@ -121,8 +130,6 @@ class SequenceBase(InstrumentModule):
                 sub_dict = sub_sequence.sub_sequence_dict
                 structure_dict[sub_sequence.short_name] = sub_dict[sub_sequence.short_name]
             else:
-                #name = f"{sub_sequence.short_name} [{sub_sequence.__name__}]"
-                #structure_dict[name] = {}
                 structure_dict[sub_sequence.short_name] = {}
         return {self.short_name: structure_dict}
 
@@ -213,7 +220,7 @@ class SequenceBase(InstrumentModule):
             raise ReferenceError(
                 "The sub sequence {self.name} is not linked to a sequence")
         self.qua_declare_sweep_vars()
-        self.recursive_qua_generation(seq_type = 'declare')
+        self.qua_declare()
 
         ### An infinite loop starting with a pause is defined to sync the QM
         ### with the client
@@ -227,7 +234,8 @@ class SequenceBase(InstrumentModule):
                     qua.assign(qua_var, True)
             ### The sequences are run in the order they were added
             ### Before_sweep methods are run before the sweep loop
-            self.recursive_qua_generation(seq_type = 'before_sweep')
+            self.qua_before_sweep()
+            # self.recursive_qua_generation(seq_type = 'before_sweep')
 
             ### qua_sequence methods of sub_sequences are called recursively
             ### If parent sequence is present the sweep generation is added
@@ -235,11 +243,11 @@ class SequenceBase(InstrumentModule):
                 self.recursive_sweep_generation(
                     self.measurement.sweeps)
             else:
-                self.recursive_qua_generation(seq_type = 'sequence')
+                self.qua_sequence()
 
         ### Stream processing is added after the sequences
         with qua.stream_processing():
-            self.recursive_qua_generation(seq_type = 'stream')
+            self.qua_stream()
 
     def print_qua_program_to_file(self, file_name: str):
         """Creates file with 'filename' and prints the QUA code to this file"""
@@ -272,11 +280,9 @@ class SequenceBase(InstrumentModule):
         """
         if len(sweeps) == 0:
             ### this condition gets triggered if we arrive at the innermost loop
-            self.recursive_qua_generation(
-                'before_sequence', skip_duplicates = True)
-            self.recursive_qua_generation('sequence')
-            self.recursive_qua_generation(
-                'after_sequence', skip_duplicates = True)
+            self.qua_before_sequence()
+            self.qua_sequence()
+            self.qua_after_sequence()
             return
         new_sweeps = sweeps[1:]
         current_sweep = sweeps[0]
@@ -293,45 +299,6 @@ class SequenceBase(InstrumentModule):
             next_sweep
             )
         return
-
-    def recursive_qua_generation(self, seq_type: str, skip_duplicates = False):
-        """
-        Recursively runs all QUA code stored in submodules of the given sequence
-        Differentiates between 'declare', 'stream' and `sequence`.
-
-        Args:
-            seq_type (str): Type of qua code containing method to look for
-            skip_duplicates (bool): Flag to skip duplicate calls of the same
-                given subsequence. Default is False
-        """
-        method_name = f"qua_{seq_type}"
-        if hasattr(self, method_name):
-            getattr(self, 'qua_' + str(seq_type))()
-
-        ### The innermost sequence is reached. Run the sequence code
-        if not self.submodules:
-            logging.debug(
-                "Reached low level seq running qua_%s code of %s",
-                seq_type, self.name)
-            getattr(self, method_name)()
-            return
-
-        ### If the given seqeunce has subsequences, run the recursion of those
-        if skip_duplicates:
-            sequence_list = dict.fromkeys(self.sub_sequences)
-        else:
-            sequence_list = self.sub_sequences
-        for sub_sequence in sequence_list:
-            def next_recursion_step():
-                if not sub_sequence.submodules:
-                    if hasattr(sub_sequence, method_name):
-                        getattr(sub_sequence, method_name)()
-                else:
-                    sub_sequence.recursive_qua_generation(
-                        seq_type = seq_type,
-                        skip_duplicates = skip_duplicates
-                    )
-            next_recursion_step()
 
     def reset(self) -> None:
         """
@@ -443,12 +410,12 @@ class SequenceBase(InstrumentModule):
 
             param_dict_copy = copy.deepcopy(param_dict)
             del param_dict_copy['label']
-            element_param_dict.update(param_dict_copy)
-            del element_param_dict['elements']
+            param_dict_copy.update(element_param_dict)
+            del param_dict_copy['elements']
 
             self._add_param(
                 param_name = f'{param_name}_{element}',
-                param_dict = element_param_dict
+                param_dict = param_dict_copy
                 )
 
     def _check_param_dict(self, param_name: str, param_dict: dict) -> None:
@@ -537,7 +504,7 @@ class SequenceBase(InstrumentModule):
         sequence_config: dict = None,
         namespace_to_add_to: dict = None,
         **kwargs
-        ) -> 'SequenceBase':
+        ) -> SubSequence:
         """
         Adds a subsequence to the sequence
         
@@ -547,14 +514,12 @@ class SequenceBase(InstrumentModule):
             namespace_to_add_to (dict): Name space to insert the
                 subsequence into (e.g locals(), globals()) defaults to None
         """
-        try:
-            subsequence = sequence_config['sequence']
-        except KeyError as exc:
+        if 'sequence' not in sequence_config:
             raise KeyError(
-                f"The given config for {self.name} does not contain a "
+                f"The given config for {self.full_name}__{name} does not contain a "
                 "'sequence' key with a subsequence type to configure for."
-                ) from exc
-
+                )
+        subsequence = sequence_config['sequence']
         if not issubclass(subsequence, SequenceBase):
             raise TypeError(
                 "Subsequence must be of type SubSequence")
@@ -601,22 +566,37 @@ class SequenceBase(InstrumentModule):
                     f"Conf for {name} is None, please provide dict. E.g: "
                     r"{'sequence': SubSequence, 'config': {}}"
                     )
-            if all(k not in seq_conf.keys() for k in ['sequence', 'config']):
+            if 'sub_sequences' in seq_conf:
                 ### If empty SubSequence, create one deeper nesting layer
+                if any(k in seq_conf.keys() for k in ['sequence', 'config']):
+                    raise KeyError(
+                        f"Subsequence {name} contains 'sub_sequences' key but "
+                        "also 'sequence' or 'config' keys. If you give "
+                        f"sub_sequences, {name} has to be empty."
+                    )
                 sequence_config = {
                     'sequence': default_sequence,
                     'parameters': {},
                     }
+                kwargs = seq_conf['kwargs'] if 'kwargs' in seq_conf else None
                 seq_instance = self._add_subsequence(
                     name = name,
                     sequence_config = sequence_config,
-                    namespace_to_add_to = namespace_to_add_to
+                    namespace_to_add_to = namespace_to_add_to,
+                    **kwargs
                     )
                 seq_instance.add_subsequences_from_dict(
-                    seq_conf, namespace_to_add_to)
-            else:
+                    seq_conf["sub_sequences"], namespace_to_add_to)
+            elif any(k in seq_conf.keys() for k in ['sequence', 'config']):
                 self._prepare_adding_subsequence(
                     name, seq_conf, namespace_to_add_to)
+            elif not seq_conf:
+                pass
+            else:
+                raise KeyError(
+                    f"Someting is wrong with the conf for {name}. "
+                    f"Check the config {seq_conf}."
+                    )
 
     def _prepare_adding_subsequence(
         self,
@@ -631,10 +611,12 @@ class SequenceBase(InstrumentModule):
                 raise ValueError(
                     f"Subsequence config ({name}) must be of type dict,"
                     f" is {type(sub_seq_conf)}")
-            if 'parameters' in seq_conf['config']:
-                sub_seq_conf = seq_conf['config']
-            else:
-                sub_seq_conf = {'parameters': seq_conf['config']}
+            if 'parameters' not in seq_conf['config']:
+                raise KeyError(
+                    f"Config for {self.full_name}__{name} does not contain "
+                    "'parameters' key."
+                )
+            sub_seq_conf = seq_conf['config']
         ### Check if kwargs available and of type dict
         if 'kwargs' in seq_conf:
             kwargs = seq_conf['kwargs']
