@@ -19,6 +19,7 @@ release = 'v2.1.3'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
+    "myst_nb",
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",       # Google/NumPy-style docstrings
     "sphinx_autodoc_typehints",  # show type hints in docs
@@ -27,7 +28,7 @@ extensions = [
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
-
+jupyter_execute_notebooks = "off"
 
 
 # -- Options for HTML output -------------------------------------------------
