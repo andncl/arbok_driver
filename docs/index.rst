@@ -12,7 +12,5 @@ A wonderful placeholder for a wonderful package
    :maxdepth: 2
    :caption: Contents:
 
-   0_Measurement_example
-   1_parameterizing_sequences
-   2_Readout_sequences
+   tutorials
    modules
