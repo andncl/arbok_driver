@@ -578,7 +578,7 @@ class SequenceBase(InstrumentModule):
                     'sequence': default_sequence,
                     'parameters': {},
                     }
-                kwargs = seq_conf['kwargs'] if 'kwargs' in seq_conf else None
+                kwargs = seq_conf.get('kwargs', {})
                 seq_instance = self._add_subsequence(
                     name = name,
                     sequence_config = sequence_config,
