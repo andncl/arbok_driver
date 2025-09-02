@@ -1,11 +1,15 @@
-arbok_driver
+API Reference
 ============
 
 .. automodule:: arbok_driver.arbok_driver
    :members:
+   :undoc-members:
+   :show-inheritance:
 
 .. automodule:: arbok_driver.abstract_readout
    :members:
+   :undoc-members:
+   :show-inheritance:
 
 .. automodule:: arbok_driver.device
    :members:

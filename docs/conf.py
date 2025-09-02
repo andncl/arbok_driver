@@ -29,7 +29,10 @@ extensions = [
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 jupyter_execute_notebooks = "off"
-
+autodoc_typehints = "signature"  # default is 'description'
+napoleon_google_docstring = True
+napoleon_numpy_docstring = False
+autodoc_member_order = "bysource"
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
