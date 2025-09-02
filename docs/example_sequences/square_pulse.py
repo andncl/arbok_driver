@@ -1,6 +1,6 @@
 """Module containing generic sequence for a simple square pulse sequence"""
 from qm import qua
-from arbok_driver import SubSequence, Sample, qua_helpers
+from arbok_driver import SubSequence
 
 class SquarePulse(SubSequence):
     """

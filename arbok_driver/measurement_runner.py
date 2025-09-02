@@ -82,7 +82,7 @@ class MeasurementRunner:
 
                 self.progress_bars = {}
                 total_progress = self.progress_tracker.add_task(
-                    description = "[green]Total progress...",
+                    description = f"[green]Total progress...\n0/{self.nr_total_results}",
                     total = self.nr_total_results)
                 batch_progress = self.progress_tracker.add_task(
                     description = "[cyan]Batch progress...",
