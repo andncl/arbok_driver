@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="171mm"
+   height="102mm"
+   viewBox="0 0 171 102"
+   version="1.1"
+   id="svg28704"
+   inkscape:version="1.2.2 (732a01da63, 2022-12-09)"
+   sodipodi:docname="schematic_nested_square.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview28706"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="1.829812"
+     inkscape:cx="443.76144"
+     inkscape:cy="486.38877"
+     inkscape:window-width="3840"
+     inkscape:window-height="2054"
+     inkscape:window-x="1609"
+     inkscape:window-y="-11"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs28701" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       transform="matrix(0.26458333,0,0,0.26458333,-157.19134,-43.426197)"
+       id="g29021">
+      <path
+         d="M 598,183.203 C 598,174.254 605.254,167 614.203,167 H 1217.8 c 8.95,0 16.2,7.254 16.2,16.203 v 346.594 c 0,8.949 -7.25,16.203 -16.2,16.203 H 614.203 C 605.254,546 598,538.746 598,529.797 Z"
+         stroke="#000000"
+         stroke-width="4"
+         stroke-miterlimit="8"
+         fill="#78206e"
+         fill-rule="evenodd"
+         id="path28937" />
+      <path
+         d="m 617,228.807 c 0,-4.864 3.943,-8.807 8.807,-8.807 h 190.386 c 4.864,0 8.807,3.943 8.807,8.807 v 188.386 c 0,4.864 -3.943,8.807 -8.807,8.807 H 625.807 C 620.943,426 617,422.057 617,417.193 Z"
+         stroke="#000000"
+         stroke-width="4"
+         stroke-miterlimit="8"
+         fill="#ffc000"
+         fill-rule="evenodd"
+         id="path28939" />
+      <path
+         d="m 617.5,305.877 c 0,-1.865 1.512,-3.377 3.377,-3.377 h 132.246 c 1.865,0 3.377,1.512 3.377,3.377 v 72.246 c 0,1.865 -1.512,3.377 -3.377,3.377 H 620.877 c -1.865,0 -3.377,-1.512 -3.377,-3.377 z"
+         stroke="#000000"
+         stroke-width="3"
+         stroke-miterlimit="8"
+         fill="#3b7d23"
+         fill-rule="evenodd"
+         id="path28941" />
+      <text
+         fill="#ffffff"
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="24px"
+         transform="translate(607.93,202)"
+         id="text28943">ArbokDriver</text>
+      <text
+         fill="#ffffff"
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="24px"
+         transform="translate(744.93,202)"
+         id="text28945">:</text>
+      <text
+         fill="#ffffff"
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="24px"
+         transform="translate(760.93,202)"
+         id="text28947">mock_driver</text>
+      <text
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="19px"
+         transform="translate(626.919,248)"
+         id="text28949">Measurement:</text>
+      <text
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="19px"
+         transform="translate(626.919,271)"
+         id="text28951">m</text>
+      <text
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="19px"
+         transform="translate(642.919,271)"
+         id="text28953">ock_measurement</text>
+      <text
+         fill="#ffffff"
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="16px"
+         transform="translate(623.123,327)"
+         id="text28955">SquarePulse</text>
+      <text
+         fill="#ffffff"
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="16px"
+         transform="translate(623.123,346)"
+         id="text28957">(</text>
+      <text
+         fill="#ffffff"
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="16px"
+         transform="translate(628.123,346)"
+         id="text28959">SubSequence</text>
+      <text
+         fill="#ffffff"
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="16px"
+         transform="translate(736.123,346)"
+         id="text28961">):</text>
+      <text
+         fill="#ffffff"
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(623.123,365)"
+         id="text28963">s</text>
+      <text
+         fill="#ffffff"
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(631.123,365)"
+         id="text28965">quare_puls</text>
+      <text
+         fill="#ffffff"
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(708.123,365)"
+         id="text28967">e</text>
+      <path
+         d="M 871,230.167 C 871,222.895 876.895,217 884.167,217 h 281.663 c 7.27,0 13.17,5.895 13.17,13.167 v 291.666 c 0,7.272 -5.9,13.167 -13.17,13.167 H 884.167 C 876.895,535 871,529.105 871,521.833 Z"
+         stroke="#000000"
+         stroke-width="4"
+         stroke-miterlimit="8"
+         fill="#ffc000"
+         fill-rule="evenodd"
+         id="path28969" />
+      <path
+         d="m 871.5,302.92 c 0,-1.889 1.531,-3.42 3.42,-3.42 h 132.16 c 1.89,0 3.42,1.531 3.42,3.42 v 73.16 c 0,1.889 -1.53,3.42 -3.42,3.42 H 874.92 c -1.889,0 -3.42,-1.531 -3.42,-3.42 z"
+         stroke="#000000"
+         stroke-width="3"
+         stroke-miterlimit="8"
+         fill="#3b7d23"
+         fill-rule="evenodd"
+         id="path28971" />
+      <text
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="19px"
+         transform="translate(880.619,245)"
+         id="text28973">Measurement:</text>
+      <text
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="19px"
+         transform="translate(880.619,268)"
+         id="text28975">neste</text>
+      <text
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="19px"
+         transform="translate(927.619,268)"
+         id="text28977">d</text>
+      <text
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="19px"
+         transform="translate(938.619,268)"
+         id="text28979">_measurement</text>
+      <text
+         fill="#ffffff"
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="16px"
+         transform="translate(876.823,324)"
+         id="text28981">SquarePulse</text>
+      <text
+         fill="#ffffff"
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="16px"
+         transform="translate(876.823,343)"
+         id="text28983">(</text>
+      <text
+         fill="#ffffff"
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="16px"
+         transform="translate(881.823,343)"
+         id="text28985">SubSequence</text>
+      <text
+         fill="#ffffff"
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="16px"
+         transform="translate(989.823,343)"
+         id="text28987">):</text>
+      <text
+         fill="#ffffff"
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(876.823,362)"
+         id="text28989">s</text>
+      <text
+         fill="#ffffff"
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(884.823,362)"
+         id="text28991">quare_pulse_1</text>
+      <path
+         d="m 873.5,403.544 c 0,-2.785 2.258,-5.044 5.044,-5.044 h 267.916 c 2.78,0 5.04,2.259 5.04,5.044 v 107.912 c 0,2.786 -2.26,5.044 -5.04,5.044 H 878.544 c -2.786,0 -5.044,-2.258 -5.044,-5.044 z"
+         stroke="#000000"
+         stroke-width="3"
+         stroke-miterlimit="8"
+         fill="#3b7d23"
+         fill-rule="evenodd"
+         id="path28993" />
+      <path
+         d="m 873.5,431.954 c 0,-0.803 0.651,-1.454 1.454,-1.454 h 252.096 c 0.8,0 1.45,0.651 1.45,1.454 v 31.093 c 0,0.802 -0.65,1.453 -1.45,1.453 H 874.954 c -0.803,0 -1.454,-0.651 -1.454,-1.453 z"
+         stroke="#000000"
+         stroke-width="3"
+         stroke-miterlimit="8"
+         fill="#92d050"
+         fill-rule="evenodd"
+         id="path28995" />
+      <text
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="16px"
+         transform="translate(882.979,454)"
+         id="text28997">SquarePulse</text>
+      <text
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="16px"
+         transform="translate(980.979,454)"
+         id="text28999">:</text>
+      <text
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(989.979,454)"
+         id="text29001">square_pulse_</text>
+      <text
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(1092.98,454)"
+         id="text29003">2</text>
+      <path
+         d="m 871.5,474.954 c 0,-0.803 0.651,-1.454 1.454,-1.454 h 254.096 c 0.8,0 1.45,0.651 1.45,1.454 v 31.092 c 0,0.803 -0.65,1.454 -1.45,1.454 H 872.954 c -0.803,0 -1.454,-0.651 -1.454,-1.454 z"
+         stroke="#000000"
+         stroke-width="3"
+         stroke-miterlimit="8"
+         fill="#92d050"
+         fill-rule="evenodd"
+         id="path29005" />
+      <text
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="16px"
+         transform="translate(881.043,496)"
+         id="text29007">SquarePulse</text>
+      <text
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="16px"
+         transform="translate(979.043,496)"
+         id="text29009">:</text>
+      <text
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(988.043,496)"
+         id="text29011">square_pulse_</text>
+      <text
+         font-family="Arial, Arial_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(1091.04,496)"
+         id="text29013">3</text>
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="16px"
+         transform="translate(880.619,421)"
+         id="text29015">SubSequence</text>
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="700"
+         font-size="16px"
+         transform="translate(981.619,421)"
+         id="text29017">:</text>
+      <text
+         fill="#ffffff"
+         font-family="Aptos, Aptos_MSFontService, sans-serif"
+         font-weight="400"
+         font-size="16px"
+         transform="translate(989.619,421)"
+         id="text29019">complex_seq</text>
+    </g>
+  </g>
+</svg>

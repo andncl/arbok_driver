@@ -10,6 +10,10 @@ square_pulse_config = {
             'type': Time,
             'value': 100,
         },
+        't_ramp': {
+            'type': Time,
+            'value': 200,
+        },
         'element': {
             'type': String,
             'value': 'gate_1',
