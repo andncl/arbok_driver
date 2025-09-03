@@ -13,7 +13,7 @@ hold_offset_duration = 200
 gate_1_amp = 0.25
 gate_2_amp = 0.25
 
-qm_config = {
+opx_config = {
     "version": 1,
     "controllers": {
         "con1": {

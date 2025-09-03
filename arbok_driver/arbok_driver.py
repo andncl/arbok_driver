@@ -159,7 +159,7 @@ class ArbokDriver(qc.Instrument):
     def print_qua_program_to_file(
             self,
             path: str,
-            qua_program = None,
+            qua_program,
             add_config: bool = False
             ) -> None:
         """
@@ -170,9 +170,6 @@ class ArbokDriver(qc.Instrument):
             qua_program (program): QUA program to be printed
             add_config (bool): Whether config is added to output file
         """
-        if qua_program is None:
-            print("Generating qua program from sequences")
-            qua_program = self.get_qua_program()
         with open(path, 'w', encoding="utf-8") as file:
             if self.device is not None and add_config:
                 file.write(generate_qua_script(
