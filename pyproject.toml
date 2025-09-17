@@ -22,11 +22,11 @@ dependencies = [
     "plottr",
     "ipython",
     "scipy",
-    "qm-qua == 1.2.1",
-    "qcodes == 0.53",
-    "qualang_tools == 0.19.1",
-    "qcodes-contrib-drivers == 0.23",
-    "rich ~= 14.0",
+    "qm-qua >= 1.2.1",
+    "qcodes >= 0.53",
+    "qualang_tools >= 0.19",
+    "qcodes-contrib-drivers >= 0.23",
+    "rich >= 14.0",
 ]
 dynamic = ["version"]
 
