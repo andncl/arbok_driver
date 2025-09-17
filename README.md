@@ -3,7 +3,7 @@ QCoDeS compatible driver for the OPX+ from Quantum Machines
 Arbok is taylored for routines using the Quantum Machines OPX(+) quantum control hardware.
 
 ## Installation
-Installation via pip:
+Installation via the [latest pip release](https://pypi.org/project/arbok-driver/) :
 
 ```bash
 pip install arbok-driver
@@ -86,6 +86,7 @@ jupyter lab
 ```
 ### 2) Launching plottr-inspectr
 Exactly as described above!
+
 
 
 
