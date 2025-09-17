@@ -1,12 +1,14 @@
 """Module containing various utils"""
 import logging
+from importlib.util import spec_from_file_location, module_from_spec
+
+from anytree import Node
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from qcodes.instrument import Instrument
 from qcodes.station import Station
-from importlib.util import spec_from_file_location, module_from_spec
 
 def plot_qmm_simulation_results(simulated_devices):
     """ 
@@ -225,3 +227,10 @@ def get_module(name: str = None, mod_path: str = None):
     mod = module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+def dict_to_anytree(name, d, parent=None):
+    """Convert a nested dictionary to an anytree structure."""
+    node = Node(name, parent=parent)
+    for key, val in d.items():
+        dict_to_anytree(key, val, parent=node)
+    return node

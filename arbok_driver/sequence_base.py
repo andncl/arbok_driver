@@ -6,9 +6,7 @@ import types
 import warnings
 import logging
 from functools import reduce
-from asciitree import LeftAligned
-from asciitree.drawing import BoxStyle, BOX_LIGHT
-
+from anytree import RenderTree
 from qcodes.instrument import InstrumentModule
 
 from qm import SimulationConfig, generate_qua_script, qua, QuantumMachinesManager
@@ -128,10 +126,10 @@ class SequenceBase(InstrumentModule):
         for sub_sequence in self._sub_sequences:
             if len(sub_sequence.sub_sequences) > 0:
                 sub_dict = sub_sequence.sub_sequence_dict
-                structure_dict[sub_sequence.short_name] = sub_dict[sub_sequence.short_name]
+                structure_dict[sub_sequence.short_name] = sub_dict
             else:
                 structure_dict[sub_sequence.short_name] = {}
-        return {self.short_name: structure_dict}
+        return structure_dict # {self.short_name: structure_dict}
 
     @property
     def gettables(self) -> list:
@@ -170,19 +168,14 @@ class SequenceBase(InstrumentModule):
         for param_name, param_dict in config.items():
             self._add_param(param_name, param_dict)
 
-    def draw_sub_sequence_tree(
-            self,
-            draw_style: BoxStyle = BoxStyle(gfx=BOX_LIGHT, horiz_len=1),
-        ) -> None:
+    def draw_sub_sequence_tree(self) -> None:
         """
         Draws a tree of the subsequences of the sequence with their names and
         types
-
-        Args:
-            box_style (BoxStyle): Style of the box to draw the tree with
         """
-        tr = LeftAligned(draw=draw_style)
-        print(tr(self.sub_sequence_dict))
+        root_node = utils.dict_to_anytree(self.short_name, self.sub_sequence_dict)
+        for pre, _, node in RenderTree(root_node):
+            print(f"{pre}{node.name}")
 
     def get_qua_program_as_str(self) -> str:
         """Returns the qua program as str. Will be compiled if it wasnt yet"""
