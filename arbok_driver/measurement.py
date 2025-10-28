@@ -16,6 +16,7 @@ import qcodes as qc
 from qcodes.dataset.data_set import DataSet
 import xarray
 
+from .arbok_measurement_runner import ArbokMeasurementRunner
 from .measurement_runner import MeasurementRunner
 from .gettable_parameter import GettableParameter
 from .sequence_parameter import SequenceParameter
@@ -744,6 +745,49 @@ class Measurement(SequenceBase):
         self._save_qua_program_as_metadata(qua_prog)
         return self.dataset
 
+    def run_native_measurement(
+            self,
+            sql_engine,
+            minio_client,
+            sweep_list: list[dict] | None = None,
+            inner_func = None,
+            qua_program_save_path: str = None,
+            opx_address: str = None,
+            ) -> DataSet:
+        """
+        Runs the measurement with the given sweep list based on MeasurementRunner
+        class
+        TODO: add default save path! 
+
+        Args:
+            sql_engine: The SQL engine to use for the measurement.
+            minio_client: The MinIO client to use for the measurement.
+            sweep_list (list[dict]): List of dictionaries with parameters as keys
+                and np.ndarrays as setpoints. Each list entry creates one sweep axis.
+                If you want to sweep params concurrently enter more entries into
+                their sweep dict
+            inner_func (callable): The function to be executed for each setpoint
+                in the sweep list (e.g on every opx data fetch)
+            qua_program_save_path (str): The file path to save the compiled
+                QUA program. Defaults to None. If not given, the program is
+                being auto-saved next to the database.
+            opx_address (str): The address of the OPX. Defaults to None. If not
+                given does not attempt to connect to the OPX.
+        """
+        if opx_address is not None:
+            self.driver.connect_opx(opx_address)
+        qua_prog = self.compile_qua_and_run(save_path = qua_program_save_path)
+        if qua_program_save_path is None:
+            self._auto_save_qua_program(qua_prog)
+        self.measurement_runner = self.get_measurement_runner(sweep_list)
+        self.measurement_runner.run_arbok_measurement(
+            inner_func = inner_func)
+        self._dataset = self.measurement_runner.datasaver.dataset
+        self._xr_dataset = self.dataset.to_xarray_dataset()
+        self._run_id = self.dataset.run_id
+        self._save_qua_program_as_metadata(qua_prog)
+        return self.dataset
+
     def get_measurement_runner(
             self, sweep_list: list[dict] | None = None) -> MeasurementRunner:
         """
@@ -760,6 +804,26 @@ class Measurement(SequenceBase):
         """
         if self.measurement_runner is None:
             self.measurement_runner = MeasurementRunner(
+                measurement = self,
+                sweep_list = sweep_list)
+        return self.measurement_runner
+
+    def get_arbok_measurement_runner(
+            self, sweep_list: list[dict] | None = None) -> MeasurementRunner:
+        """
+        Returns the measurement runner for the current measurement
+
+        Args:
+            sweep_list (list[dict]): List of dictionaries with parameters as keys
+                and np.ndarrays as setpoints. Each list entry creates one sweep axis.
+                If you want to sweep params concurrently enter more entries into
+                their sweep dict
+
+        Returns:
+            MeasurementRunner: The measurement runner instance
+        """
+        if self.measurement_runner is None:
+            self.measurement_runner = ArbokMeasurementRunner(
                 measurement = self,
                 sweep_list = sweep_list)
         return self.measurement_runner
