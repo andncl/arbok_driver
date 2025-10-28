@@ -19,10 +19,13 @@ dependencies = [
     "jupyterlab",
     "numpy >= 1.23",
     "matplotlib",
+    "minio ~= 7.2",
     "ipython",
+    "psycopg2-binary ~= 2.9",
     "s3fs~=2025.9",
     "scipy", 
     "SQLAlchemy ~= 2.0",
+    
     "qm-qua >= 1.2.1",
     "qcodes >= 0.53",
     "qualang_tools >= 0.19",
