@@ -5,9 +5,13 @@ import logging
 import copy
 import time
 import warnings
+import uuid
 
 import numpy as np
 from rich.progress import Progress
+import xarray as xr
+
+from .sqlalchemy_classes import SqlRun, 
 
 if TYPE_CHECKING:
     from arbok_driver import Measurement
@@ -20,44 +24,38 @@ class ArbokMeasurementRunner:
     def __init__(
         self,
         measurement: Measurement,
-        sweep_list: list[dict] | None = None,
+        ext_sweep_list: list[dict] | None = None,
         register_all: bool = False
         ):
-
         self.measurement = measurement
-        self.sweep_list = sweep_list
+        self.arbok_driver = measurement.driver
+        self.arbok_driver.check_db_engine_and_bucket_connected()
+        self.ext_sweep_list = ext_sweep_list
 
-        if self.sweep_list is not None:
-            sweep_lengths = [len(next(iter(dic.values()))) for dic in sweep_list]
-            self.nr_total_results =  np.prod(sweep_lengths)
-        else:
-            self.nr_total_results = 1
-            self.sweep_list = []
-            warnings.warn(
-                "NO sweeps outside the OPX registerd. Thus the measurement only"
-                " fills the buffer once and finishes "
-                "(e.g only lower progres bar)")
+        self.opx_dims, self.opx_coords = generate_dims_and_coords(
+            self.measurement.sweeps)
+        self.ext_dims, self.ext_coords = generate_dims_and_coords(
+            self.ext_sweep_list) if self.ext_sweep_list is not None else ([], {})
+        self.dims = self.ext_dims + self.opx_dims
+        self.coords = {**self.ext_coords, **self.opx_coords}
 
-        self.result_args_dict = self._get_result_arguments(register_all)
+        self.nr_total_batches = self._calculate_nr_total_batches()
         self.inner_func = None
         self.progress_tracker = None
         self.progress_bars = None
-        self.counter = 0
+        self.batch_count = 0
 
-        self.datasaver = None
+        self.sql_run = None
+        self.minio_store = None
+        self.bucket_entry_name = None
 
-    def generate_dims_and_coords(self) -> tuple[list[str], dict[str, tuple[str, list]]]:
-        dims = []
-        coords = {}
-        for sweep in self.measurement.sweeps:
-            conf = sweep.config
-            for i, (parameter, array) in enumerate(conf.items()):
-                if i == 0:
-                    dims.append(parameter.register_name)
-                coords[parameter.register_name] = (
-                    dims[-1], array
-                )
-        return dims, coords
+        ### Coordinate register to correcltly index incoming opx batches
+        ### OPX coords are always the same for each batch
+        ### External coords change with each batch
+        self.temp_batch_coordinates = {
+            (p, (dim, None)) for p, (dim, None) in self.ext_coords.items()}
+        self.temp_batch_coordinates.update(self.opx_coords)
+
     def run_arbok_measurement(self, inner_func: callable = None):
         """
         Runs the measurement with the given inner function.
@@ -71,56 +69,41 @@ class ArbokMeasurementRunner:
         """
         logging.debug("Preparing params and gettables for measurement")
         self.inner_func = inner_func
-        self._prepare_params_and_gettables()
-        # Run the measurement with the recursive measurement loop
         try:
             logging.debug("Running measurement with %s", self.measurement.name)
-            self.datasaver = self._build_qc_measurement()
+            self._run_measurement()
         except KeyboardInterrupt:
             logging.debug("Measurement interrupted by user.")
             print("Measurement interrupted by user.")
             return
 
-    def _build_qc_measurement(self):
+    def _run_measurement(self):
         """
-        Builds the QCoDeS measurement object for the measurement.
+        Builds a native measurement object for the measurement.
         """
-        self.counter = 0
-        with self.qc_measurement.run() as datasaver:
-            self.datasaver = datasaver
-            with Progress() as self.progress_tracker:
-                ### Adding progress bars
-
-                self.progress_bars = {}
-                total_progress = self.progress_tracker.add_task(
-                    description = f"[green]Total progress...\n0/{self.nr_total_results}",
-                    total = self.nr_total_results)
-                batch_progress = self.progress_tracker.add_task(
-                    description = "[cyan]Batch progress...",
-                    total = self.measurement.sweep_size)
-                self.progress_bars['total_progress'] = total_progress
-                self.progress_bars['batch_progress'] = batch_progress
-                self._create_recursive_measurement_loop(
-                    self.sweep_list, datasaver)
-            print("Measurement finished!")
-        return datasaver
+        self.batch_count = 0
+        self.add_run_row_to_database()
+        with Progress() as self.progress_tracker:
+            self.create_progress_bars()
+            self._create_recursive_measurement_loop(
+                self.ext_sweep_list)
+        print("Measurement finished!")
 
     def _create_recursive_measurement_loop(
             self,
-            sweep_list: list[dict],
-            datasaver
+            ext_sweep_list: list[dict],
             ):
         """
-        Creates a recursive measurement loop over the sweep_list.
+        Creates a recursive measurement loop over the ext_sweep_list.
 
         Args:
-            sweep_list (list[dict]): List of dictionaries containing the sweep
+            ext_sweep_list (list[dict]): List of dictionaries containing the sweep
                 parameters.
             datasaver (DataSaver): The QCoDeS DataSaver object to save results to.
         """
         # Copy to avoid modifying the original list
-        sweep_list = copy.copy(sweep_list)
-        if not sweep_list:
+        ext_sweep_list = copy.copy(ext_sweep_list)
+        if not ext_sweep_list:
             # If the sweep list is empty, execute the inner function
             if self.inner_func is not None:
                 self.inner_func()
@@ -132,98 +115,129 @@ class ArbokMeasurementRunner:
             self.measurement.wait_until_result_buffer_full(
                 (self.progress_bars['batch_progress'], self.progress_tracker)
             )
-            self._save_results(datasaver)
+            self._save_results()
             return
 
         ### The first axis will be popped from the list and iterated over
-        sweep_dict = sweep_list.pop(0)
+        sweep_dict = ext_sweep_list.pop(0)
         sweep_axis_size = len(list(sweep_dict.values())[0])
-        if sweep_axis_size <= 2:
-            warnings.warn(
-                "Measurements with axis sizes less of 2 or less are not recommended."
-                " Results may not be displayable with plottr."
-            )
         for idx in range(sweep_axis_size):
             ### The parameter values are set for the current iteration
             for param, values in sweep_dict.items():
                 value = values[idx]
                 logging.debug('Setting %s to %s', param.instrument.name, value)
                 param.set(value)
-                ### The parameter is added to the result arguments dict if its
-                ### dict entry is registered
-                if param in self.result_args_dict:
-                    self.result_args_dict[param] = (param, value)
-                else:
-                    logging.debug( "Param %s on %s not registered",
-                        param.instrument, param.name)
+                self.last_updated_dim = param.register_name
+                self.temp_batch_coordinates[param.register_name][1] = value
             self._create_recursive_measurement_loop(
-                sweep_list = sweep_list,
-                datasaver = datasaver,
-            )
+                ext_sweep_list=ext_sweep_list)
 
-    def _save_results(self, datasaver):
+    def _save_results(self):
         """
         Saves the results of the measurement to the datasaver.
         
         Args:
             datasaver (DataSaver): The QCoDeS DataSaver object to save results to.
         """
-        self.counter += 1
-        result_args_temp = []
+        dataset = xr.Dataset(
+            self.dims = self.dims,
+            coords = self.temp_batch_coordinates
+        )
         for _, gettable in self.measurement.gettables.items():
             result = gettable.fetch_results()
-            result_args_temp.append(
-                (gettable, result)
+            dataset[gettable.register_name] = (self.dims, result)
+        self.save_dataset_to_store(dataset)
+        self.batch_count += 1
+        self.update_total_progress_bar()
+        logging.debug("Results saved")
+
+    def _calculate_nr_total_batches(self) -> int:
+        """
+        Calculates the total number of batches for the measurement.
+
+        Returns:
+            int: The total number of batches.
+        """
+        if self.ext_sweep_list is not None:
+            ext_sweep_lengths = [
+                len(next(iter(dic.values()))) for dic in ext_sweep_list]
+            return np.prod(ext_sweep_lengths)
+        else:
+            self.ext_sweep_list = []
+            warnings.warn(
+                "NO sweeps outside the OPX registerd. Thus the measurement only"
+                " fills the buffer once and finishes "
+                "(e.g only lower progres bar)")
+            return 1
+
+    def add_run_row_to_database(self) -> None:
+        """
+        Adds a new run row to the database for the current measurement.
+        """
+        with Session(self.arbok_driver.engine) as session:
+            self.sql_run = SqlRun(
+                exp_id=1,
+                uuid=str(uuid.uuid4()),
+                name=self.measurement.qc_measurement_name,
+                device=self.device.name,
+                sub_device=self.device.sub_device_name,
+                setup=None,
+                start_time=time.time(),
             )
-        ### Retreived results are added to the datasaver
-        result_args_temp += list(self.result_args_dict.values())
-        datasaver.add_result(*result_args_temp)
+            session.add(self.sql_run)
+            session.commit()
+            print("Inserted run_id:", self.sql_run.run_id)
+            self.bucket_entry_name = f"{self.sql_run.run_id}_{self.sql_run.uuid}"
+            self.minio_store = self.arbok_driver.minio_filesystem.get_mapper(
+                f"dev/{self.bucket_entry_name}")
+
+    def save_dataset_to_store(self, dataset: xr.Dataset) -> None:
+        """
+        Saves the given dataset to the MinIO store.
+
+        Args:
+            dataset (xr.Dataset): The dataset to be saved.
+        """
+        if self.batch_count >= 0:
+            da.to_zarr(self.minio_store, mode='w')
+        else:
+            da.to_zarr(self.minio_store, mode="a", append_dim=self.last_updated_dim)
+            
+    def create_progress_bars(self) -> None:
+        """
+        Creates progress bars for the measurement.
+        """
+        total_progress = self.progress_tracker.add_task(
+            description = f"[green]Total progress...\n0/{self.nr_total_batches}",
+            total = self.nr_total_batches)
+        batch_progress = self.progress_tracker.add_task(
+            description = "[cyan]Batch progress...",
+            total = self.measurement.sweep_size)
+        self.progress_bars['total_progress'] = total_progress
+        self.progress_bars['batch_progress'] = batch_progress
+
+    def update_total_progress_bar(self) -> None:
+        """
+        Updates the total progress bar after each batch.
+        """
         title = "[green]Total progress\n "
         self.progress_tracker.update(
             self.progress_bars['total_progress'],
             advance=1,
-            description=f"{title}{self.counter}/{self.nr_total_results}"
+            description=f"{title}{self.batch_count}/{self.nr_total_batches}"
             )
         self.progress_tracker.refresh()
-        logging.debug("Results saved")
 
-    def _get_result_arguments(self, register_all: bool = False) -> dict:
-        """
-        Generates a dict of parameters that are varied in the sweeps.
-        The dict will be used to register the results in the measurement.
-        
-        Args:
-            register_all (bool): If True, all settables will be registered in the
-                measurement. If False, only the first settable of each axis will be
-                registered
-        Returns:
-            result_args_dict (dict): Dict with parameters as keys and tuples of
-                (parameter, value) as values. The tuples will be used for
-                `add_result` in the measurement
-        """
-        gettable_setpoints = []
-        result_args_dict = {}
-        for i, sweep_dict in enumerate(self.sweep_list):
-            for j, param in enumerate(list(sweep_dict.keys())):
-                if j == 0 or register_all:
-                    result_args_dict[param] = ()
-                    gettable_setpoints.append(param)
-                else:
-                    logging.debug(
-                        "Not adding settable %s on axis %s", param.name, i)
-        return result_args_dict
-
-    def _prepare_params_and_gettables(self):
-        """
-        Prepare parameters and gettables for the measurement.
-        """
-        for param, _ in self.result_args_dict.items():
-            logging.debug(
-                "Registering sequence parameter %s", param.full_name)
-            self.qc_measurement.register_parameter(param)
-
-        for _, gettable in self.measurement.gettables.items():
-            gettable_setpoints = list(self.result_args_dict.keys())
-            logging.debug("Registering gettable %s", gettable_setpoints)
-            self.qc_measurement.register_parameter(
-                gettable, setpoints = gettable_setpoints)
+def generate_dims_and_coords(sweeps) -> tuple[list[str], dict[str, tuple[str, list]]]:
+    dims = []
+    coords = {}
+    for sweep in sweeps:
+        if isinstance(sweep, Sweep):
+            sweep = sweep.config
+        for i, (parameter, array) in enumerate(sweep.items()):
+            if i == 0:
+                dims.append(parameter.register_name)
+            coords[parameter.register_name] = (
+                dims[-1], array
+            )
+return dims, coords
