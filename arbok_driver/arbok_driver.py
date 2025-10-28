@@ -50,6 +50,9 @@ class ArbokDriver(qc.Instrument):
         self._measurements = []
         self.add_parameter('iteration', get_cmd = None, set_cmd =None)
 
+        self.database_engine = None
+        self.minio_filesystem = None
+
     @property
     def measurements(self) -> list[Measurement]:
         """Measurements to be run within program uploaded to the OPX"""
@@ -134,27 +137,6 @@ class ArbokDriver(qc.Instrument):
         """
         self.qm_job = self.opx.execute(qua_program, **kwargs)
         self.result_handles = self.qm_job.result_handles
-
-    def _register_qc_params_in_measurement(
-            self, measurement: qc.dataset.Measurement):
-        """
-        Configures QCoDeS measurement object from the arbok program
-        
-        Args:
-            measurement (Object): QCoDeS measurement object
-        
-        Returns:
-            measurement (Object): QCoDeS measurement object
-        """
-        if not hasattr(self, 'iteration'):
-            iteration = ShotNumber(name='iteration', instrument=self)
-            self.add_parameter(iteration)
-
-        measurement.register_parameter(self.iteration)
-        for gettable in self.gettables:
-            measurement.register_parameter(
-                gettable, setpoints = (self.iteration,) )
-        return measurement
 
     def print_qua_program_to_file(
             self,
@@ -322,11 +304,17 @@ class ArbokDriver(qc.Instrument):
         measurement_runner = meas.get_measurement_runner(sweep_list_arg)
         return measurement_runner, meas
 
-class ShotNumber(qc.Parameter):
-    """ Parameter that keeps track of averaging during measurement """
-    def __init__(self, name, instrument):
-        super().__init__(name, instrument = instrument)
-        self._count = 0
-
-    def get_raw(self): return self._count
-    def set_raw(self, x): self._count = x
+    def check_db_engine_and_bucket_connected(self):
+        """
+        Checks if database engine and s3 bucket are connected
+        Raises error if not connected
+        TODO: ping both TCP connections to check if still alive
+        """
+        if self.database_engine is None:
+            raise ConnectionError(
+                "No database engine connected! Please connect a database "
+                "engine to the arbok_driver before running measurements.")
+        if self.minio_filesystem is None:
+            raise ConnectionError(
+                "No MinIO filesystem connected! Please connect a MinIO filesystem to the "
+                "arbok_driver before running measurements.")
