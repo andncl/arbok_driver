@@ -10,8 +10,10 @@ import uuid
 import numpy as np
 from rich.progress import Progress
 import xarray as xr
+from sqlalchemy.orm import Session
 
-from .sqlalchemy_classes import SqlRun, 
+from .sweep import Sweep
+from .sqlalchemy_classes import SqlRun
 
 if TYPE_CHECKING:
     from arbok_driver import Measurement
@@ -42,10 +44,10 @@ class ArbokMeasurementRunner:
         self.nr_total_batches = self._calculate_nr_total_batches()
         self.inner_func = None
         self.progress_tracker = None
-        self.progress_bars = None
+        self.progress_bars = {}
         self.batch_count = 0
 
-        self.sql_run = None
+        sql_run = None
         self.minio_store = None
         self.bucket_entry_name = None
 
@@ -53,7 +55,7 @@ class ArbokMeasurementRunner:
         ### OPX coords are always the same for each batch
         ### External coords change with each batch
         self.temp_batch_coordinates = {
-            (p, (dim, None)) for p, (dim, None) in self.ext_coords.items()}
+            p: (dim, None) for p, (dim, _) in self.ext_coords.items()}
         self.temp_batch_coordinates.update(self.opx_coords)
 
     def run_arbok_measurement(self, inner_func: callable = None):
@@ -128,7 +130,9 @@ class ArbokMeasurementRunner:
                 logging.debug('Setting %s to %s', param.instrument.name, value)
                 param.set(value)
                 self.last_updated_dim = param.register_name
-                self.temp_batch_coordinates[param.register_name][1] = value
+                coord_tuple = self.temp_batch_coordinates[param.register_name]
+                self.temp_batch_coordinates[param.register_name] = (
+                    coord_tuple[0], [value])
             self._create_recursive_measurement_loop(
                 ext_sweep_list=ext_sweep_list)
 
@@ -140,13 +144,23 @@ class ArbokMeasurementRunner:
             datasaver (DataSaver): The QCoDeS DataSaver object to save results to.
         """
         dataset = xr.Dataset(
-            self.dims = self.dims,
+            #dims = self.dims,
             coords = self.temp_batch_coordinates
         )
+        self.debug_ds = dataset
         for _, gettable in self.measurement.gettables.items():
-            result = gettable.fetch_results()
-            dataset[gettable.register_name] = (self.dims, result)
+            result_np = gettable.fetch_results()
+            result_xr = xr.DataArray(
+                data = self.bring_result_to_shape(result_np),
+                dims=self.dims,
+                coords=self.temp_batch_coordinates
+                )
+            self.debug_arr = result_xr
+            dataset[gettable.register_name] = result_xr
+            
+            
         self.save_dataset_to_store(dataset)
+        self.update_run_row_in_database()
         self.batch_count += 1
         self.update_total_progress_bar()
         logging.debug("Results saved")
@@ -160,7 +174,7 @@ class ArbokMeasurementRunner:
         """
         if self.ext_sweep_list is not None:
             ext_sweep_lengths = [
-                len(next(iter(dic.values()))) for dic in ext_sweep_list]
+                len(next(iter(dic.values()))) for dic in self.ext_sweep_list]
             return np.prod(ext_sweep_lengths)
         else:
             self.ext_sweep_list = []
@@ -174,22 +188,54 @@ class ArbokMeasurementRunner:
         """
         Adds a new run row to the database for the current measurement.
         """
-        with Session(self.arbok_driver.engine) as session:
-            self.sql_run = SqlRun(
+        with Session(self.arbok_driver.database_engine) as session:
+            sql_run = SqlRun(
                 exp_id=1,
                 uuid=str(uuid.uuid4()),
                 name=self.measurement.qc_measurement_name,
-                device=self.device.name,
-                sub_device=self.device.sub_device_name,
-                setup=None,
+                # device=self.measurement.device.name,
+                coords = list(self.coords.keys()),
+                sweeps = {}, #self.coords,
+                setup='rf2v',
                 start_time=time.time(),
             )
-            session.add(self.sql_run)
+            
+            session.add(sql_run)
             session.commit()
-            print("Inserted run_id:", self.sql_run.run_id)
-            self.bucket_entry_name = f"{self.sql_run.run_id}_{self.sql_run.uuid}"
+            self.run_id = int(sql_run.run_id)
+            print("Inserted run with ID:", sql_run.run_id)
+            self.bucket_entry_name = f"{sql_run.run_id}_{sql_run.uuid}"
             self.minio_store = self.arbok_driver.minio_filesystem.get_mapper(
                 f"dev/{self.bucket_entry_name}")
+
+    def update_run_row_in_database(self) -> None:
+        """
+        Updates the run row in the database after each batch.
+        """
+        with Session(self.arbok_driver.database_engine) as session:
+            sql_run = session.get(SqlRun, self.run_id)
+            # if self.batch_count + 1 >= self.nr_total_batches:
+            if sql_run is None:
+                    raise ValueError(
+                        f"SqlRun with id={self.run_id} not found at batch {self.batch_count}")
+            sql_run.batch_count = self.batch_count + 1
+            sql_run.result_count += self.measurement.sweep_size
+            session.commit()
+
+    def bring_result_to_shape(self, result: xr.DataArray) -> xr.DataArray:
+        """
+        Brings the result DataArray to the correct shape to be added to xarray
+        dataset. With each batch we add one datapoint for each external
+        dimension setpoint. Therefore wrap the result with singleton dimensions
+        for each external dimension.
+
+        Args:
+            result (xr.DataArray): The result DataArray to be reshaped.
+
+        Returns:
+            xr.DataArray: The reshaped DataArray.
+        """
+        return np.reshape(result, (1,)*len(self.ext_dims) + result.shape)
 
     def save_dataset_to_store(self, dataset: xr.Dataset) -> None:
         """
@@ -198,11 +244,11 @@ class ArbokMeasurementRunner:
         Args:
             dataset (xr.Dataset): The dataset to be saved.
         """
-        if self.batch_count >= 0:
-            da.to_zarr(self.minio_store, mode='w')
+        if self.batch_count > 0:
+            dataset.to_zarr(self.minio_store, mode="a", append_dim=self.last_updated_dim)
         else:
-            da.to_zarr(self.minio_store, mode="a", append_dim=self.last_updated_dim)
-            
+            dataset.to_zarr(self.minio_store, mode='w')
+
     def create_progress_bars(self) -> None:
         """
         Creates progress bars for the measurement.
@@ -240,4 +286,4 @@ def generate_dims_and_coords(sweeps) -> tuple[list[str], dict[str, tuple[str, li
             coords[parameter.register_name] = (
                 dims[-1], array
             )
-return dims, coords
+    return dims, coords
