@@ -708,7 +708,7 @@ class Measurement(SequenceBase):
 
     def run_measurement(
             self,
-            sweep_list: list[dict] | None = None,
+            ext_sweep_list: list[dict] | None = None,
             inner_func = None,
             qua_program_save_path: str = None,
             opx_address: str = None,
@@ -720,7 +720,7 @@ class Measurement(SequenceBase):
         TODO: add default save path! 
 
         Args:
-            sweep_list (list[dict]): List of dictionaries with parameters as keys
+            ext_sweep_list (list[dict]): List of dictionaries with parameters as keys
                 and np.ndarrays as setpoints. Each list entry creates one sweep axis.
                 If you want to sweep params concurrently enter more entries into
                 their sweep dict
@@ -738,7 +738,7 @@ class Measurement(SequenceBase):
         if qua_program_save_path is None:
             self._auto_save_qua_program(qua_prog)
         self.measurement_runner = self.get_measurement_runner(
-            sweep_list, measurement_backend)
+            ext_sweep_list, measurement_backend)
         self.measurement_runner.run_arbok_measurement(
             inner_func = inner_func)
         self._dataset = self.measurement_runner.datasaver.dataset
@@ -749,13 +749,13 @@ class Measurement(SequenceBase):
 
     def get_measurement_runner(
             self,
-            sweep_list: list[dict] | None = None,
+            ext_sweep_list: list[dict] | None = None,
             measurement_backend: str = 'qcodes') -> MeasurementRunner:
         """
         Returns the measurement runner for the current measurement
 
         Args:
-            sweep_list (list[dict]): List of dictionaries with parameters as keys
+            ext_sweep_list (list[dict]): List of dictionaries with parameters as keys
                 and np.ndarrays as setpoints. Each list entry creates one sweep axis.
                 If you want to sweep params concurrently enter more entries into
                 their sweep dict
@@ -769,11 +769,11 @@ class Measurement(SequenceBase):
             if measurement_backend == 'qcodes':
                 self.measurement_runner = MeasurementRunner(
                     measurement = self,
-                    sweep_list = sweep_list)
+                    ext_sweep_list = ext_sweep_list)
             elif measurement_backend == 'native':
                 self.measurement_runner = ArbokMeasurementRunner(
                     measurement = self,
-                    sweep_list = sweep_list)
+                    ext_sweep_list = ext_sweep_list)
             else:
                 raise ValueError(
                     f"Invalid measurement backend: {measurement_backend}. "
@@ -782,12 +782,12 @@ class Measurement(SequenceBase):
         return self.measurement_runner
 
     def get_arbok_measurement_runner(
-            self, sweep_list: list[dict] | None = None) -> ArbokMeasurementRunner:
+            self, ext_sweep_list: list[dict] | None = None) -> ArbokMeasurementRunner:
         """
         Returns the measurement runner for the current measurement
 
         Args:
-            sweep_list (list[dict]): List of dictionaries with parameters as keys
+            ext_sweep_list (list[dict]): List of dictionaries with parameters as keys
                 and np.ndarrays as setpoints. Each list entry creates one sweep axis.
                 If you want to sweep params concurrently enter more entries into
                 their sweep dict
@@ -798,7 +798,7 @@ class Measurement(SequenceBase):
         if self.measurement_runner is None:
             self.measurement_runner = ArbokMeasurementRunner(
                 measurement = self,
-                sweep_list = sweep_list)
+                ext_sweep_list = ext_sweep_list)
         return self.measurement_runner
 
     def wait_until_result_buffer_full(self, progress_tracker: tuple = None):
