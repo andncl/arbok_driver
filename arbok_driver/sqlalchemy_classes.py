@@ -41,10 +41,12 @@ class SqlRun(Base):
 
     ### Timestamps and status
     start_time: Mapped[int] = mapped_column(BigInteger)
-    completed_time: Mapped[int] = mapped_column(BigInteger, default=None, nullable=True)
+    completed_time: Mapped[int] = mapped_column(
+        BigInteger, default=None, nullable=True)
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    measurement_exception: Mapped[str] = mapped_column(Text, default=None, nullable=True)
+    measurement_exception: Mapped[str] = mapped_column(
+        Text, default=None, nullable=True)
     parent_datasets: Mapped[list[int]] = mapped_column(
         ARRAY(Integer), default=None, nullable=True)
 
@@ -68,8 +70,7 @@ class SqlExperiment(Base):
 
     def __repr__(self) -> str:
         return (f"<Experiment(exp_id={self.exp_id}, name='{self.name}', "
-                f"creation_time={self.creation_time}, ") #run_counter={self.run_counter}, "
-                #f"format_string='{self.format_string}')>")
+                f"creation_time={self.creation_time}> ")
 
 class SqlDevice(Base):
     __tablename__ = "devices"
