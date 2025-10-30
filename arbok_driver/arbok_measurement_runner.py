@@ -27,7 +27,6 @@ class ArbokMeasurementRunner:
         self,
         measurement: Measurement,
         ext_sweep_list: list[dict] | None = None,
-        register_all: bool = False
         ):
         self.measurement = measurement
         self.arbok_driver = measurement.driver
