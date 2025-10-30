@@ -7,17 +7,21 @@ from typing import TYPE_CHECKING
 import copy
 
 import numpy as np
+import xarray as xr
 from qm import SimulationConfig, generate_qua_script
 from qm.quantum_machines_manager import QuantumMachinesManager
 import qcodes as qc
+from sqlalchemy.orm import Session
 
 from . import utils
-
 from .measurement import Measurement
+from .sqlalchemy_classes import SqlRun
+
 if TYPE_CHECKING:
     from .device import Device
     from .experiment import Experiment
     from .measurement_runner import MeasurementRunner
+    from .sqlalchemy_classes import SqlRun
 
 class ArbokDriver(qc.Instrument):
     """
@@ -318,3 +322,38 @@ class ArbokDriver(qc.Instrument):
             raise ConnectionError(
                 "No MinIO filesystem connected! Please connect a MinIO filesystem to the "
                 "arbok_driver before running measurements.")
+
+    def get_run_from_id(self, run_id: int) -> SqlRun:
+        """
+        Fetches a QCoDeS run from the connected database engine based on the
+        given run ID
+        
+        Args:
+            run_id (int): ID of the run to be fetched
+        Returns:
+            run (arbok_driver.sqlalchemy_classes.SqlRun): detached run instance
+        """
+        if self.database_engine is None:
+            raise ConnectionError(
+                "No database engine connected! Please connect a database "
+                "engine to the arbok_driver before fetching runs.")
+        with Session(self.database_engine) as session:
+            sql_run = session.get(SqlRun, run_id)
+        return sql_run
+
+    def get_data_from_id(self, run_id: int) -> xr.Dataset:
+        """
+        Fetches data from the connected database engine based on the
+        given run ID
+        
+        Args:
+            run_id (int): ID of the run to fetch data from
+        Returns:
+            xr_dataset (xarray.Dataset): Lazy loaded xarray dataset. Will only
+                load data when using .load() or .compute() methods!
+        """
+        sql_run = self.get_run_from_id(run_id)
+        minio_name = f"{sql_run.run_id}_{sql_run.uuid}"
+        store = self.minio_filesystem.get_mapper(f'dev/{minio_name}')
+        xr_dataset = xr.open_zarr(store, consolidated = True)
+        return xr_dataset
