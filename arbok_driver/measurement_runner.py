@@ -20,20 +20,20 @@ class MeasurementRunner:
     def __init__(
         self,
         measurement: Measurement,
-        sweep_list: list[dict] | None = None,
+        ext_sweep_list: list[dict] | None = None,
         register_all: bool = False
         ):
 
         self.measurement = measurement
         self.qc_measurement  = measurement.get_qc_measurement()
-        self.sweep_list = sweep_list
+        self.ext_sweep_list = ext_sweep_list
 
-        if self.sweep_list is not None:
-            sweep_lengths = [len(next(iter(dic.values()))) for dic in sweep_list]
+        if self.ext_sweep_list is not None:
+            sweep_lengths = [len(next(iter(dic.values()))) for dic in ext_sweep_list]
             self.nr_total_results =  np.prod(sweep_lengths)
         else:
             self.nr_total_results = 1
-            self.sweep_list = []
+            self.ext_sweep_list = []
             warnings.warn(
                 "NO sweeps outside the OPX registerd. Thus the measurement only"
                 " fills the buffer once and finishes "
@@ -90,26 +90,26 @@ class MeasurementRunner:
                 self.progress_bars['total_progress'] = total_progress
                 self.progress_bars['batch_progress'] = batch_progress
                 self._create_recursive_measurement_loop(
-                    self.sweep_list, datasaver)
+                    self.ext_sweep_list, datasaver)
             print("Measurement finished!")
         return datasaver
 
     def _create_recursive_measurement_loop(
             self,
-            sweep_list: list[dict],
+            ext_sweep_list: list[dict],
             datasaver
             ):
         """
-        Creates a recursive measurement loop over the sweep_list.
+        Creates a recursive measurement loop over the ext_sweep_list.
 
         Args:
-            sweep_list (list[dict]): List of dictionaries containing the sweep
+            ext_sweep_list (list[dict]): List of dictionaries containing the sweep
                 parameters.
             datasaver (DataSaver): The QCoDeS DataSaver object to save results to.
         """
         # Copy to avoid modifying the original list
-        sweep_list = copy.copy(sweep_list)
-        if not sweep_list:
+        ext_sweep_list = copy.copy(ext_sweep_list)
+        if not ext_sweep_list:
             # If the sweep list is empty, execute the inner function
             if self.inner_func is not None:
                 self.inner_func()
@@ -125,7 +125,7 @@ class MeasurementRunner:
             return
 
         ### The first axis will be popped from the list and iterated over
-        sweep_dict = sweep_list.pop(0)
+        sweep_dict = ext_sweep_list.pop(0)
         sweep_axis_size = len(list(sweep_dict.values())[0])
         if sweep_axis_size <= 2:
             warnings.warn(
@@ -146,7 +146,7 @@ class MeasurementRunner:
                     logging.debug( "Param %s on %s not registered",
                         param.instrument, param.name)
             self._create_recursive_measurement_loop(
-                sweep_list = sweep_list,
+                ext_sweep_list = ext_sweep_list,
                 datasaver = datasaver,
             )
 
@@ -192,7 +192,7 @@ class MeasurementRunner:
         """
         gettable_setpoints = []
         result_args_dict = {}
-        for i, sweep_dict in enumerate(self.sweep_list):
+        for i, sweep_dict in enumerate(self.ext_sweep_list):
             for j, param in enumerate(list(sweep_dict.keys())):
                 if j == 0 or register_all:
                     result_args_dict[param] = ()
