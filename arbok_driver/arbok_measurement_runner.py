@@ -6,11 +6,14 @@ import copy
 import time
 import warnings
 import uuid
+import io
+import json
 
 import numpy as np
 from rich.progress import Progress
 import xarray as xr
 from sqlalchemy.orm import Session
+from qm import generate_qua_script
 
 from .sweep import Sweep
 from .sqlalchemy_classes import SqlRun
@@ -33,12 +36,13 @@ class ArbokMeasurementRunner:
         self.arbok_driver.check_db_engine_and_bucket_connected()
         self.ext_sweep_list = ext_sweep_list
 
-        self.opx_dims, self.opx_coords = generate_dims_and_coords(
+        self.opx_dims, self.opx_coords, self.opx_units = generate_dims_and_coords(
             self.measurement.sweeps)
-        self.ext_dims, self.ext_coords = generate_dims_and_coords(
-            self.ext_sweep_list) if self.ext_sweep_list is not None else ([], {})
+        self.ext_dims, self.ext_coords, self.ext_units = generate_dims_and_coords(
+            self.ext_sweep_list) if self.ext_sweep_list is not None else ([], {}, {})
         self.dims = self.ext_dims + self.opx_dims
         self.coords = {**self.ext_coords, **self.opx_coords}
+        self.units = {**self.ext_units, **self.opx_units}
 
         self.nr_total_batches = self._calculate_nr_total_batches()
         self.inner_func = None
@@ -47,7 +51,7 @@ class ArbokMeasurementRunner:
         self.batch_count = 0
 
         sql_run = None
-        self.minio_store = None
+        self.minio_data_store = None
         self.bucket_entry_name = None
 
         ### Coordinate register to correcltly index incoming opx batches
@@ -84,6 +88,8 @@ class ArbokMeasurementRunner:
         """
         self.batch_count = 0
         self.add_run_row_to_database()
+        self._save_qua_program_as_metadata()
+        self._save_qcodes_snapshot_as_metadata()
         with Progress() as self.progress_tracker:
             self.create_progress_bars()
             self._create_recursive_measurement_loop(
@@ -146,6 +152,8 @@ class ArbokMeasurementRunner:
             #dims = self.dims,
             coords = self.temp_batch_coordinates
         )
+        for coord_name in dataset.coords:
+            dataset[coord_name].attrs['units'] = self.units[coord_name]
         self.debug_ds = dataset
         for _, gettable in self.measurement.gettables.items():
             result_np = gettable.fetch_results()
@@ -154,6 +162,8 @@ class ArbokMeasurementRunner:
                 dims=self.dims,
                 coords=self.temp_batch_coordinates
                 )
+            for coord_name in result_xr.coords:
+                result_xr[coord_name].attrs['units'] = self.units[coord_name]
             self.debug_arr = result_xr
             dataset[gettable.register_name] = result_xr
             
@@ -204,8 +214,10 @@ class ArbokMeasurementRunner:
             self.run_id = int(sql_run.run_id)
             print("Inserted run with ID:", sql_run.run_id)
             self.bucket_entry_name = f"{sql_run.run_id}_{sql_run.uuid}"
-            self.minio_store = self.arbok_driver.minio_filesystem.get_mapper(
-                f"dev/{self.bucket_entry_name}")
+            self.minio_data_store = self.arbok_driver.minio_filesystem.get_mapper(
+                f"dev/{self.bucket_entry_name}/data.zarr")
+            self.minio_metadata_store = self.arbok_driver.minio_filesystem.get_mapper(
+                f"dev/{self.bucket_entry_name}/metadata")
 
     def update_run_row_in_database(self) -> None:
         """
@@ -244,9 +256,9 @@ class ArbokMeasurementRunner:
             dataset (xr.Dataset): The dataset to be saved.
         """
         if self.batch_count > 0:
-            dataset.to_zarr(self.minio_store, mode="a", append_dim=self.last_updated_dim)
+            dataset.to_zarr(self.minio_data_store, mode="a", append_dim=self.last_updated_dim)
         else:
-            dataset.to_zarr(self.minio_store, mode='w')
+            dataset.to_zarr(self.minio_data_store, mode='w')
 
     def create_progress_bars(self) -> None:
         """
@@ -273,9 +285,37 @@ class ArbokMeasurementRunner:
             )
         self.progress_tracker.refresh()
 
+    def _save_qua_program_as_metadata(self) -> None:
+        """
+        Saves the QUA program as metadata to the binary bucket.
+        """
+        program_str = generate_qua_script(
+            self.measurement.qua_program,
+            self.measurement.device.config
+        )
+        program_str_binary = io.BytesIO(program_str.encode("utf-8"))
+        self.minio_metadata_store["qua_program.py"] = program_str_binary.getvalue()
+
+    def _save_qcodes_snapshot_as_metadata(self) -> None:
+        """
+        Saves the QCoDeS snapshot as metadata to the binary bucket.
+        """
+        driver = self.measurement.driver
+        if not hasattr(driver, 'station'):
+            print("Not saving QCoDeS snapshot, no station found.")
+            return
+        if driver.station is None:
+            
+            print("Not saving QCoDeS snapshot, no station found.")
+            return
+        snapshot_dict = driver.station.snapshot(update=False)
+        snapshot_bytes = json.dumps(snapshot_dict, indent=2).encode("utf-8")
+        self.minio_metadata_store["qcodes_snapshot.json"] = snapshot_bytes
+
 def generate_dims_and_coords(sweeps) -> tuple[list[str], dict[str, tuple[str, list]]]:
     dims = []
     coords = {}
+    units = {}
     for sweep in sweeps:
         if isinstance(sweep, Sweep):
             sweep = sweep.config
@@ -285,4 +325,5 @@ def generate_dims_and_coords(sweeps) -> tuple[list[str], dict[str, tuple[str, li
             coords[parameter.register_name] = (
                 dims[-1], array
             )
-    return dims, coords
+            units[parameter.register_name] = parameter.unit
+    return dims, coords, units
