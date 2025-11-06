@@ -135,7 +135,7 @@ class Sweep:
                 setpoints = parameter.convert_to_real_units(
                     self.config[parameter])
                 self._config_to_register[parameter] = setpoints*parameter.scale
-                parameter.set(setpoints)
+                parameter.set_raw(setpoints.tolist()) ### CHECK IF THIS IS OK BEFORE MERGING
             elif i == 0:
                 value = self.config[parameter]
                 setpoints = parameter.convert_to_real_units(self.config[parameter])
@@ -147,7 +147,7 @@ class Sweep:
                             " the parameter in the config file. If it does not"
                             " have a type, set the scale manually."
                             )
-                    parameter.set(setpoints)
+                    parameter.set_raw(setpoints.tolist())
                     self._config_to_register[parameter] = setpoints*parameter.scale
                 elif isinstance(value, int):
                     ### creates a mock set of values (stream array indices)
