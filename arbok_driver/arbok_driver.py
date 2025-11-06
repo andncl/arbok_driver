@@ -56,6 +56,7 @@ class ArbokDriver(qc.Instrument):
 
         self.database_engine = None
         self.minio_filesystem = None
+        self.station = None
 
     @property
     def measurements(self) -> list[Measurement]:
@@ -325,7 +326,7 @@ class ArbokDriver(qc.Instrument):
 
     def get_run_from_id(self, run_id: int) -> SqlRun:
         """
-        Fetches a QCoDeS run from the connected database engine based on the
+        Fetches a run from the connected arbok database engine based on the
         given run ID
         
         Args:
@@ -354,6 +355,6 @@ class ArbokDriver(qc.Instrument):
         """
         sql_run = self.get_run_from_id(run_id)
         minio_name = f"{sql_run.run_id}_{sql_run.uuid}"
-        store = self.minio_filesystem.get_mapper(f'dev/{minio_name}')
+        store = self.minio_filesystem.get_mapper(f'dev/{minio_name}/data.zarr')
         xr_dataset = xr.open_zarr(store, consolidated = True)
         return xr_dataset
