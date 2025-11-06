@@ -438,7 +438,7 @@ class Measurement(SequenceBase):
         self.register_gettables(*list(self.gettables.values()))
 
         self.nr_registered_results = 0
-        qua_program = self.get_qua_program()
+        self.qua_program = self.get_qua_program()
         print('QUA program compiled')
         if save_path:
             # Check if the directory exists
@@ -450,12 +450,12 @@ class Measurement(SequenceBase):
                 )
             with open(save_path, 'w', encoding="utf-8") as file:
                 file.write(
-                    generate_qua_script(qua_program, self.parent.device.config))
+                    generate_qua_script(self.qua_program, self.parent.device.config))
         print('QUA program saved')
 
         if not self.driver.is_mock:
             # This is the real run, not a dummy run
-            self.driver.run(qua_program)
+            self.driver.run(self.qua_program)
             self.qm_job = self.driver.qm_job
             self._add_streams_to_gettables()
             self.batch_counter = getattr(
@@ -463,7 +463,7 @@ class Measurement(SequenceBase):
                 f"{self.name}_shots"
             )
         print('QUA program compiled and is running')
-        return qua_program
+        return self.qua_program
 
     def _add_streams_to_gettables(self):
         for _, gettable in self.gettables.items():
@@ -741,10 +741,10 @@ class Measurement(SequenceBase):
             ext_sweep_list, measurement_backend)
         self.measurement_runner.run_arbok_measurement(
             inner_func = inner_func)
-        self._dataset = self.measurement_runner.datasaver.dataset
-        self._xr_dataset = self.dataset.to_xarray_dataset()
-        self._run_id = self.dataset.run_id
-        self._save_qua_program_as_metadata(qua_prog)
+        # self._dataset = self.measurement_runner.datasaver.dataset
+        # self._xr_dataset = self.dataset.to_xarray_dataset()
+        # self._run_id = self.dataset.run_id
+        # self._save_qua_program_as_metadata(qua_prog)
         return self.dataset
 
     def get_measurement_runner(
