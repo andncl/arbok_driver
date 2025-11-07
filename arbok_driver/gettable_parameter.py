@@ -44,11 +44,6 @@ class GettableParameter(ParameterWithSetpoints):
             readout (Readout): Readout class summarizing data streams and variables
         """
         super().__init__(name, *args, vals=Arrays(shape=(1,)), **kwargs)
-        ### The following attributes hold the QUA variables and streams
-        ### those can only be generated upon qua program compilation
-        self.qua_var = None
-        self.qua_buffer = None
-        self.qua_stream = None
 
         # self.unit = ""
         # self.label = ""
@@ -57,8 +52,16 @@ class GettableParameter(ParameterWithSetpoints):
         self.read_sequence = read_sequence
         self.read_sequence.add_gettable(self)
         self.measurement = read_sequence.measurement
+        measurement_full_name = f"{self.measurement.driver.short_name}_" \
+            f"{self.measurement.short_name}_"
+        self._register_name = self.full_name.split(measurement_full_name)[-1]
         
         self.reset_measuerement_attributes()
+        ### The following attributes hold the QUA variables and streams
+        ### those can only be generated upon qua program compilation
+        self.qua_var = None
+        self.qua_buffer = None
+        self.qua_stream = None
 
         self.buffer = None
         self.buffer_val = None
