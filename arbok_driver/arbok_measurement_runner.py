@@ -256,7 +256,11 @@ class ArbokMeasurementRunner:
             dataset (xr.Dataset): The dataset to be saved.
         """
         if self.batch_count > 0:
-            dataset.to_zarr(self.minio_data_store, mode="a", append_dim=self.last_updated_dim)
+            dataset.to_zarr(
+                self.minio_data_store,
+                mode="a",
+                append_dim=self.last_updated_dim,
+                )
         else:
             dataset.to_zarr(self.minio_data_store, mode='w')
 
