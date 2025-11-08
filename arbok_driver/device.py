@@ -32,6 +32,7 @@ class Device():
         self.elements = list(self.config['elements'].keys())
         self.divider_config = divider_config
         self._update_master_config(master_config)
+        self.sub_device_name = None
 
     def _update_master_config(self, master_config = None):
         """

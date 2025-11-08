@@ -7,19 +7,24 @@ from typing import TYPE_CHECKING
 import copy
 
 import numpy as np
+import xarray as xr
 from qm import SimulationConfig, generate_qua_script
 from qm.quantum_machines_manager import QuantumMachinesManager
-import qcodes as qc
+from qcodes.instrument import Instrument
+from qcodes.dataset import load_or_create_experiment
+from sqlalchemy.orm import Session
 
 from . import utils
-
 from .measurement import Measurement
+from .sqlalchemy_classes import SqlRun
+
 if TYPE_CHECKING:
     from .device import Device
     from .experiment import Experiment
-    from .measurement_runner import MeasurementRunner
+    from .measurement_runners.measurement_runner_base import MeasurementRunnerBase
+    from .sqlalchemy_classes import SqlRun
 
-class ArbokDriver(qc.Instrument):
+class ArbokDriver(Instrument):
     """
     Class containing all functionality to manage and run modular sequences on a 
     physical OPX instrument
@@ -49,6 +54,10 @@ class ArbokDriver(qc.Instrument):
         self.is_mock = False
         self._measurements = []
         self.add_parameter('iteration', get_cmd = None, set_cmd =None)
+
+        self.database_engine = None
+        self.minio_filesystem = None
+        self.station = None
 
     @property
     def measurements(self) -> list[Measurement]:
@@ -134,27 +143,6 @@ class ArbokDriver(qc.Instrument):
         """
         self.qm_job = self.opx.execute(qua_program, **kwargs)
         self.result_handles = self.qm_job.result_handles
-
-    def _register_qc_params_in_measurement(
-            self, measurement: qc.dataset.Measurement):
-        """
-        Configures QCoDeS measurement object from the arbok program
-        
-        Args:
-            measurement (Object): QCoDeS measurement object
-        
-        Returns:
-            measurement (Object): QCoDeS measurement object
-        """
-        if not hasattr(self, 'iteration'):
-            iteration = ShotNumber(name='iteration', instrument=self)
-            self.add_parameter(iteration)
-
-        measurement.register_parameter(self.iteration)
-        for gettable in self.gettables:
-            measurement.register_parameter(
-                gettable, setpoints = (self.iteration,) )
-        return measurement
 
     def print_qua_program_to_file(
             self,
@@ -257,7 +245,7 @@ class ArbokDriver(qc.Instrument):
             )
         if qc_measurement_name is None:
             qc_measurement_name = experiment.name
-        measurement.qc_experiment = qc.dataset.load_or_create_experiment(
+        measurement.qc_experiment = load_or_create_experiment(
             experiment.name, self.device.name)
         measurement.qc_measurement_name = qc_measurement_name
         measurement.add_subsequences_from_dict(experiment.sequences)
@@ -322,11 +310,52 @@ class ArbokDriver(qc.Instrument):
         measurement_runner = meas.get_measurement_runner(sweep_list_arg)
         return measurement_runner, meas
 
-class ShotNumber(qc.Parameter):
-    """ Parameter that keeps track of averaging during measurement """
-    def __init__(self, name, instrument):
-        super().__init__(name, instrument = instrument)
-        self._count = 0
+    def check_db_engine_and_bucket_connected(self):
+        """
+        Checks if database engine and s3 bucket are connected
+        Raises error if not connected
+        TODO: ping both TCP connections to check if still alive
+        """
+        if self.database_engine is None:
+            raise ConnectionError(
+                "No database engine connected! Please connect a database "
+                "engine to the arbok_driver before running measurements.")
+        if self.minio_filesystem is None:
+            raise ConnectionError(
+                "No MinIO filesystem connected! Please connect a MinIO filesystem to the "
+                "arbok_driver before running measurements.")
 
-    def get_raw(self): return self._count
-    def set_raw(self, x): self._count = x
+    def get_run_from_id(self, run_id: int) -> SqlRun:
+        """
+        Fetches a run from the connected arbok database engine based on the
+        given run ID
+        
+        Args:
+            run_id (int): ID of the run to be fetched
+        Returns:
+            run (arbok_driver.sqlalchemy_classes.SqlRun): detached run instance
+        """
+        if self.database_engine is None:
+            raise ConnectionError(
+                "No database engine connected! Please connect a database "
+                "engine to the arbok_driver before fetching runs.")
+        with Session(self.database_engine) as session:
+            sql_run = session.get(SqlRun, run_id)
+        return sql_run
+
+    def get_data_from_id(self, run_id: int) -> xr.Dataset:
+        """
+        Fetches data from the connected database engine based on the
+        given run ID
+        
+        Args:
+            run_id (int): ID of the run to fetch data from
+        Returns:
+            xr_dataset (xarray.Dataset): Lazy loaded xarray dataset. Will only
+                load data when using .load() or .compute() methods!
+        """
+        sql_run = self.get_run_from_id(run_id)
+        minio_name = f"{sql_run.run_id}_{sql_run.uuid}"
+        store = self.minio_filesystem.get_mapper(f'dev/{minio_name}/data.zarr')
+        xr_dataset = xr.open_zarr(store, consolidated = True)
+        return xr_dataset
