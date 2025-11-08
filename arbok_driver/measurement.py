@@ -770,22 +770,21 @@ class Measurement(SequenceBase):
         Returns:
             MeasurementRunner: The measurement runner instance
         """
-        if self.measurement_runner is None:
-            if measurement_backend == 'qcodes':
-                self.measurement_runner = QCodesMeasurementRunner(
-                    measurement = self,
-                    ext_sweep_list = ext_sweep_list
-                    )
-            elif measurement_backend == 'native':
-                self.measurement_runner = NativeMeasurementRunner(
-                    measurement = self,
-                    ext_sweep_list = ext_sweep_list
-                    )
-            else:
-                raise ValueError(
-                    f"Invalid measurement backend: {measurement_backend}. "
-                    "Choose either 'qcodes' or 'native'."
-                    )
+        if measurement_backend == 'qcodes':
+            self.measurement_runner = QCodesMeasurementRunner(
+                measurement = self,
+                ext_sweep_list = ext_sweep_list
+                )
+        elif measurement_backend == 'native':
+            self.measurement_runner = NativeMeasurementRunner(
+                measurement = self,
+                ext_sweep_list = ext_sweep_list
+                )
+        else:
+            raise ValueError(
+                f"Invalid measurement backend: {measurement_backend}. "
+                "Choose either 'qcodes' or 'native'."
+                )
         return self.measurement_runner
 
     def wait_until_result_buffer_full(self, progress_tracker: tuple = None):
