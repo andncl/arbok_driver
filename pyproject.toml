@@ -22,7 +22,7 @@ dependencies = [
     "minio ~= 7.2",
     "ipython",
     "psycopg2-binary ~= 2.9",
-    "s3fs~=2025.9",
+    "s3fs~=2025.10",
     "scipy", 
     "SQLAlchemy ~= 2.0",
     
