@@ -2,17 +2,15 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 from datetime import datetime
-import copy
 import logging
 import os
 from pathlib import Path
-import time
-import warnings
 
+import qcodes
 from qm import generate_qua_script
-from rich.progress import Progress
 import numpy as np
-from qcodes.dataset.experiment_container import get_DB_location
+# from qcodes.dataset.experiment_container import get_DB_location
+from qcodes.dataset.sqlite.database import get_DB_location
 
 from .measurement_runner_base import MeasurementRunnerBase
 
@@ -44,7 +42,6 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
 
         self.datasaver: QcMeasurement | None = None
         self.qc_dataset: QcDataSet | None = None
-        self.nr_total_batches: int | None = None
 
     def _prepare_measurement(self) -> None:
         """
