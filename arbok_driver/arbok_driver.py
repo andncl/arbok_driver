@@ -10,7 +10,8 @@ import numpy as np
 import xarray as xr
 from qm import SimulationConfig, generate_qua_script
 from qm.quantum_machines_manager import QuantumMachinesManager
-import qcodes as qc
+from qcodes.instrument import Instrument
+from qcodes.dataset import load_or_create_experiment
 from sqlalchemy.orm import Session
 
 from . import utils
@@ -20,10 +21,10 @@ from .sqlalchemy_classes import SqlRun
 if TYPE_CHECKING:
     from .device import Device
     from .experiment import Experiment
-    from .measurement_runner import MeasurementRunner
+    from .measurement_runners.measurement_runner_base import MeasurementRunnerBase
     from .sqlalchemy_classes import SqlRun
 
-class ArbokDriver(qc.Instrument):
+class ArbokDriver(Instrument):
     """
     Class containing all functionality to manage and run modular sequences on a 
     physical OPX instrument
@@ -244,7 +245,7 @@ class ArbokDriver(qc.Instrument):
             )
         if qc_measurement_name is None:
             qc_measurement_name = experiment.name
-        measurement.qc_experiment = qc.dataset.load_or_create_experiment(
+        measurement.qc_experiment = load_or_create_experiment(
             experiment.name, self.device.name)
         measurement.qc_measurement_name = qc_measurement_name
         measurement.add_subsequences_from_dict(experiment.sequences)

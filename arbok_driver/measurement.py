@@ -1,7 +1,6 @@
 """Module containing the Measurement class"""
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from datetime import datetime
 import math
 import time
 import copy
@@ -9,24 +8,31 @@ import logging
 import os
 from collections import Counter
 import warnings
-from pathlib import Path
+
 
 from qm import qua, generate_qua_script
 import qcodes as qc
 from qcodes.dataset.data_set import DataSet
 import xarray
 
-from .arbok_measurement_runner import ArbokMeasurementRunner
-from .measurement_runner import MeasurementRunner
+from .measurement_runners import(
+    NativeMeasurementRunner,
+    QCodesMeasurementRunner
+)
 from .gettable_parameter import GettableParameter
 from .sequence_parameter import SequenceParameter
-from .device import Device
 from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
 from .sweep import Sweep
 
 if TYPE_CHECKING:
     from .arbok_driver import ArbokDriver
+    from .arbok_driver import Device
+    from arbok_driver.measurement_runners.measurement_runner_base import (
+        MeasurementRunnerBase,
+    )
+    from qcodes.dataset import Measurement as QcMeasurement
+    from xarray import Dataset as XrDataset
 
 class Measurement(SequenceBase):
     """Class describing a Measurement in an OPX driver"""
@@ -59,10 +65,12 @@ class Measurement(SequenceBase):
         self._reset_sweeps_setpoints()
         self.driver.add_measurement(self)
 
-        self._is_mock = False
-        self._sweep_dims = None
-        self._sweep_size = None
-        self.measurement_runner = None
+        self.qc_measurement: QcMeasurement | None = None
+
+        self._is_mock: bool = False
+        self._sweep_dims: tuple | None = None
+        self._sweep_size: int | None = None
+        self.measurement_runner: MeasurementRunnerBase | None = None
 
         self.shot_tracker_qua_var = None
         self.shot_tracker_qua_stream = None
@@ -70,9 +78,9 @@ class Measurement(SequenceBase):
 
         self.qm_job = None
         self.batch_counter = None
-        self._dataset = None
-        self._xr_dataset = None
-        self._run_id = None
+        ### the following are being set by the measurement runner
+        self._run_id: int | None = None
+        self._dataset: XrDataset | None = None
 
     def merge_with_device_config(self, device, sequence_config):
         """
@@ -184,19 +192,22 @@ class Measurement(SequenceBase):
         return self._is_mock
 
     @property
-    def run_id(self) -> str:
+    def run_id(self) -> int:
         """Run id of the measurement"""
         return self._run_id
+    
+    def _set_run_id(self, run_id: int) -> None:
+        """Sets the run id of the measurement"""
+        self._run_id = run_id
 
     @property
-    def dataset(self) -> DataSet:
-        """Dataset of the measurement"""
+    def dataset(self) -> XrDataset:
+        """Xarray Dataset of the measurement"""
         return self._dataset
-
-    @property
-    def xr_dataset(self) -> DataSet:
-        """Extended Dataset of the measurement"""
-        return self._xr_dataset
+    
+    def _set_dataset(self, dataset: XrDataset) -> None:
+        """Sets the xarray dataset of the measurement"""
+        self._dataset = dataset
 
     @input_stream_parameters.setter
     def input_stream_parameters(self, parameters: list) -> None:
@@ -451,10 +462,9 @@ class Measurement(SequenceBase):
             with open(save_path, 'w', encoding="utf-8") as file:
                 file.write(
                     generate_qua_script(self.qua_program, self.parent.device.config))
-        print('QUA program saved')
+            print('QUA program saved')
 
         if not self.driver.is_mock:
-            # This is the real run, not a dummy run
             self.driver.run(self.qua_program)
             self.qm_job = self.driver.qm_job
             self._add_streams_to_gettables()
@@ -693,9 +703,10 @@ class Measurement(SequenceBase):
             exp = self.qc_experiment, name = measurement_name)
         return self.qc_measurement
 
-    def get_xr_dataset_and_id(self) -> xarray.Dataset:
+    def get_xr_dataset_and_id(self) -> tuple[XrDataset, int]:
         """
         Creates a QCoDeS dataset from the given experiment
+        TODO: THIS NEEDS TO BE IN QCODES MEASUREMENT RUNNER
 
         Returns:
             qc_dataset (qc.dataset.Dataset): Dataset instance
@@ -713,7 +724,7 @@ class Measurement(SequenceBase):
             qua_program_save_path: str = None,
             opx_address: str = None,
             measurement_backend: str = 'qcodes',
-            ) -> DataSet:
+            ) -> XrDataset:
         """
         Runs the measurement with the given sweep list based on MeasurementRunner
         class
@@ -735,22 +746,16 @@ class Measurement(SequenceBase):
         if opx_address is not None:
             self.driver.connect_opx(opx_address)
         qua_prog = self.compile_qua_and_run(save_path = qua_program_save_path)
-        if qua_program_save_path is None:
-            self._auto_save_qua_program(qua_prog)
         self.measurement_runner = self.get_measurement_runner(
             ext_sweep_list, measurement_backend)
         self.measurement_runner.run_arbok_measurement(
             inner_func = inner_func)
-        # self._dataset = self.measurement_runner.datasaver.dataset
-        # self._xr_dataset = self.dataset.to_xarray_dataset()
-        # self._run_id = self.dataset.run_id
-        # self._save_qua_program_as_metadata(qua_prog)
         return self.dataset
 
     def get_measurement_runner(
             self,
             ext_sweep_list: list[dict] | None = None,
-            measurement_backend: str = 'qcodes') -> MeasurementRunner:
+            measurement_backend: str = 'qcodes') -> MeasurementRunnerBase:
         """
         Returns the measurement runner for the current measurement
 
@@ -767,38 +772,20 @@ class Measurement(SequenceBase):
         """
         if self.measurement_runner is None:
             if measurement_backend == 'qcodes':
-                self.measurement_runner = MeasurementRunner(
+                self.measurement_runner = QCodesMeasurementRunner(
                     measurement = self,
-                    ext_sweep_list = ext_sweep_list)
+                    ext_sweep_list = ext_sweep_list
+                    )
             elif measurement_backend == 'native':
-                self.measurement_runner = ArbokMeasurementRunner(
+                self.measurement_runner = NativeMeasurementRunner(
                     measurement = self,
-                    ext_sweep_list = ext_sweep_list)
+                    ext_sweep_list = ext_sweep_list
+                    )
             else:
                 raise ValueError(
                     f"Invalid measurement backend: {measurement_backend}. "
                     "Choose either 'qcodes' or 'native'."
                     )
-        return self.measurement_runner
-
-    def get_arbok_measurement_runner(
-            self, ext_sweep_list: list[dict] | None = None) -> ArbokMeasurementRunner:
-        """
-        Returns the measurement runner for the current measurement
-
-        Args:
-            ext_sweep_list (list[dict]): List of dictionaries with parameters as keys
-                and np.ndarrays as setpoints. Each list entry creates one sweep axis.
-                If you want to sweep params concurrently enter more entries into
-                their sweep dict
-
-        Returns:
-            MeasurementRunner: The measurement runner instance
-        """
-        if self.measurement_runner is None:
-            self.measurement_runner = ArbokMeasurementRunner(
-                measurement = self,
-                ext_sweep_list = ext_sweep_list)
         return self.measurement_runner
 
     def wait_until_result_buffer_full(self, progress_tracker: tuple = None):
@@ -868,38 +855,3 @@ class Measurement(SequenceBase):
             )
             progress_tracker[1].refresh()
             time.sleep(0.1)
-
-    def _auto_save_qua_program(self, qua_program: qua.program) -> None:
-        """
-        Automatically saves the QUA program in a folder next to the database
-        if the folder 'qua_programs' does not exist it is created
-
-        Args:
-            qua_program (qua.program): The QUA program to save
-        """
-        print("Auto saving qua program next to database in './qua_programs/'")
-        db_path = os.path.abspath(qc.dataset.experiment_container.get_DB_location())
-        db_dir = os.path.dirname(db_path)
-        programs_dir = Path(db_dir) / "qua_programs/"
-        if not os.path.isdir(programs_dir):
-            os.makedirs(programs_dir)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        save_path = programs_dir / f"{timestamp}__{self.qc_measurement_name}.py"
-        with open(save_path, 'w', encoding="utf-8") as file:
-            file.write(
-                generate_qua_script(qua_program, self.parent.device.config))
-
-    def _save_qua_program_as_metadata(self, qua_program: qua.program) -> None:
-        """
-        Saves the QUA program as metadata in the dataset.
-        """
-        if self.dataset is not None:
-            self.dataset.add_metadata(
-                "qua_program",
-                generate_qua_script(qua_program, self.parent.device.config)
-                )
-        else:
-            raise ValueError(
-                "Dataset is not available yet for saving QUA program metadata."
-                " Run measurement first."
-                )
