@@ -32,14 +32,12 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
         ext_sweep_list: list[dict[SequenceParameter, np.ndarray]] | None = None,
         register_all: bool = False
         ):
-        # TODO: overwork self.ext_result_args_dict, this can probably made redundant
         super().__init__(
             measurement=measurement,
             ext_sweep_list=ext_sweep_list,
+            register_all=register_all
         )
         self.qc_measurement  = measurement.get_qc_measurement()
-        self.ext_result_args_dict = self._get_result_arguments(register_all)
-
         self.datasaver: QcMeasurement | None = None
         self.qc_dataset: QcDataSet | None = None
 
@@ -49,7 +47,7 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
             1) preparing parameters and gettables
             2) auto saving qua program
         """
-        self._prepare_params_and_gettables()
+        self._register_params_and_gettables()
         self._auto_save_qua_program()
 
     def _handle_keyboard_interrupt(self) -> None:
@@ -95,52 +93,23 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
                 (gettable, result)
             )
         ### Retreived results are added to the datasaver
-        for param_name, param in self.ext_params.items():
-            value = self.temp_batch_coordinates[param_name][1][0]
+        for param, value in self.external_param_values.items():
             result_args_temp.append((param, value))
         self.datasaver.add_result(*result_args_temp)
         logging.debug("Results saved")
 
-    def _get_result_arguments(self, register_all: bool = False) -> dict:
+    def _register_params_and_gettables(self):
         """
-        Generates a dict of parameters that are varied in the sweeps.
-        The dict will be used to register the results in the measurement.
-        
-        Args:
-            register_all (bool): If True, all settables will be registered in the
-                measurement. If False, only the first settable of each axis will be
-                registered
-        Returns:
-            ext_result_args_dict (dict): Dict with parameters as keys and tuples of
-                (parameter, value) as values. The tuples will be used for
-                `add_result` in the measurement
+        Register varied parameters and gettables for the measurement.
         """
-        gettable_setpoints = []
-        ext_result_args_dict = {}
-        for i, sweep_dict in enumerate(self.ext_sweep_list):
-            for j, param in enumerate(list(sweep_dict.keys())):
-                if j == 0 or register_all:
-                    ext_result_args_dict[param] = ()
-                    gettable_setpoints.append(param)
-                else:
-                    logging.debug(
-                        "Not adding settable %s on axis %s", param.name, i)
-        return ext_result_args_dict
-
-    def _prepare_params_and_gettables(self):
-        """
-        Prepare parameters and gettables for the measurement.
-        """
-        for param, _ in self.ext_result_args_dict.items():
+        for param, _ in self.external_param_values.items():
             logging.debug(
                 "Registering sequence parameter %s", param.full_name)
             self.qc_measurement.register_parameter(param)
-
         for _, gettable in self.measurement.gettables.items():
-            gettable_setpoints = list(self.ext_result_args_dict.keys())
-            logging.debug("Registering gettable %s", gettable_setpoints)
+            logging.debug("Registering gettable %s", gettable.register_name)
             self.qc_measurement.register_parameter(
-                gettable, setpoints = gettable_setpoints)
+                gettable, setpoints = list(self.external_param_values.keys()))
 
     def _auto_save_qua_program(self) -> None:
         """
