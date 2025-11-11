@@ -9,7 +9,6 @@ from pathlib import Path
 import qcodes
 from qm import generate_qua_script
 import numpy as np
-# from qcodes.dataset.experiment_container import get_DB_location
 from qcodes.dataset.sqlite.database import get_DB_location
 
 from .measurement_runner_base import MeasurementRunnerBase
@@ -48,7 +47,6 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
             2) auto saving qua program
         """
         self._register_params_and_gettables()
-        self._auto_save_qua_program()
 
     def _handle_keyboard_interrupt(self) -> None:
         pass
@@ -62,7 +60,6 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
         """
         self.qc_dataset = self.datasaver.dataset
         self.measurement._set_dataset(self.qc_dataset.to_xarray_dataset())
-        self.run_id = self.qc_dataset.run_id
         self.measurement._set_run_id(self.run_id)
         self._save_qua_program_as_metadata(
             self.measurement.qua_program,
@@ -75,6 +72,8 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
         """
         with self.qc_measurement.run() as datasaver:
             self.datasaver = datasaver
+            self.run_id = self.datasaver.run_id
+            self._auto_save_qua_program()
             self._create_recursive_measurement_loop(self.ext_sweep_list)
             print("Measurement finished!")
         return datasaver
@@ -119,13 +118,12 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
         print("Auto saving qua program next to database in './qua_programs/'")
         qua_program = self.measurement.qua_program
         db_path = os.path.abspath(get_DB_location())
+        db_name = db_path.split('/')[-1].split('.db')[0]
         db_dir = os.path.dirname(db_path)
-        programs_dir = Path(db_dir) / "qua_programs/"
+        programs_dir = Path(db_dir) / f"qua_programs__{db_name}/"
         if not os.path.isdir(programs_dir):
             os.makedirs(programs_dir)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        measurement_name = self.measurement.qc_measurement_name
-        save_path = programs_dir / f"{timestamp}__{measurement_name}.py"
+        save_path = programs_dir / f"{self.run_id}.py"
         opx_config = self.measurement.driver.device.config
         with open(save_path, 'w', encoding="utf-8") as file:
             file.write(
