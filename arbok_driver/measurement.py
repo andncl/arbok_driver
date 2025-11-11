@@ -742,6 +742,8 @@ class Measurement(SequenceBase):
                 being auto-saved next to the database.
             opx_address (str): The address of the OPX. Defaults to None. If not
                 given does not attempt to connect to the OPX.
+            measurement_backend (str): The measurement backend to use. Can be either
+                'qcodes' or 'native'.
         """
         if opx_address is not None:
             self.driver.connect_opx(opx_address)

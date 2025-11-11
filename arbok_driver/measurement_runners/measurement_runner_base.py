@@ -6,22 +6,13 @@ import logging
 import copy
 import time
 import warnings
-import uuid
-import io
-import json
 
 import numpy as np
 from rich.progress import Progress
-import xarray as xr
-from sqlalchemy.orm import Session
-from qm import generate_qua_script
-
-from arbok_driver.sweep import Sweep
 
 if TYPE_CHECKING:
     from arbok_driver.measurement import Measurement
     from arbok_driver.sequence_parameter import SequenceParameter
-    from qcodes.parameters.parameter import ParameterBase
 
 class MeasurementRunnerBase(ABC):
     """
@@ -32,33 +23,20 @@ class MeasurementRunnerBase(ABC):
         self,
         measurement: Measurement,
         ext_sweep_list: list[dict[SequenceParameter, np.ndarray]] | None = None,
+        register_all: bool = True
         ):
         self.measurement = measurement
         self.arbok_driver = measurement.driver
-        self.arbok_driver.check_db_engine_and_bucket_connected()
         self.ext_sweep_list = ext_sweep_list
- 
-
-        self.opx_params, self.opx_dims, self.opx_coords, self.opx_units = \
-            generate_dims_and_coords(self.measurement.sweeps)
-        self.ext_params, self.ext_dims, self.ext_coords, self.ext_units = \
-            generate_dims_and_coords(self.ext_sweep_list) if self.ext_sweep_list is not None else ([], {}, {})
-        self.dims = self.ext_dims + self.opx_dims
-        self.coords = {**self.ext_coords, **self.opx_coords}
-        self.units = {**self.ext_units, **self.opx_units}
+        self.arbok_driver.check_db_engine_and_bucket_connected()
+        self.external_param_values = self._get_external_params(
+            self.ext_sweep_list, register_all)
 
         self.nr_total_batches = self._calculate_nr_total_batches()
         self.inner_func = None
         self.progress_tracker: Progress | None = None
         self.progress_bars = {}
         self.batch_count = 0
-
-        ### Coordinate register to correcltly index incoming opx batches
-        ### OPX coords are always the same for each batch
-        ### External coords change with each batch
-        self.temp_batch_coordinates = {
-            p: (dim, None) for p, (dim, _) in self.ext_coords.items()}
-        self.temp_batch_coordinates.update(self.opx_coords)
 
     @abstractmethod
     def _prepare_measurement(self) -> None:
@@ -106,14 +84,13 @@ class MeasurementRunnerBase(ABC):
             logging.debug("Running measurement with %s", self.measurement.name)
             self.batch_count = 0
             with Progress() as self.progress_tracker:
-                self.create_progress_bars()
+                self._create_progress_bars()
                 self._run_measurement()
         except KeyboardInterrupt:
             logging.debug("Measurement interrupted by user.")
             print("Measurement interrupted by user.")
             self._handle_keyboard_interrupt()
-        finally:
-            self._wrap_up_measurement()
+        self._wrap_up_measurement()
 
     def _run_measurement(self):
         """
@@ -163,9 +140,8 @@ class MeasurementRunnerBase(ABC):
                 logging.debug('Setting %s to %s', param.instrument.name, value)
                 param.set(value)
                 self.last_updated_dim = param.register_name
-                coord_tuple = self.temp_batch_coordinates[param.register_name]
-                self.temp_batch_coordinates[param.register_name] = (
-                    coord_tuple[0], [value])
+                if param in self.external_param_values:
+                    self.external_param_values[param] = value
             self._create_recursive_measurement_loop(
                 ext_sweep_list=ext_sweep_list)
 
@@ -188,7 +164,7 @@ class MeasurementRunnerBase(ABC):
                 "(e.g only lower progres bar)")
             return 1
 
-    def create_progress_bars(self) -> None:
+    def _create_progress_bars(self) -> None:
         """
         Creates progress bars for the measurement.
         """
@@ -213,27 +189,29 @@ class MeasurementRunnerBase(ABC):
             )
         self.progress_tracker.refresh()
 
-def generate_dims_and_coords(
-        sweeps: list[dict[str, np.ndarray]] | list[Sweep]
-    ) -> tuple[
-        dict[str, ParameterBase],
-        list[str],
-        dict[str, tuple[str, list]],
-        dict[str, str]
-        ]:
-    params: dict[str, ParameterBase] = {}
-    dims: list[str] = []
-    coords: dict[str, tuple[str, list]] = {}
-    units: dict[str, str] = {}
-    for sweep in sweeps:
-        if isinstance(sweep, Sweep):
-            sweep = sweep.config
-        for i, (parameter, array) in enumerate(sweep.items()):
-            params[parameter.register_name] = parameter
-            if i == 0:
-                dims.append(parameter.register_name)
-            coords[parameter.register_name] = (
-                dims[-1], array
-            )
-            units[parameter.register_name] = parameter.unit
-    return params, dims, coords, units
+    def _get_external_params(
+            self,
+            ext_sweep_list: list[dict[SequenceParameter, np.ndarray]] | None,
+            register_all: bool
+            ) -> dict[SequenceParameter, float | None]:
+        """
+        Generates a list of external sweep parameters from the ext_sweep_list.
+        Args:
+            ext_sweep_list (list[dict]): List of dictionaries containing the sweep
+                parameters.
+        Returns:
+            ext_params (list): List of external sweep parameters.
+        """
+        if ext_sweep_list is None:
+            self.ext_sweep_list = []
+        else:
+            self.ext_sweep_list = ext_sweep_list
+        ext_param_values = {}
+        for i, sweep_dict in enumerate(self.ext_sweep_list):
+            for j, param in enumerate(sweep_dict.keys()):
+                if j == 0 or register_all:
+                    ext_param_values[param] = None
+                else:
+                    logging.debug(
+                        "Not adding settable %s on axis %s", param.name, i)
+        return ext_param_values
