@@ -41,7 +41,7 @@ class NativeMeasurementRunner(MeasurementRunnerBase):
         self.sql_run: SqlRun | None = None
         self.minio_data_store = None
         self.bucket_entry_name = None
-
+        self.arbok_driver.check_db_engine_and_bucket_connected()
         self.opx_dims, self.opx_coords, self.opx_units = \
             generate_dims_and_coords(self.measurement.sweeps)
 
