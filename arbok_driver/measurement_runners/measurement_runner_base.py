@@ -28,7 +28,6 @@ class MeasurementRunnerBase(ABC):
         self.measurement = measurement
         self.arbok_driver = measurement.driver
         self.ext_sweep_list = ext_sweep_list
-        self.arbok_driver.check_db_engine_and_bucket_connected()
         self.external_param_values = self._get_external_params(
             self.ext_sweep_list, register_all)
 
