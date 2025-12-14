@@ -132,7 +132,7 @@ class AbstractReadout(ABC):
                     gettable_name, self.name)
                 #sweep_size = self.read_sequence.measurement.sweep_size
                 
-                buffer = gettable.qua_stream.buffer(gettable.vals.shape)
+                buffer = gettable.qua_stream.buffer(*gettable.vals.shape)
                 buffer.save(gettable.full_name)
         else:
             logging.debug(
