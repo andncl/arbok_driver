@@ -160,7 +160,7 @@ class GettableParameter(ParameterWithSetpoints):
                 f"GettableParameter {self.name} has no data in the buffer. "
                 "Make sure the QUA program has run and the buffer is full."
             )
-        return self._reshape_data(data, self.sweep_dims, self.snaked)
+        return data #= self._reshape_data(data, self.sweep_dims, self.snaked)
 
     def _fetch_opx_buffer(self):
         """
@@ -252,6 +252,7 @@ class GettableParameter(ParameterWithSetpoints):
         else:
             # Generic data: linear increasing values
             data = np.linspace(0, 1, sweep_size)
+            data = data.reshape(self.vals.shape)
         data = np.array(data)
         logging.debug(
             "Generated synthetic data for %s: shape=%s, mean=%s",
