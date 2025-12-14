@@ -160,7 +160,11 @@ class GettableParameter(ParameterWithSetpoints):
                 f"GettableParameter {self.name} has no data in the buffer. "
                 "Make sure the QUA program has run and the buffer is full."
             )
-        return data #= self._reshape_data(data, self.sweep_dims, self.snaked)
+        if any([x.snake_scan for x in self.measurement.sweeps]):
+            raise NotImplementedError(
+                "Snaked data reshaping is not yet implemented."
+            )
+        return data
 
     def _fetch_opx_buffer(self):
         """
