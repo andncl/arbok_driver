@@ -120,7 +120,7 @@ class GettableParameter(ParameterWithSetpoints):
         Args:
             qm_driver (RunningQmJob): The QM driver instance to fetch the buffer from.
         """
-        buffer_name = f"{self.full_name}_buffer"
+        buffer_name = self.full_name
         if buffer_name not in qm_job.result_handles.keys():
             raise ValueError(
                 f"Buffer {buffer_name} not found in QM job result handles. "
