@@ -12,6 +12,7 @@ from .import path_finders
 from .signal import Signal
 if TYPE_CHECKING:
     from .read_sequence import ReadSequence
+    from .sequence_parameter import SequenceParameter
 
 class AbstractReadout(ABC):
     """
@@ -53,8 +54,8 @@ class AbstractReadout(ABC):
         self.read_sequence: ReadSequence = read_sequence
         self.signal: Signal = signal
         self.save_results = save_results
-        self._parameters = {}
-        self._gettables = {}
+        self._parameters: dict[str, SequenceParameter] = {}
+        self._gettables: dict[str, GettableParameter] = {}
 
         ### Parameters are added to the sequence with the readout prefix
         if parameters is not None:
@@ -68,12 +69,12 @@ class AbstractReadout(ABC):
         )
 
     @property
-    def parameters(self):
+    def parameters(self) -> dict[str, SequenceParameter]:
         """Returns the parameters of the readout"""
         return self._parameters
 
     @property
-    def gettables(self):
+    def gettables(self) -> dict[str, GettableParameter]:
         """Returns the gettables of the readout"""
         return self._gettables
 
@@ -81,7 +82,7 @@ class AbstractReadout(ABC):
         self,
         gettable_name: str,
         var_type: int | bool | qua.fixed,
-        ):
+        ) -> GettableParameter:
         """
         Creates a new gettable for the AbstractReadout. The gettable is added to
         the read sequence as a parameter and registered under the given name.
@@ -104,7 +105,7 @@ class AbstractReadout(ABC):
         self._gettables[gettable.full_name] = gettable
         return gettable
 
-    def qua_declare_variables(self):
+    def qua_declare_variables(self) -> None:
         """Declares all necessary qua variables for readout"""
         for gettable_name, gettable in self.gettables.items():
             logging.debug(
@@ -113,7 +114,7 @@ class AbstractReadout(ABC):
             gettable.qua_var = qua.declare(gettable.var_type)
             gettable.qua_stream = qua.declare_stream()
 
-    def qua_save_variables(self):
+    def qua_save_variables(self) -> None:
         """Saves the qua variables of all gettables in this readout"""
         if self.save_results:
             for gettable_name, gettable in self.gettables.items():
@@ -122,16 +123,17 @@ class AbstractReadout(ABC):
                     gettable_name, self.name)
                 qua.save(gettable.qua_var, gettable.qua_stream)
 
-    def qua_save_streams(self):
+    def qua_save_streams(self) -> None:
         """Saves acquired results to qua stream"""
         if self.save_results:
             for gettable_name, gettable in self.gettables.items():
                 logging.debug(
                     "Saving streams of gettable %s on abstract readout %s",
                     gettable_name, self.name)
-                sweep_size = self.read_sequence.measurement.sweep_size
-                buffer = gettable.qua_stream.buffer(sweep_size)
-                buffer.save(f"{gettable.full_name}_buffer")
+                #sweep_size = self.read_sequence.measurement.sweep_size
+                
+                buffer = gettable.qua_stream.buffer(gettable.vals.shape)
+                buffer.save(gettable.full_name)
         else:
             logging.debug(
                 "NOT saving streams of abstract readout %s", self.name)
