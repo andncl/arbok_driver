@@ -134,8 +134,8 @@ class Sweep:
             if self.register_all:
                 setpoints = parameter.convert_to_real_units(
                     self.config[parameter])
-                self._config_to_register[parameter] = setpoints*parameter.scale
-                parameter.set_raw(setpoints.tolist()) ### CHECK IF THIS IS OK BEFORE MERGING
+                self._config_to_register[parameter] = setpoints
+                parameter.set(setpoints)
             elif i == 0:
                 value = self.config[parameter]
                 setpoints = parameter.convert_to_real_units(self.config[parameter])

@@ -120,7 +120,7 @@ class GettableParameter(ParameterWithSetpoints):
         Args:
             qm_driver (RunningQmJob): The QM driver instance to fetch the buffer from.
         """
-        buffer_name = f"{self.full_name}_buffer"
+        buffer_name = self.full_name
         if buffer_name not in qm_job.result_handles.keys():
             raise ValueError(
                 f"Buffer {buffer_name} not found in QM job result handles. "
@@ -160,7 +160,11 @@ class GettableParameter(ParameterWithSetpoints):
                 f"GettableParameter {self.name} has no data in the buffer. "
                 "Make sure the QUA program has run and the buffer is full."
             )
-        return self._reshape_data(data, self.sweep_dims, self.snaked)
+        if any([x.snake_scan for x in self.measurement.sweeps]):
+            raise NotImplementedError(
+                "Snaked data reshaping is not yet implemented."
+            )
+        return data
 
     def _fetch_opx_buffer(self):
         """
@@ -252,6 +256,7 @@ class GettableParameter(ParameterWithSetpoints):
         else:
             # Generic data: linear increasing values
             data = np.linspace(0, 1, sweep_size)
+            data = data.reshape(self.vals.shape)
         data = np.array(data)
         logging.debug(
             "Generated synthetic data for %s: shape=%s, mean=%s",
