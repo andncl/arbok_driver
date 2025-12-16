@@ -1,4 +1,6 @@
 """ Module containing GettableParameter class """
+from __future__ import annotations
+from typing import TYPE_CHECKING
 import logging
 import hashlib
 import warnings
@@ -8,6 +10,10 @@ from qm import qua
 
 from qcodes.validators import Arrays
 from qcodes.parameters import ParameterWithSetpoints
+
+if TYPE_CHECKING:
+    from qcodes.dataset.data_set_protocol import ValuesType
+    from qcodes.parameters.parameter_base import ParameterBase
 
 class GettableParameter(ParameterWithSetpoints):
     """
@@ -263,3 +269,30 @@ class GettableParameter(ParameterWithSetpoints):
             self.name, len(data), np.mean(data)
             )
         return data
+
+    def unpack_self(
+            self, value: ParamDataType) -> list[tuple[ParameterBase, ValuesType]]:
+        """
+        Unpacks the gettable, its setpoints and any inferred parameters
+        it has control of.
+        NOTE: This is meant to be implemented in QCoDeS. I wrote a PR fixing
+        this. Remove this once that is merged.
+        """
+        unpacked_results: list[tuple[ParameterBase, ValuesType]] = []
+        setpoint_params = list(self.setpoints)
+        setpoint_data = [param.get() for param in setpoint_params]
+        output_grids = np.meshgrid(*setpoint_data, indexing="ij")
+        for i, param in enumerate(setpoint_params[:]):
+            for inferred_param in param.has_control_of:
+                copy_setpoint_data = setpoint_data[:]
+                copy_setpoint_data[i] = inferred_param.get()
+                setpoint_params.append(inferred_param)
+                output_grids.append(
+                    np.meshgrid(*copy_setpoint_data, indexing="ij")[i]
+                )
+        for param, grid in zip(setpoint_params, output_grids):
+            unpacked_results.append((param, grid))
+        unpacked_results.extend(
+            (self, value)
+        )  # Must come last to preserve original ordering
+        return unpacked_results
