@@ -545,7 +545,6 @@ class Measurement(SequenceBase):
         setpoints and vals
         """
         for _, gettable in self.gettables.items():
-            gettable.setpoints = self._setpoints_for_gettables
             gettable.configure_from_measurement()
 
     def _check_given_gettables(self, gettables: dict) -> None:
@@ -848,11 +847,23 @@ class Measurement(SequenceBase):
         from qm.api.v2.qm_api_old import QmApiWithDeprecations
         from qm.api.v2.qm_api import QmApi
         from qm.quantum_machine import QuantumMachine
+        import numpy as np
         stream_names = [x.full_name for x in self.gettables.values()]
-        if isinstance(self.driver.opx, (QmApi, QmApiWithDeprecations)):
+        if self.is_mock:
+            mock_result = np.linspace(0, 1, num=self.sweep_size)
+            mock_result = mock_result.reshape(self.sweep_dims)
+            results_dict = {
+                name: mock_result for name in stream_names
+            }
+        elif isinstance(self.driver.opx, (QmApi, QmApiWithDeprecations)):
             results_dict = self._fetch_all_results_from_opx_1000(stream_names)
         elif isinstance(self.driver.opx, QuantumMachine):
             results_dict = self._fetch_all_results_from_opx_plus(stream_names)
+        else:
+            raise TypeError(
+                "Unsupported OPX type for fetching results: "
+                f"{type(self.driver.opx)}"
+            )
         return results_dict
 
     def _fetch_all_results_from_opx_1000(
