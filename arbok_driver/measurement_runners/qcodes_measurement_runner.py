@@ -115,19 +115,20 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
         Automatically saves the QUA program in a folder next to the database
         if the folder 'qua_programs' does not exist it is created
         """
-        print("Auto saving qua program next to database in './qua_programs/'")
-        qua_program = self.measurement.qua_program
-        db_path = os.path.abspath(get_DB_location())
-        db_name = db_path.split('/')[-1].split('.db')[0]
-        db_dir = os.path.dirname(db_path)
-        programs_dir = Path(db_dir) / f"qua_programs__{db_name}/"
-        if not os.path.isdir(programs_dir):
-            os.makedirs(programs_dir)
+        db_path = Path(get_DB_location())
+        db_name = db_path.stem
+        db_dir = db_path.parent
+        programs_dir = Path(db_dir).resolve() / f"qua_programs__{db_name}/"
+        programs_dir.mkdir(parents=True, exist_ok=True)
         save_path = programs_dir / f"{self.run_id}.py"
-        opx_config = self.measurement.driver.device.config
-        with open(save_path, 'w', encoding="utf-8") as file:
-            file.write(
-                generate_qua_script(qua_program, opx_config))
+        print(f"Auto saving qua program next to database in {programs_dir}")
+        save_path.write_text(
+            generate_qua_script(
+                self.measurement.qua_program,
+                self.measurement.driver.device.config
+                ),
+            encoding="utf-8"
+        )
 
     def _save_qua_program_as_metadata(
             self,
