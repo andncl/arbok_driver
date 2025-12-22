@@ -85,7 +85,7 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
         Args:
             datasaver (DataSaver): The QCoDeS DataSaver object to save results to.
         """
-        ext_coords = {p.full_name: v for p, v in self.external_param_values.items()}
+        ext_coords = {p.register_name: v for p, v in self.external_param_values.items()}
         results_xr = results_xr.sel(**ext_coords)
         ### Save gettables independently. This ensures correct shape handling
         ### for dependent parameters (gettable.unpack_self())
