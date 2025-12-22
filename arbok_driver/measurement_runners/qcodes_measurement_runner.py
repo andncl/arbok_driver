@@ -78,23 +78,23 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
             print("Measurement finished!")
         return datasaver
 
-    def _save_results(self):
+    def _save_results(self, results_xr: xr.Dataset) -> None:
         """
         Saves the results of the measurement to the datasaver.
         
         Args:
             datasaver (DataSaver): The QCoDeS DataSaver object to save results to.
         """
-        result_args_temp: list[tuple] = []
-        for _, gettable in self.measurement.gettables.items():
-            result = gettable.fetch_results()
-            result_args_temp.append(
-                (gettable, result)
+        ext_coords = {p.full_name: v for p, v in self.external_param_values.items()}
+        results_xr = results_xr.sel(**ext_coords)
+        ### Save gettables independently. This ensures correct shape handling
+        ### for dependent parameters (gettable.unpack_self())
+        for gettable in self.measurement.gettables.values():
+            self.datasaver.add_result(
+                *[(p, v) for p, v in self.external_param_values.items()],
+                (gettable, results_xr[gettable.full_name].to_numpy())
+                # (gettable, )
             )
-        ### Retreived results are added to the datasaver
-        for param, value in self.external_param_values.items():
-            result_args_temp.append((param, value))
-        self.datasaver.add_result(*result_args_temp)
         logging.debug("Results saved")
 
     def _register_params_and_gettables(self):
