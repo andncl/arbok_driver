@@ -42,15 +42,6 @@ class NativeMeasurementRunner(MeasurementRunnerBase):
         self.minio_data_store = None
         self.bucket_entry_name = None
         self.arbok_driver.check_db_engine_and_bucket_connected()
-        self.opx_dims, self.opx_coords, self.opx_units = \
-            generate_dims_and_coords(self.measurement.sweeps)
-
-        self.ext_dims, self.ext_coords, self.ext_units = \
-            generate_dims_and_coords(self.ext_sweep_list) if self.ext_sweep_list is not None else ([], {}, {})
-
-        self.dims = self.ext_dims + self.opx_dims
-        self.coords = {**self.ext_coords, **self.opx_coords}
-        self.units = {**self.ext_units, **self.opx_units}
 
     def _prepare_measurement(self) -> None:
         """
@@ -146,21 +137,6 @@ class NativeMeasurementRunner(MeasurementRunnerBase):
             sql_run.result_count += self.measurement.sweep_size
             session.commit()
 
-    def _bring_result_to_shape(self, result: np.ndarray) -> np.ndarray:
-        """
-        Brings the result DataArray to the correct shape to be added to xarray
-        dataset. With each batch we add one datapoint for each external
-        dimension setpoint. Therefore wrap the result with singleton dimensions
-        for each external dimension.
-
-        Args:
-            result (xr.DataArray): The result DataArray to be reshaped.
-
-        Returns:
-            xr.DataArray: The reshaped DataArray.
-        """
-        return np.reshape(result, (1,)*len(self.ext_dims) + result.shape)
-
     def _save_dataset_to_store(self, dataset: xr.Dataset) -> None:
         """
         Saves the given dataset to the MinIO store.
@@ -219,23 +195,3 @@ class NativeMeasurementRunner(MeasurementRunnerBase):
         for coord_name in empty_dataset.coords:
             empty_dataset.coords[coord_name].attrs['units'] = self.units[coord_name]
         empty_dataset.to_zarr(self.minio_data_store, mode='w')
-
-def generate_dims_and_coords(
-        sweeps: list[dict[str, np.ndarray]] | list[Sweep]
-    ) -> tuple[
-        list[str],
-        dict[str, tuple[str, list]],
-        dict[str, str]
-        ]:
-    dims = []
-    coords = {}
-    units = {}
-    for sweep in sweeps:
-        if isinstance(sweep, Sweep):
-            sweep = sweep.config
-        for i, (parameter, array) in enumerate(sweep.items()):
-            if i == 0:
-                dims.append(parameter.register_name)
-            coords[parameter.register_name] = (dims[-1], array)
-            units[parameter.register_name] = parameter.unit
-    return  dims, coords, units

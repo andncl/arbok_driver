@@ -9,6 +9,9 @@ import warnings
 
 import numpy as np
 from rich.progress import Progress
+import xarray as xr
+
+from arbok_driver.sweep import Sweep
 
 if TYPE_CHECKING:
     from arbok_driver.measurement import Measurement
@@ -36,6 +39,16 @@ class MeasurementRunnerBase(ABC):
         self.progress_tracker: Progress | None = None
         self.progress_bars = {}
         self.batch_count = 0
+
+        self.opx_dims, self.opx_coords, self.opx_units = \
+            generate_dims_and_coords(self.measurement.sweeps)
+
+        self.ext_dims, self.ext_coords, self.ext_units = \
+            generate_dims_and_coords(self.ext_sweep_list) if self.ext_sweep_list is not None else ([], {}, {})
+
+        self.dims = self.ext_dims + self.opx_dims
+        self.coords = {**self.ext_coords, **self.opx_coords}
+        self.units = {**self.ext_units, **self.opx_units}
 
     @abstractmethod
     def _prepare_measurement(self) -> None:
@@ -124,6 +137,23 @@ class MeasurementRunnerBase(ABC):
             self.measurement.wait_until_result_buffer_full(
                 (self.progress_bars['batch_progress'], self.progress_tracker)
             )
+            batch_coords = {}
+            for param, value in self.external_param_values.items():
+                dim = self.ext_coords[param.register_name][0]
+                batch_coords[param.register_name] = (dim, np.array([value]))
+            batch_coords.update(self.opx_coords)
+
+            results_dict = self.measurement.fetch_all_results()
+            results_xr = xr.Dataset(coords = batch_coords)
+            for gettable_name, values in results_dict.items():
+                result_xr = xr.DataArray(
+                    data = self._bring_result_to_shape(values),
+                    dims = self.dims, 
+                    coords = batch_coords
+                    )
+                results_xr[gettable_name] = result_xr
+            self.latest_xr_batch = results_xr
+            # self._save_results(results_xr)
             self._save_results()
             self.batch_count += 1
             self.update_total_progress_bar()
@@ -214,3 +244,38 @@ class MeasurementRunnerBase(ABC):
                     logging.debug(
                         "Not adding settable %s on axis %s", param.name, i)
         return ext_param_values
+    
+    def _bring_result_to_shape(self, result: np.ndarray) -> np.ndarray:
+        """
+        Brings the result DataArray to the correct shape to be added to xarray
+        dataset. With each batch we add one datapoint for each external
+        dimension setpoint. Therefore wrap the result with singleton dimensions
+        for each external dimension.
+
+        Args:
+            result (xr.DataArray): The result DataArray to be reshaped.
+
+        Returns:
+            xr.DataArray: The reshaped DataArray.
+        """
+        return np.reshape(result, (1,)*len(self.ext_dims) + result.shape)
+
+def generate_dims_and_coords(
+        sweeps: list[dict[str, np.ndarray]] | list[Sweep]
+    ) -> tuple[
+        list[str],
+        dict[str, tuple[str, list]],
+        dict[str, str]
+        ]:
+    dims = []
+    coords = {}
+    units = {}
+    for sweep in sweeps:
+        if isinstance(sweep, Sweep):
+            sweep = sweep.config
+        for i, (parameter, array) in enumerate(sweep.items()):
+            if i == 0:
+                dims.append(parameter.register_name)
+            coords[parameter.register_name] = (dims[-1], array)
+            units[parameter.register_name] = parameter.unit
+    return  dims, coords, units
