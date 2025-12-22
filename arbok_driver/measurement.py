@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from arbok_driver.measurement_runners.measurement_runner_base import (
         MeasurementRunnerBase,
     )
+    from numpy import ndarray
     from qcodes.dataset import Measurement as QcMeasurement
     from xarray import Dataset as XrDataset
 
@@ -836,6 +837,62 @@ class Measurement(SequenceBase):
         if progress_tracker is not None:
             progress_tracker[1].update(progress_tracker[0], completed = batch_count)
         self.nr_registered_results += self.sweep_size
+
+    def fetch_all_results(self) -> dict:
+        """
+        Fetches all results from the quantum machine
+
+        Returns:
+            dict: Contains a dict with result names and results as key value pair
+        """
+        from qm.api.v2.qm_api_old import QmApiWithDeprecations
+        from qm.api.v2.qm_api import QmApi
+        from qm.quantum_machine import QuantumMachine
+        stream_names = [x.full_name for x in self.gettables.values()]
+        if isinstance(self.driver.opx, (QmApi, QmApiWithDeprecations)):
+            results_dict = self._fetch_all_results_from_opx_1000(stream_names)
+        elif isinstance(self.driver.opx, QuantumMachine):
+            results_dict = self._fetch_all_results_from_opx_plus(stream_names)
+        return results_dict
+
+    def _fetch_all_results_from_opx_1000(
+            self, stream_names: list[str]) -> dict[ndarray]:
+        """
+        Fetches all results registered in gettables and returns dict with results
+        This is OPX1000 specific
+
+        Args:
+            stream_names(list): List of strings with stream keys
+
+        Returns:
+            dict: Dict containing measurement data as values and stream names as
+                keys
+        """
+        results_dict = self.driver.qm_job.result_handles.fetch_results(
+            wait_until_done = False,
+            timeout = 3,
+            stream_names = stream_names
+        )
+        return results_dict
+
+    def _fetch_all_results_from_opx_plus(
+            self, stream_names: list[str]) -> dict[ndarray]:
+        """
+        Fetches all results registered in gettables and returns dict with results
+        This is OPX+ specific
+
+        Args:
+            stream_names(list): List of strings with stream keys
+
+        Returns:
+            dict: Dict containing measurement data as values and stream names as
+                keys
+        """
+        results_dict = {}
+        result_handles = self.driver.qm_job.result_handles
+        for name in stream_names:
+            results_dict[name] = result_handles[name].fetch_all()
+        return results_dict
 
     def _mock_wait_until_result_buffer_full(
             self, progress_tracker: tuple, bar_title: str) -> None:
