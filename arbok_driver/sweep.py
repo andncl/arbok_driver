@@ -147,8 +147,8 @@ class Sweep:
                             " the parameter in the config file. If it does not"
                             " have a type, set the scale manually."
                             )
-                    parameter.set_raw(setpoints.tolist())
-                    self._config_to_register[parameter] = setpoints*parameter.scale
+                    parameter.set(setpoints)
+                    self._config_to_register[parameter] = setpoints
                 elif isinstance(value, int):
                     ### creates a mock set of values (stream array indices)
                     self._config_to_register[parameter] = np.arange(value)
