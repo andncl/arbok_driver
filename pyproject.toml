@@ -27,7 +27,7 @@ dependencies = [
     "SQLAlchemy ~= 2.0",
     
     "qm-qua >= 1.2.1",
-    "qcodes >= 0.53",
+    "qcodes >= 0.54.4",
     "qualang_tools >= 0.19",
     "qcodes-contrib-drivers >= 0.23",
     "rich >= 14.0",

@@ -58,7 +58,7 @@ class MeasurementRunnerBase(ABC):
         pass
 
     @abstractmethod
-    def _save_results(self) -> None:
+    def _save_results(self, results_xr: xr.Dataset) -> None:
         """
         Save the results of the measurement. E.g. storing data in the database
         """
@@ -153,8 +153,7 @@ class MeasurementRunnerBase(ABC):
                     )
                 results_xr[gettable_name] = result_xr
             self.latest_xr_batch = results_xr
-            # self._save_results(results_xr)
-            self._save_results()
+            self._save_results(results_xr)
             self.batch_count += 1
             self.update_total_progress_bar()
             return

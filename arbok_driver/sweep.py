@@ -7,6 +7,7 @@ import logging
 import numpy as np
 from qm import qua
 from qcodes.parameters import Parameter
+from qcodes.validators import Arrays
 
 from .sequence_parameter import SequenceParameter
 if TYPE_CHECKING:
@@ -35,9 +36,11 @@ class Sweep:
             register_all (bool): Whether all parameters should be registered in
                 the QCoDeS measurement
         """
-        self.measurement = measurement
-        self.register_all = register_all
-        self._config = param_dict
+        self.dim_parameter: SequenceParameter | None = None
+        self.inferred_parameters: list[SequenceParameter] = []
+        self.measurement: Measurement = measurement
+        self.register_all: bool = register_all
+        self._config: dict = param_dict
         if 'snake' in self._config: # check if the user defined the snake state
             self.snake_scan = self._config['snake']
             del self._config['snake']
@@ -45,7 +48,7 @@ class Sweep:
         self._check_if_parametrizable()
 
     @property
-    def parameters(self):
+    def parameters(self) -> list[SequenceParameter]:
         """ List containing all varied parameters """
         return self._parameters
 
@@ -119,46 +122,33 @@ class Sweep:
                 "Some of the given parameters are not within the swept params")
 
     def configure_sweep(self) -> None:
-        """Configures the sweep from the given dictionairy"""
+        """
+        Configures the sweep from the given dictionairy
+        TODO: This breaks the input stream implementation, needs to be fixed
+              i am quite sure this can be done more elegantly!
+              perhaps not even using set_sweeps but a different method on measurement
+        """
         self.check_input_dict()
         self._parameters = []
         self._config_to_register = {}
+        self.dim_parameter: SequenceParameter | None = None
+        self.inferred_parameters: list[SequenceParameter] = []
         for i, parameter in enumerate(self.config.keys()):
             self._parameters.append(parameter)
             ### Remove scalar validators and setup the sweep_validator
-            while parameter.remove_validator():
-                pass
-            parameter.add_validator(parameter.sweep_validator)
-            parameter.validate(self.config[parameter])
-            ### Usually not all params are registered (issue with live plotting)
-            if self.register_all:
-                setpoints = parameter.convert_to_real_units(
-                    self.config[parameter])
+            setpoints = parameter.convert_to_real_units(
+                self.config[parameter])
+            while parameter.remove_validator(): pass
+            parameter.vals = Arrays(shape = (len(setpoints),))
+            parameter.validate(setpoints)
+            parameter.set(setpoints)
+            if i == 0:
+                self.dim_parameter = parameter
                 self._config_to_register[parameter] = setpoints
-                parameter.set(setpoints)
-            elif i == 0:
-                value = self.config[parameter]
-                setpoints = parameter.convert_to_real_units(self.config[parameter])
-                if isinstance(value, (list, np.ndarray)):
-                    if parameter.scale is None:
-                        raise ValueError(
-                            f"Parameter scale of '{parameter.full_name}' is None."
-                            " Must be set for sweep arrays. Check the type of"
-                            " the parameter in the config file. If it does not"
-                            " have a type, set the scale manually."
-                            )
-                    parameter.set(setpoints)
-                    self._config_to_register[parameter] = setpoints
-                elif isinstance(value, int):
-                    ### creates a mock set of values (stream array indices)
-                    self._config_to_register[parameter] = np.arange(value)
-                else:
-                    raise ValueError(
-                        "Keys in sweep dictionairies must be of type int, list"
-                        f"or numpy.ndarray, is:  {type(value)}")
-            if isinstance(self.config[parameter], int):
-                parameter.input_stream = True
-                #parameter.add_stream_param_to_sequence()
+            else:
+                self.inferred_parameters.append(parameter)
+                parameter.is_controlled_by.add(self.dim_parameter)
+                self.dim_parameter.has_control_of.add(parameter)
         if all(param.input_stream is not None for param in self.parameters):
             self._inputs_are_streamed = True
         else:
@@ -496,3 +486,12 @@ class Sweep:
             self.measurement.qua_check_step_requirements(step_counter)
         else:
             step_counter()
+
+    def remove_parameter_dependencies(self) -> None:
+        """
+        Removes all qcodes parameter dependencies set by is_controlled_by
+        and has_control_of methods.
+        """
+        for parameter in self.inferred_parameters:
+            self.dim_parameter.has_control_of.remove(parameter)
+            parameter.is_controlled_by.remove(self.dim_parameter)

@@ -119,15 +119,13 @@ class SequenceParameter(Parameter):
         else: 
             setpoints = np.array(setpoints)
         self.qua_sweeped = True
-        self.vals= Arrays()
 
         self.qua_var = qua.declare(self.var_type)
         if self.can_be_parameterized:
             pass
         elif self.input_stream is None:
             self.qua_sweep_arr = qua.declare(
-                self.var_type, value = setpoints*self.scale
-            )
+                self.var_type, value = setpoints*self.scale)
         else:
             self.input_stream = qua.declare_input_stream(
                 t = self.var_type,
