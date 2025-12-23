@@ -545,7 +545,7 @@ class Measurement(SequenceBase):
         setpoints and vals
         """
         for _, gettable in self.gettables.items():
-            gettable.configure_from_measurement()
+            gettable.configure_from_measurement(self._setpoints_for_gettables)
 
     def _check_given_gettables(self, gettables: dict) -> None:
         """
