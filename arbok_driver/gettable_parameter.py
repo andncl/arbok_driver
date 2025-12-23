@@ -40,6 +40,7 @@ class GettableParameter(ParameterWithSetpoints):
             name: str,
             read_sequence: 'ReadSequence',
             var_type: int | bool | qua.fixed,
+            internal_setpoints: tuple[ParameterBase] | None = None,
             *args,
             **kwargs
             ) -> None:
@@ -51,8 +52,6 @@ class GettableParameter(ParameterWithSetpoints):
         """
         super().__init__(name, *args, vals=Arrays(shape=(1,)), **kwargs)
 
-        # self.unit = ""
-        # self.label = ""
 
         self.var_type = var_type
         self.read_sequence = read_sequence
@@ -78,6 +77,10 @@ class GettableParameter(ParameterWithSetpoints):
         self.batch_counter = None
         self.nr_registered_results = 0
         self.is_mock = False
+        if internal_setpoints is not None:
+            self.internal_setpoints = internal_setpoints
+        else:
+            self.internal_setpoints: tuple[ParameterBase] = ()
 
     def set_raw(self, *args, **kwargs) -> None:
         """Empty abstract `set_raw` method. Parameter not meant to be set"""
@@ -100,11 +103,13 @@ class GettableParameter(ParameterWithSetpoints):
         This method sets the sweep dimensions, batch size, and snaked shape
         based on the sweeps defined in the measurement.
         """
-        self.setpoints = self.measurement._setpoints_for_gettables
+        self.setpoints = self.internal_setpoints + self.measurement._setpoints_for_gettables
         self.batch_size = self.measurement.sweep_size
         self.sweep_dims = self.measurement.sweep_dims
         self.vals = Arrays(
             shape = tuple(sweep.length for sweep in self.measurement.sweeps))
+        self.vals = Arrays(
+            shape = tuple(len(param.get()) for param in self.setpoints))
         self.is_mock = self.measurement.is_mock
         snaked_shape = tuple(s.snake_scan for s in self.measurement.sweeps)
         self.snaked = tuple(reversed(snaked_shape))
