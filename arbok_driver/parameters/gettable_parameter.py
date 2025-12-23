@@ -186,6 +186,20 @@ class GettableParameter(ParameterWithSetpoints):
         buffer_val = np.array(self.buffer.fetch_all(), dtype = float)
         return buffer_val
 
+    def qua_declare_variables(self) -> None:
+        """Declares the qua variables and streams for this gettable"""
+        self.qua_var = qua.declare(self.var_type)
+        self.qua_stream = qua.declare_stream()
+
+    def qua_save_variables(self) -> None:
+        """Saves acquired results to qua stream"""
+        qua.save(self.qua_var, self.qua_stream)
+
+    def qua_save_streams(self) -> None:
+        """Saves acquired results to qua stream"""
+        buffer = self.qua_stream.buffer(*self.vals.shape)
+        buffer.save(self.full_name)
+
     def _reshape_data(
             self,
             a_in: np.ndarray,

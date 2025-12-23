@@ -5,7 +5,7 @@ import logging
 from qcodes.validators import Arrays
 
 from .abstract_readout import AbstractReadout
-from .gettable_parameter import GettableParameter
+from .parameters.gettable_parameter import GettableParameter
 from .signal import Signal
 from .sub_sequence import SubSequence
 

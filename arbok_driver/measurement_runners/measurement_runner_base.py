@@ -15,7 +15,7 @@ from arbok_driver.sweep import Sweep
 
 if TYPE_CHECKING:
     from arbok_driver.measurement import Measurement
-    from arbok_driver.sequence_parameter import SequenceParameter
+    from arbok_driver.measurement_runners.parameters.sequence_parameter import SequenceParameter
 
 class MeasurementRunnerBase(ABC):
     """

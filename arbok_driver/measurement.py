@@ -19,8 +19,8 @@ from .measurement_runners import(
     NativeMeasurementRunner,
     QCodesMeasurementRunner
 )
-from .gettable_parameter import GettableParameter
-from .sequence_parameter import SequenceParameter
+from .parameters.gettable_parameter import GettableParameter
+from .parameters.sequence_parameter import SequenceParameter
 from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
 from .sweep import Sweep

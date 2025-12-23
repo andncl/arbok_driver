@@ -13,7 +13,7 @@ from qm import SimulationConfig, generate_qua_script, qua, QuantumMachinesManage
 from qm.simulate.credentials import create_credentials
 
 from .device import Device
-from .sequence_parameter import SequenceParameter
+from .parameters.sequence_parameter import SequenceParameter
 from . import utils
 if TYPE_CHECKING:
     from .measurement import Measurement

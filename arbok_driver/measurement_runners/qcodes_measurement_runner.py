@@ -15,7 +15,7 @@ from .measurement_runner_base import MeasurementRunnerBase
 
 if TYPE_CHECKING:
     from arbok_driver.measurement import Measurement
-    from arbok_driver.sequence_parameter import SequenceParameter
+    from arbok_driver.measurement_runners.parameters.sequence_parameter import SequenceParameter
     from qm.program import Program
     from qcodes.dataset.data_set import DataSet as QcDataSet
     from qcodes.dataset.measurements import Measurement as QcMeasurement
