@@ -1,1 +1,3 @@
 from .gettable_parameter import GettableParameter
+from .gettable_parameter_multi import GettableParameterMulti
+from .sequence_parameter import SequenceParameter
