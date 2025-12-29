@@ -2,17 +2,19 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 import logging
-from typing import TYPE_CHECKING
-from functools import reduce
+from typing import Sequence, TYPE_CHECKING
 
 from qm import qua
 
 from .parameters.gettable_parameter import GettableParameter
+from .parameters.gettable_parameter_multi import GettableParameterMulti
 from .import path_finders
 from .signal import Signal
+
 if TYPE_CHECKING:
-    from .read_sequence import ReadSequence
     from .parameters.sequence_parameter import SequenceParameter
+    from .read_sequence import ReadSequence
+    from qcodes.parameters import Parameter
 
 class AbstractReadout(ABC):
     """
@@ -23,7 +25,7 @@ class AbstractReadout(ABC):
     def __init__(
         self,
         name: str,
-        read_sequence: 'ReadSequence',
+        read_sequence: ReadSequence,
         signal: Signal,
         save_results: bool = True,
         parameters: dict | None = None
@@ -82,6 +84,7 @@ class AbstractReadout(ABC):
         self,
         gettable_name: str,
         var_type: int | bool | qua.fixed,
+        setpoints: Sequence[Parameter] = None
         ) -> GettableParameter:
         """
         Creates a new gettable for the AbstractReadout. The gettable is added to
@@ -90,17 +93,26 @@ class AbstractReadout(ABC):
         Args:
             gettable_name (str): Name of the gettable to be created
             var_type (int | bool | qua.fixed): Type of the gettable variable
+            size (int, optional): Size of the gettable array. Defaults to 1.
 
         Returns:
             GettableParameter: The created gettable parameter"""
         #gettable_name = f"{self.read_sequence.name}__{gettable_name}"
-        gettable = self.read_sequence.add_parameter(
-            parameter_class = GettableParameter,
-            name = gettable_name,
-            read_sequence = self.read_sequence,
-            #register_name = name,
-            var_type = var_type
-        )
+        if not setpoints:
+            gettable = self.read_sequence.add_parameter(
+                parameter_class = GettableParameter,
+                name = gettable_name,
+                read_sequence = self.read_sequence,
+                var_type = var_type
+            )
+        else:
+            gettable = self.read_sequence.add_parameter(
+                parameter_class = GettableParameterMulti,
+                name = gettable_name,
+                read_sequence = self.read_sequence,
+                var_type = var_type,
+                setpoints = setpoints
+            )
         self.signal.add_gettable(gettable)
         self._gettables[gettable.full_name] = gettable
         return gettable
@@ -129,9 +141,7 @@ class AbstractReadout(ABC):
                 logging.debug(
                     "Saving streams of gettable %s on abstract readout %s",
                     gettable_name, self.name)
-                #sweep_size = self.read_sequence.measurement.sweep_size
                 gettable.qua_save_streams()
-
         else:
             logging.debug(
                 "NOT saving streams of abstract readout %s", self.name)
