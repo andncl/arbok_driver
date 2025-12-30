@@ -141,17 +141,17 @@ class MeasurementRunnerBase(ABC):
             for param, value in self.external_param_values.items():
                 dim = self.ext_coords[param.register_name][0]
                 batch_coords[param.register_name] = (dim, np.array([value]))
-            batch_coords.update(self.opx_coords)
-
             results_dict = self.measurement.fetch_all_results()
             results_xr = xr.Dataset(coords = batch_coords)
-            for gettable_name, values in results_dict.items():
+            for gettable, values in results_dict.items():
+                dims, coords = gettable.get_full_dims_and_coords(
+                    self.ext_dims, batch_coords)
                 result_xr = xr.DataArray(
                     data = self._bring_result_to_shape(values),
-                    dims = self.dims, 
-                    coords = batch_coords
+                    dims = dims,
+                    coords = coords
                     )
-                results_xr[gettable_name] = result_xr
+                results_xr[gettable.register_name] = result_xr
             self.latest_xr_batch = results_xr
             self._save_results(results_xr)
             self.batch_count += 1
