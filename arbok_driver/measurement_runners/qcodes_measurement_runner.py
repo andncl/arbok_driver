@@ -92,7 +92,7 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
         for gettable in self.measurement.gettables.values():
             self.datasaver.add_result(
                 *[(p, v) for p, v in self.external_param_values.items()],
-                (gettable, results_xr[gettable.full_name].to_numpy())
+                (gettable, results_xr[gettable.register_name].to_numpy())
                 # (gettable, )
             )
         logging.debug("Results saved")
