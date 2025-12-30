@@ -84,7 +84,7 @@ class AbstractReadout(ABC):
         self,
         gettable_name: str,
         var_type: int | bool | qua.fixed,
-        setpoints: Sequence[Parameter] = None
+        internal_setpoints: Sequence[Parameter] = None
         ) -> GettableParameter:
         """
         Creates a new gettable for the AbstractReadout. The gettable is added to
@@ -96,9 +96,9 @@ class AbstractReadout(ABC):
             size (int, optional): Size of the gettable array. Defaults to 1.
 
         Returns:
-            GettableParameter: The created gettable parameter"""
-        #gettable_name = f"{self.read_sequence.name}__{gettable_name}"
-        if not setpoints:
+            GettableParameter: The created gettable parameter
+        """
+        if not internal_setpoints:
             gettable = self.read_sequence.add_parameter(
                 parameter_class = GettableParameter,
                 name = gettable_name,
@@ -111,7 +111,7 @@ class AbstractReadout(ABC):
                 name = gettable_name,
                 read_sequence = self.read_sequence,
                 var_type = var_type,
-                setpoints = setpoints
+                internal_setpoints = internal_setpoints
             )
         self.signal.add_gettable(gettable)
         self._gettables[gettable.full_name] = gettable
