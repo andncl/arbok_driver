@@ -23,7 +23,7 @@ class GettableParameterMulti(GettableParameterBase):
             name: str,
             read_sequence: ReadSequence,
             var_type: int | bool | qua.fixed,
-            setpoints: Sequence[SequenceParameter],
+            internal_setpoints: Sequence[SequenceParameter],
             **kwargs
             ) -> None:
         """
@@ -43,12 +43,14 @@ class GettableParameterMulti(GettableParameterBase):
             **kwargs
             )
         self.reset_measuerement_attributes()
-        self.setpoints: tuple[SequenceParameter] = tuple(setpoints)
-        self.qua_var_index: QuaVariable | None = QuaVariable
+        self.internal_setpoints: tuple[SequenceParameter] = tuple(internal_setpoints)
+        self.qua_var_index: QuaVariable | None = None
+        self.length: int = self.get_length()
 
     def qua_declare_variables(self) -> None:
         """Declares the qua variables and streams for this gettable"""
-        self.length = int(np.prod([len(p.get()) for p in self.setpoints]))
+        self.length = self.get_length()
+        self.qua_var_index: QuaVariable = qua.declare(int)
         self.qua_result_array: QuaArrayVariable = qua.declare(
             self.var_type,
             size = self.length
@@ -78,5 +80,9 @@ class GettableParameterMulti(GettableParameterBase):
         based on the sweeps defined in the measurement.
         """
         super().configure_from_measurement(
-            self.setpoints + setpoints
+            setpoints + self.internal_setpoints
         )
+
+    def get_length(self) -> int:
+        """Calculates length of internal sweep"""
+        return int(np.prod([len(p.get()) for p in self.internal_setpoints]))
