@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+import copy
 from typing import TYPE_CHECKING
 import logging
 import numpy as np
 import warnings
-
 
 from qcodes.validators import Arrays
 from qcodes.parameters import ParameterWithSetpoints
@@ -15,6 +15,7 @@ from qm import qua
 if TYPE_CHECKING:
     from arbok_driver.measurement import Measurement
     from arbok_driver.read_sequence import ReadSequence
+    from numpy import ndarray
     from qm.qua._dsl.stream_processing.stream_processing import ResultStreamSource
     from qcodes.dataset.data_set_protocol import ValuesType
     from qcodes.parameters.parameter_base import ParameterBase
@@ -189,3 +190,31 @@ class GettableParameterBase(ParameterWithSetpoints):
             [(self, value)]
         )  # Must come last to preserve original ordering
         return unpacked_results
+    
+    def get_mock_result(self):
+        """
+        Generates linearly increasing results filling the shape of the batch
+        """
+        mock_result = np.linspace(0, 1, num=np.prod(list(self.vals.shape)))
+        mock_result = mock_result.reshape(self.vals.shape)
+        return mock_result
+    
+    def get_full_dims_and_coords(
+            self, ext_dims: list[str], ext_coords: dict[str, ndarray]
+        ) -> tuple[list[str], dict[str, ndarray]]:
+        """
+        Returns the full dims and coordinates for xarray DataArray generation
+
+        Args:
+            ext_dims (list): list of external dimesions
+            external_coords (dict): 
+        """
+        dims = copy.copy(ext_dims)
+        coords = copy.copy(ext_coords)
+        for param in self.setpoints:
+            dims.append(param.register_name)
+            name = param.register_name
+            coords[name] = (name, param.get())
+            for inferred_param in param.depends_on:
+                coords[inferred_param] = (name, inferred_param.get())
+        return dims, coords
