@@ -856,9 +856,9 @@ class Measurement(SequenceBase):
             for _, gettable in self.gettables.items():
                 results_dict[gettable] = gettable.get_mock_result()
         elif isinstance(self.driver.opx, (QmApi, QmApiWithDeprecations)):
-            results_dict = self._fetch_all_results_from_opx_1000(stream_names)
+            results_dict = self._fetch_all_results_from_opx_1000()
         elif isinstance(self.driver.opx, QuantumMachine):
-            results_dict = self._fetch_all_results_from_opx_plus(stream_names)
+            results_dict = self._fetch_all_results_from_opx_plus()
         else:
             raise TypeError(
                 "Unsupported OPX type for fetching results: "
