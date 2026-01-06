@@ -5,7 +5,7 @@ from qm import qua
 from qcodes.validators import (
     Arrays, Numbers, Ints, MultiTypeOr, Strings, Sequence, Bool
 )
-from .sequence_parameter import SequenceParameter
+from .parameters.sequence_parameter import SequenceParameter
 
 class Time(SequenceParameter):
     """

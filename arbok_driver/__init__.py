@@ -5,11 +5,11 @@ from .arbok_driver import ArbokDriver
 from .device import Device
 from .experiment import Experiment
 from .generic_tunig_interface import GenericTuningInterface
-from .gettable_parameter import GettableParameter
+from .parameters.gettable_parameter import GettableParameter
 from .measurement import Measurement
 from .read_sequence import ReadSequence
 from .sequence_base import SequenceBase
-from .sequence_parameter import SequenceParameter
+from .parameters.sequence_parameter import SequenceParameter
 from .signal import Signal
 from .sub_sequence import SubSequence
 from .sweep import Sweep

@@ -19,8 +19,11 @@ from .measurement_runners import(
     NativeMeasurementRunner,
     QCodesMeasurementRunner
 )
-from .gettable_parameter import GettableParameter
-from .sequence_parameter import SequenceParameter
+from .parameters import (
+    GettableParameter,
+    GettableParameterBase,
+    SequenceParameter
+)
 from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
 from .sweep import Sweep
@@ -384,7 +387,7 @@ class Measurement(SequenceBase):
                     f"Keywords must be of type str or list. Is {type(keywords)}")
         ### Remove duplicates
         gettables = list(dict.fromkeys(gettables))
-        gettables = {g.name: g for g in gettables}
+        gettables = {g.full_name: g for g in gettables}
         self._check_given_gettables(gettables)
 
         self._gettables = gettables
@@ -545,7 +548,7 @@ class Measurement(SequenceBase):
         setpoints and vals
         """
         for _, gettable in self.gettables.items():
-            gettable.configure_from_measurement()
+            gettable.configure_from_measurement(self._setpoints_for_gettables)
 
     def _check_given_gettables(self, gettables: dict) -> None:
         """
@@ -562,7 +565,7 @@ class Measurement(SequenceBase):
         gettables = gettables.values()
         ### Check if gettables are of type GettableParameter and belong to self
         all_gettable_parameters = all(
-            isinstance(gettable, GettableParameter) for gettable in gettables)
+            isinstance(gettable, GettableParameterBase) for gettable in gettables)
         all_gettables_from_self = all(
             gettable.measurement == self for gettable in gettables)
         if not all_gettable_parameters:
@@ -847,18 +850,15 @@ class Measurement(SequenceBase):
         from qm.api.v2.qm_api_old import QmApiWithDeprecations
         from qm.api.v2.qm_api import QmApi
         from qm.quantum_machine import QuantumMachine
-        import numpy as np
         stream_names = [x.full_name for x in self.gettables.values()]
         if self.is_mock:
-            mock_result = np.linspace(0, 1, num=self.sweep_size)
-            mock_result = mock_result.reshape(self.sweep_dims)
-            results_dict = {
-                name: mock_result for name in stream_names
-            }
+            results_dict = {}
+            for _, gettable in self.gettables.items():
+                results_dict[gettable] = gettable.get_mock_result()
         elif isinstance(self.driver.opx, (QmApi, QmApiWithDeprecations)):
-            results_dict = self._fetch_all_results_from_opx_1000(stream_names)
+            results_dict = self._fetch_all_results_from_opx_1000()
         elif isinstance(self.driver.opx, QuantumMachine):
-            results_dict = self._fetch_all_results_from_opx_plus(stream_names)
+            results_dict = self._fetch_all_results_from_opx_plus()
         else:
             raise TypeError(
                 "Unsupported OPX type for fetching results: "
@@ -867,33 +867,29 @@ class Measurement(SequenceBase):
         return results_dict
 
     def _fetch_all_results_from_opx_1000(
-            self, stream_names: list[str]) -> dict[ndarray]:
+            self
+            ) -> dict[GettableParameterBase, ndarray]:
         """
         Fetches all results registered in gettables and returns dict with results
         This is OPX1000 specific
-
-        Args:
-            stream_names(list): List of strings with stream keys
 
         Returns:
             dict: Dict containing measurement data as values and stream names as
                 keys
         """
-        results_dict = self.driver.qm_job.result_handles.fetch_results(
+        stream_names = [x.full_name for x in self.gettables.values()]
+        res = self.driver.qm_job.result_handles.fetch_results(
             wait_until_done = False,
             timeout = 3,
             stream_names = stream_names
         )
+        results_dict = {g: res[g.full_name] for _, g in self.gettables.items()}
         return results_dict
 
-    def _fetch_all_results_from_opx_plus(
-            self, stream_names: list[str]) -> dict[ndarray]:
+    def _fetch_all_results_from_opx_plus(self) -> dict[ndarray]:
         """
         Fetches all results registered in gettables and returns dict with results
         This is OPX+ specific
-
-        Args:
-            stream_names(list): List of strings with stream keys
 
         Returns:
             dict: Dict containing measurement data as values and stream names as
@@ -901,8 +897,8 @@ class Measurement(SequenceBase):
         """
         results_dict = {}
         result_handles = self.driver.qm_job.result_handles
-        for name in stream_names:
-            results_dict[name] = result_handles[name].fetch_all()
+        for stream_name, _ in self.gettables.items():
+            results_dict[stream_name] = result_handles[stream_name].fetch_all()
         return results_dict
 
     def _mock_wait_until_result_buffer_full(

@@ -12,7 +12,7 @@ from rich.progress import Progress
 from rich import print
 from IPython import display
 
-from .gettable_parameter import GettableParameter
+from .parameters.gettable_parameter import GettableParameter
 
 class GenericTuningInterface:
     """Generic streaming interface for ML tuning."""

@@ -2,10 +2,9 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import logging
-from qcodes.validators import Arrays
 
 from .abstract_readout import AbstractReadout
-from .gettable_parameter import GettableParameter
+from .parameters.gettable_parameter_base import GettableParameterBase
 from .signal import Signal
 from .sub_sequence import SubSequence
 
@@ -69,8 +68,7 @@ class ReadSequence(SubSequence):
         QUA variable and stream declaration based on the given sequence
         configuration. Only to be called within qua.program() context manager!
         """
-        for readout_name, abstract_readout in self._abstract_readouts.items():
-            logging.debug("Declaring qua vars for %s", readout_name)
+        for _, abstract_readout in self._abstract_readouts.items():
             abstract_readout.qua_declare_variables()
 
     def qua_stream(self):
@@ -245,7 +243,7 @@ class ReadSequence(SubSequence):
                 f" {group_name}__{readout_name})!"
             )
 
-    def add_gettable(self, gettable: GettableParameter) -> None:
+    def add_gettable(self, gettable: GettableParameterBase) -> None:
         """
         Adds a gettable parameter to the read sequence. This is used to make
         the gettable fetchable during a measurement.
@@ -253,7 +251,7 @@ class ReadSequence(SubSequence):
         Args:
             gettable (GettableParameter): Gettable parameter to be added
         """
-        if not isinstance(gettable, GettableParameter):
+        if not isinstance(gettable, GettableParameterBase):
             raise TypeError(
                 f"Expected GettableParameter, got {type(gettable)}"
             )

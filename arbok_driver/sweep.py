@@ -9,7 +9,7 @@ from qm import qua
 from qcodes.parameters import Parameter
 from qcodes.validators import Arrays
 
-from .sequence_parameter import SequenceParameter
+from .parameters.sequence_parameter import SequenceParameter
 if TYPE_CHECKING:
     from .measurement import Measurement
 
