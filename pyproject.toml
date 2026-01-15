@@ -47,3 +47,8 @@ docs = [
   "sphinx-rtd-theme",
   "sphinx-autodoc-typehints"
 ]
+
+dev = [
+  "pytest~=9.0",
+  "pytest-cov~=7.0"
+]
