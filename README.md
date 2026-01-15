@@ -1,5 +1,9 @@
 # arbok_driver
+[![Documentation Status](https://readthedocs.org/projects/arbok-driver/badge/?version=latest)](https://arbok-driver.readthedocs.io/en/latest/index.html)
+[![PyPI](https://img.shields.io/pypi/v/arbok-driver.svg)](https://pypi.org/project/arbok-driver/)
+[![License](https://img.shields.io/github/license/andncl/arbok_driver.svg)](LICENSE)
 [![Coverage](https://codecov.io/gh/andncl/arbok_driver/graph/badge.svg)](https://codecov.io/gh/andncl/arbok_driver)
+[![Python](https://img.shields.io/pypi/pyversions/arbok-driver.svg)](https://pypi.org/project/arbok-driver/)
 
 QCoDeS compatible driver for the OPX+ from Quantum Machines
 Arbok is taylored for routines using the Quantum Machines OPX(+) quantum control hardware.
@@ -88,6 +92,7 @@ jupyter lab
 ```
 ### 2) Launching plottr-inspectr
 Exactly as described above!
+
 
 
 
