@@ -1,10 +1,6 @@
-import pytest
 import numpy as np
-from qm import generate_qua_script
-from sklearn import dummy
 
 from arbok_driver import Measurement, SubSequence
-from arbok_driver.tests.helpers import set_sweeps_args
 
 def test_sequence_init(arbok_driver, dummy_device) -> None:
     """Tests if sequence is correctly initialized"""

@@ -1,7 +1,7 @@
 import pytest 
 
 from arbok_driver import ArbokDriver, Device, SubSequence, Measurement, parameter_types
-from arbok_driver.tests.dummy_opx_config import dummy_qua_config
+from .dummy_opx_config import dummy_qua_config
 
 opx_scale = 2
 divider_config = {

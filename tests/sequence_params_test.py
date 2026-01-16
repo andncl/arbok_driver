@@ -1,6 +1,3 @@
-import pytest
-import tempfile
-
 from arbok_driver import SubSequence
 
 import logging
