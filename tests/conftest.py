@@ -30,15 +30,15 @@ def arbok_driver(dummy_device):
     """Returns ArbokDriver instance"""
     driver = ArbokDriver(name = 'arbok_driver', device = dummy_device)
     yield driver
-    driver.__del__()
-    del driver
+    driver.close()
 
 @pytest.fixture
 def dummy_measurement(arbok_driver, dummy_device):
     """Returns dummy measurement instance"""
     measurement = Measurement(arbok_driver, 'dummy_measurement', dummy_device)
     yield measurement
-    measurement.__del__()
+    arbok_driver.submodules.pop(measurement.full_name)
+    arbok_driver.measurements.remove(measurement)
     del measurement
 
 @pytest.fixture
@@ -48,7 +48,8 @@ def sub_sequence_1(dummy_measurement, dummy_device):
         'par1': {'type': parameter_types.Int, 'value': int(1)},
         'par2': {'type': parameter_types.Int, 'value': int(10)},
         'par3': {'type': parameter_types.Voltage, 'value': 1.1},
-        'vHome': {'type': parameter_types.Voltage, 'elements': {'P1': 5, 'J1': 6, }},
+        'vHome': {'type': parameter_types.Voltage,
+        'elements': {'P1': 5, 'J1': 6, }},
     }
     seq1 = SubSequence(dummy_measurement, 'sub_seq1', dummy_device, config_1)
     yield seq1
