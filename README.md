@@ -35,7 +35,9 @@ Manual writing of a `ReadoutSequence` and an `AbstractReadout` will be the subje
 Finally we cover the `GenericTuningInterface` to implement a simple auto-tuning routine.
 
 [Tutorial 0: Getting started](docs/0_Measurement_example.ipynb)
+
 [Tutorial 1:](docs/1_parameterizing_sequences.ipynb)
+
 [Tutorial 2:](docs/2_Readout_sequences.ipynb)
 
 ## Stripping jupyter notebooks 📒
@@ -52,6 +54,7 @@ Install the git hook so that your notebooks are stripped before committing.
 ```
 ./tools/git.hooks/setupLinux.sh
 ```
+
 
 
 
