@@ -12,8 +12,6 @@ import warnings
 
 from qm import qua, generate_qua_script
 import qcodes as qc
-from qcodes.dataset.data_set import DataSet
-import xarray
 
 from .measurement_runners import(
     NativeMeasurementRunner,
