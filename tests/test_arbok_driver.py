@@ -1,6 +1,5 @@
 """Module testing the Program class"""
-import pytest
-from arbok_driver import Measurement, ArbokDriver, Device
+from arbok_driver import Measurement
 
 def test_arbok_driver_init(arbok_driver)-> None:
     """Tests if arbok_driver is correctly initialized"""

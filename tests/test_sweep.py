@@ -7,9 +7,6 @@ from qcodes.instrument import Instrument
 from arbok_driver import Sweep
 from arbok_driver import SequenceParameter
 
-
-
-
 @pytest.fixture
 def mock_instrument() -> Instrument:
     dummy_instrument = Instrument("dummy_instrument")
