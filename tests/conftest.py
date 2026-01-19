@@ -7,6 +7,7 @@ from arbok_driver import (
     Measurement,
     ParameterClass,
     ReadSequence,
+    SequenceParameter,
     SubSequence,
 )
 from arbok_driver.parameter_types import (
@@ -34,6 +35,12 @@ class SubSequenceParameterClass(ParameterClass):
     par2: Amplitude
     iteration: Int
     v_home: ParameterMap[str, Voltage]
+
+class UserSubSequence(SubSequence):
+    PARAMETER_CLASS = SubSequenceParameterClass
+
+class UserReadSequence(ReadSequence):
+    PARAMETER_CLASS = SubSequenceParameterClass
 
 @pytest.fixture
 def dummy_device():
@@ -63,7 +70,7 @@ def dummy_measurement(arbok_driver, dummy_device):
     del measurement
 
 @pytest.fixture
-def sub_sequence_1(dummy_measurement, dummy_device):
+def empty_sub_seq_1(dummy_measurement, dummy_device):
     """Returns dummy subsequence with a few parameters"""
     config_1 = {
         'par1': {'type': Int, 'value': int(1)},
@@ -71,20 +78,18 @@ def sub_sequence_1(dummy_measurement, dummy_device):
         'par3': {'type': Voltage, 'value': 1.1},
         'v_home': {'type': Voltage, 'elements': {'P1': 5, 'J1': 6, }},
     }
-    SubSequence.PARAMETER_CLASS = SubSequenceParameterClass
-    seq1 = SubSequence(dummy_measurement, 'sub_seq1', dummy_device, config_1)
+    seq1 = UserSubSequence(dummy_measurement, 'sub_seq1', dummy_device, config_1)
     yield seq1
 
 @pytest.fixture
-def sub_sequence_2(dummy_measurement, dummy_device):
+def empty_sub_seq_2(dummy_measurement, dummy_device):
     """Returns dummy subsequence with a few parameters"""
     config_2 = {
         'par4': {'type': Int, 'value': int(2)},
         'par5': {'type': Int, 'value': int(3)},
         'v_home': {'type': Voltage, 'elements': {'P1': 0, 'J1': 7, }},
     }
-    SubSequence.PARAMETER_CLASS = SubSequenceParameterClass
-    seq2 = SubSequence(dummy_measurement, 'sub_seq2', dummy_device, config_2)
+    seq2 = UserSubSequence(dummy_measurement, 'sub_seq2', dummy_device, config_2)
     yield seq2
     seq2.__del__()
 
@@ -101,6 +106,20 @@ def read_sequence_no_readouts(dummy_measurement, dummy_device):
         'signals': [],
         'readout_groups': {}
     }
-    ReadSequence.PARAMETER_CLASS = SubSequenceParameterClass
-    seq1 = ReadSequence(dummy_measurement, 'read_seq', dummy_device, config_1)
+    seq1 = UserReadSequence(
+        dummy_measurement, 'read_seq', dummy_device, config_1)
     yield seq1
+
+@pytest.fixture
+def measurement_parameter(dummy_measurement):
+    dummy_measurement.add_parameter(
+        parameter_class = SequenceParameter,
+        name  = 'dummy_param',
+        # config_name = 'dummy_conf',
+        initial_value = 0,
+        scale = 1,
+        get_cmd = None,
+        set_cmd = None,
+    )
+    dummy_measurement.dummy_param.qua_var = 'placeholder'
+    return dummy_measurement.dummy_param

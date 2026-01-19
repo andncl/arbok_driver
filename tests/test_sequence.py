@@ -1,18 +1,26 @@
+from dataclasses import dataclass
 import re
 import numpy as np
 from qm import generate_qua_script
 
-from arbok_driver import Measurement, SubSequence
+from arbok_driver import Measurement, SubSequence, ParameterClass
 from arbok_driver.parameter_types import (
-    Amplitude, Time, Voltage
+    Amplitude, Time, Voltage,
 )
 
-def test_sequence_init(arbok_driver, dummy_device) -> None:
+@dataclass
+class SubSequenceParameterClass(ParameterClass):
+    par1: Amplitude
+
+class UserSubSequence(SubSequence):
+    PARAMETER_CLASS = SubSequenceParameterClass
+
+def test_measurement_init(arbok_driver, dummy_device) -> None:
     """Tests if sequence is correctly initialized"""
     seq = Measurement(arbok_driver, 'dummy_measurement', dummy_device)
     assert seq.name == f'{arbok_driver.name}_dummy_measurement'
 
-def test_sequence_sub_sequence_addition(
+def test_measurement_sub_sequence_addition(
         dummy_measurement, dummy_device) -> None:
     """Tests if subsequence is correctly added to sequence"""
     config_1 = {
@@ -20,11 +28,12 @@ def test_sequence_sub_sequence_addition(
             'par1': {'type': Time, 'value': int(100)},
             'par2': {'type': Time, 'value': int(10)},
             'par3': {'type': Voltage, 'value': 1.1},
-            'vHome': {'type': Amplitude, 'elements': {
+            'v_home': {'type': Amplitude, 'elements': {
                 'P1': 0.5, 'J1': 0.6, }},
         }
     }
-    seq1 = SubSequence(
+    # SubSequence.PARAMETER_CLASS = SubSequenceParameterClass
+    seq1 = UserSubSequence(
         parent = dummy_measurement,
         name = 'seq1',
         device = dummy_device,
@@ -36,11 +45,11 @@ def test_sequence_sub_sequence_addition(
     assert hasattr(dummy_measurement, 'seq1')
     assert dummy_measurement.seq1 == seq1
 
-def test_set_sweeps(sub_sequence_1, dummy_measurement) -> None:
+def test_set_sweeps(empty_sub_seq_1, dummy_measurement) -> None:
     """Tests if sweeps are correctly set"""
     dummy_measurement.set_sweeps(
-        {sub_sequence_1.par1: np.arange(10)},
-        {sub_sequence_1.par2: np.arange(5)}
+        {empty_sub_seq_1.par1: np.arange(10)},
+        {empty_sub_seq_1.par2: np.arange(5)}
         )
     assert len(dummy_measurement.sweeps) == 2
     assert dummy_measurement.sweeps[0].length == 10
@@ -49,11 +58,11 @@ def test_set_sweeps(sub_sequence_1, dummy_measurement) -> None:
     assert dummy_measurement.sweep_size == 50
 
 def test_qua_program_compilation_w_linear_sweeps(
-        sub_sequence_1, dummy_measurement) -> None:
+        empty_sub_seq_1, dummy_measurement) -> None:
     """Tests whether the qua code is compiled correctly"""
     dummy_measurement.set_sweeps(
-        {sub_sequence_1.par1: np.arange(0, 10, 1)},
-        {sub_sequence_1.vHome_P1: np.arange(-0.1, 0.1, 0.1)}
+        {empty_sub_seq_1.par1: np.arange(0, 10, 1)},
+        {empty_sub_seq_1.v_home_P1: np.arange(-0.1, 0.1, 0.1)}
         )
     qua_prog_str = dummy_measurement.get_qua_program_as_str()
     qua_prog = dummy_measurement.get_qua_program()
@@ -70,11 +79,11 @@ def test_qua_program_compilation_w_linear_sweeps(
     assert len([m.start() for m in re.finditer('while_', qua_prog_str)]) == 2
 
 def test_qua_program_compilation_w_non_linear_sweeps(
-        sub_sequence_1, dummy_measurement) -> None:
+        empty_sub_seq_1, dummy_measurement) -> None:
     """Tests whether the qua code is compiled correctly"""
     dummy_measurement.set_sweeps(
-        {sub_sequence_1.par2: np.arange(0, 10, 1)},
-        {sub_sequence_1.vHome_P1: np.random.rand(8)}
+        {empty_sub_seq_1.par2: np.arange(0, 10, 1)},
+        {empty_sub_seq_1.v_home_P1: np.random.rand(8)}
         )
     qua_prog_str = dummy_measurement.get_qua_program_as_str()
     qua_prog = dummy_measurement.get_qua_program()
