@@ -26,7 +26,8 @@ class SequenceBase(InstrumentModule, ABC):
     """
     Class describing a subsequence of a QUA programm (e.g Init, Control, Read). 
     """
-    PARAMETER_CLASS: ParameterClass
+    PARAMETER_CLASS: type[ParameterClass]
+    _enforce_parameter_class: bool = False
     def __init__(
             self,
             parent,
@@ -61,6 +62,16 @@ class SequenceBase(InstrumentModule, ABC):
         self._parameter_maps: dict = {}
         self._qua_program_as_str = None
         self.add_qc_params_from_config(self.sequence_config)
+
+    def __init_subclass__(cls, **kwargs) -> None:
+        """Enforces child classes to define PARAMETER_CLASS class attribute"""
+        super().__init_subclass__(**kwargs)
+        if cls._enforce_parameter_class:
+            if 'PARAMETER_CLASS' not in cls.__dict__:
+                raise TypeError(
+                    f"{cls.__name__} must define class attribute PARAMETER_CLASS"
+                )
+        cls._enforce_parameter_class = True
 
     @staticmethod
     def config_template():
