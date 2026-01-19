@@ -1,10 +1,11 @@
 """ Module containing ParameterType classes """
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Generic, TypeVar
 
 import numpy as np
 from qm import qua
+from qm.qua._expressions import QuaVariable, Scalar
 from qcodes.validators import (
     Arrays, Numbers, Ints, MultiTypeOr, Strings, Sequence, Bool
 )
@@ -26,7 +27,7 @@ class ParameterMap(Mapping[K, V], Generic[K, V]):
     def __len__(self) -> int:
         return len(self._mapping)
         
-class Time(SequenceParameter):
+class Time(SequenceParameter[int]):
     """
     Cycles sequence parameter. Parameter values and sweeps are given in units of 
     FPGA cycles (4 ns). The parameter is converted to seconds before being
@@ -45,7 +46,7 @@ class Time(SequenceParameter):
     def convert_to_real_units(self, value):
         return np.array(np.array(value)*4e-9)
 
-class String(SequenceParameter):
+class String(SequenceParameter[str]):
     unit = 'N/A'
     """ Default: 'N/A' """
     var_type = str
@@ -55,7 +56,7 @@ class String(SequenceParameter):
     """ Default: Strings """
     sweep_validator = MultiTypeOr(Strings(), Arrays(valid_types = [None]))
 
-class Voltage(SequenceParameter):
+class Voltage(SequenceParameter[float | QuaVariable]):
     unit = 'V'
     """ Default: 'V' """
     var_type = qua.fixed
@@ -65,7 +66,7 @@ class Voltage(SequenceParameter):
     sweep_validator = MultiTypeOr(Numbers(), Arrays(valid_types = [float]))
     """ Default: Numbers """
 
-class Frequency(SequenceParameter):
+class Frequency(SequenceParameter[int | QuaVariable]):
     unit = 'Hz'
     """ Default: 'Hz' """
     var_type = int
@@ -75,7 +76,7 @@ class Frequency(SequenceParameter):
     sweep_validator = MultiTypeOr(Numbers(), Arrays(valid_types = [int]))
     """ Default: Numbers """
 
-class Amplitude(SequenceParameter):
+class Amplitude(SequenceParameter[float | Scalar]):
     unit = None
     var_type = qua.fixed
     """ Default: fixed """
@@ -87,7 +88,7 @@ class Amplitude(SequenceParameter):
         )
     """ Default: Numbers """
 
-class List(SequenceParameter):
+class List(SequenceParameter[list]):
     unit = 'N/A'
     """ Default: 'N/A' """
     var_type = None
@@ -97,21 +98,21 @@ class List(SequenceParameter):
     """ Default: Strings """
     sweep_validator = Sequence()
 
-class Int(SequenceParameter):
+class Int(SequenceParameter[int | QuaVariable]):
     var_type = int
     """ Default: int """
     vals = Ints()
     scale = 1
     sweep_validator = MultiTypeOr(Numbers(), Arrays(valid_types = [int]))
 
-class Boolean(SequenceParameter):
+class Boolean(SequenceParameter[bool]):
     var_type = bool
     """ Default: int """
     vals = Bool()
     scale = None
     sweep_validator = None
 
-class Radian(SequenceParameter):
+class Radian(SequenceParameter[float]):
     unit = 'pi'
     var_type = qua.fixed
     vals = Numbers(min_value = -2*np.pi, max_value = 2*np.pi)
