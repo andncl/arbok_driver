@@ -1,5 +1,6 @@
 """ Module containing BaseSequence class """
 from __future__ import annotations
+from abc import ABC
 from typing import TYPE_CHECKING, Optional
 import copy
 import types
@@ -14,15 +15,18 @@ from qm.simulate.credentials import create_credentials
 
 from .device import Device
 from .parameters.sequence_parameter import SequenceParameter
+from .parameter_class import ParameterClass
+from .parameter_types import ParameterMap
 from . import utils
+
 if TYPE_CHECKING:
-    from .measurement import Measurement
     from .sub_sequence import SubSequence
 
-class SequenceBase(InstrumentModule):
+class SequenceBase(InstrumentModule, ABC):
     """
     Class describing a subsequence of a QUA programm (e.g Init, Control, Read). 
     """
+    PARAMETER_CLASS: ParameterClass
     def __init__(
             self,
             parent,
@@ -54,18 +58,9 @@ class SequenceBase(InstrumentModule):
         self._sub_sequences = []
         self._sub_sequence_dict = {}
         self._gettables = []
+        self._parameter_maps: dict = {}
         self._qua_program_as_str = None
-        self._init(**kwargs)
         self.add_qc_params_from_config(self.sequence_config)
-
-    def _init(self, **kwargs):
-        """A method to do initialisation when the __init__ constructor isn't
-            required.
-           
-            Args:
-            **kwargs: Arbitrary keyword arguments.
-           """
-        pass
 
     @staticmethod
     def config_template():
@@ -143,6 +138,17 @@ class SequenceBase(InstrumentModule):
         """Adds a subsequence to self"""
         self._sub_sequences.append(new_sequence)
 
+    def get_parameters_and_maps(
+            self, param_names: list[str]
+            ) -> dict[str, SequenceParameter | ParameterMap]:
+        param_dict = {}
+        for param_name in param_names:
+            if param_name in self.parameters:
+                param_dict[param_name] = self.parameters[param_name]
+            elif param_name in self._parameter_maps:
+                param_dict[param_name] = self._parameter_maps[param_name]
+        return param_dict
+
     def add_qc_params_from_config(self, config):
         """ 
         Creates QCoDeS parameters for all entries of the config 
@@ -209,9 +215,9 @@ class SequenceBase(InstrumentModule):
         Args:
             simulate (bool): True if program is generated for simulation
         """
-        if self.measurement is None:
+        if not hasattr(self, "measurement"):
             raise ReferenceError(
-                "The sub sequence {self.name} is not linked to a sequence")
+                "The sub sequence {self.name} is not linked to a measurement")
         self.qua_declare_sweep_vars()
         self.qua_declare()
 
@@ -313,7 +319,7 @@ class SequenceBase(InstrumentModule):
                 del globals()[sub.short_name]
         self._sub_sequences = []
 
-    def _add_param(self, param_name: str, param_dict: dict):
+    def _add_param(self, param_name: str, param_dict: dict) -> SequenceParameter | None:
         """
         Adds parameter based on the given parameter configuration
         
@@ -321,12 +327,15 @@ class SequenceBase(InstrumentModule):
             param_name (str): Name of the parameter
             param_dict (dict): Must contain 'unit' key and optionally 'value'
                 or 'elements' for element wise defined parameters
+
+        Returns:
+            SequenceParameter: just created parameter
         """
         logging.debug("Adding %s to %s", param_name, self.name)
         param_dict = self._reshape_param_dict(param_name, param_dict)
         if 'elements' in param_dict:
             self._add_element_params(param_name, param_dict)
-            return
+            return None
         self._check_param_dict(param_name, param_dict)
         # If the parameter already exists on another sub-sequence or measurement
         # we add the sequence name to the parameter name to avoid conflicts
@@ -345,6 +354,7 @@ class SequenceBase(InstrumentModule):
         )
         if attr_exists_already:
             setattr(self, short_param_name, new_param)
+        return new_param
 
     def _reshape_param_dict(
             self, param_name: str, param_dict: dict
@@ -391,6 +401,7 @@ class SequenceBase(InstrumentModule):
             param_dict (dict): Must contain 'elements' key and optionally 'value'
                 or 'elements' for element wise defined parameters
         """
+        element_mapping = {}
         for element, value in param_dict['elements'].items():
             element_param_dict = {
                 'element' : element,
@@ -406,10 +417,11 @@ class SequenceBase(InstrumentModule):
             param_dict_copy.update(element_param_dict)
             del param_dict_copy['elements']
 
-            self._add_param(
+            element_mapping[element] = self._add_param(
                 param_name = f'{param_name}_{element}',
                 param_dict = param_dict_copy
                 )
+        self._parameter_maps[param_name] = ParameterMap(element_mapping)
 
     def _check_param_dict(self, param_name: str, param_dict: dict) -> None:
         """
