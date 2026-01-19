@@ -1,14 +1,16 @@
 """ Module containing SequenceParameter class """
-from typing import Optional
+from __future__ import annotations
+from typing import TypeVar, Generic, Optional
 import logging
 
 from numpy import ndarray
 import numpy as np
 from qcodes.parameters import Parameter
-from qcodes.validators import Arrays
 from qm import qua
 
-class SequenceParameter(Parameter):
+T_co = TypeVar("T_co", covariant=True)
+
+class SequenceParameter(Parameter, Generic[T_co]):
     """
     A parameter wrapper that adds the respective element as attribute
 
@@ -57,6 +59,14 @@ class SequenceParameter(Parameter):
         """Returns the full name of the parameter"""
         return self.sequence_path
 
+    @property
+    def qua(self) -> T_co:
+        """Getter method for parameter"""
+        if self.qua_var is not None:
+            return self.qua_var
+        else:
+            return self.get_raw()
+
     def convert_to_real_units(self, value):
         """
         Converts the value of the parameter to real units
@@ -69,14 +79,16 @@ class SequenceParameter(Parameter):
         """
         return value
 
-    def __call__(self,
-                 value: Optional[float | int | ndarray] = None
-                 ) -> Optional[float | int | ndarray]:
-        return self.call_method(value)
+    def __call__(
+            self, value: Optional[float | int | ndarray] = None,
+            **kwargs
+            ) -> T_co | None:
+        return self.call_method(value, **kwargs)
 
     def call_method(self,
-                 value: Optional[float | int | ndarray] = None
-                 ) -> Optional[float | int | ndarray]:
+                 value: Optional[float | int | ndarray] = None,
+                 **kwargs
+                 ) -> T_co | None:
         """
         Method being executed when SequenceParameter is called.
         
@@ -86,10 +98,8 @@ class SequenceParameter(Parameter):
         Returns:
             float|int|np.ndarray: Parameter value if no input value is given
         """
-        if self.qua_var is not None:
-            return self.qua_var
         if value is None:
-            return self.get_raw()
+            self.qua
         else:
             self.set(value)
 
