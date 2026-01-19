@@ -1,17 +1,26 @@
 '''Module containing ReadSequence implementing coulomb peaks measurement'''
 from dataclasses import dataclass
 from qm import qua
-from arbok_driver import Device, ReadSequence, parameter_types, qua_helpers
+from arbok_driver import (
+    Device, ReadSequence, qua_helpers, ParameterClass
+)
+from arbok_driver.parameter_types import (
+    Time, ParameterMap, String, Voltage
+)
 
 @dataclass(frozen=True)
-class CoulombPeaksParameters:
-    t_wait_after_ramp: parameter_types.Time
+class CoulombPeaksParameters(ParameterClass):
+    t_wait_after_ramp: Time
+    gate_elements: String
+    v_home: ParameterMap[str, Voltage]
+    v_set_level: ParameterMap[str, Voltage]
 
 class CoulombPeaks(ReadSequence):
     """
     Class containing parameters and sequence for Coulomb peaks measurement of
     a generic SET
     """
+    PARAMETER_CLASS = CoulombPeaksParameters
 
     def __init__(
             self,

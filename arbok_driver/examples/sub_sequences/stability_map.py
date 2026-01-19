@@ -1,15 +1,16 @@
 """Module containing generic StabilityMap class"""
 from dataclasses import dataclass
 from qm import qua
-from arbok_driver import qua_helpers, Device, ReadSequence, parameter_types
-from arbok_driver.parameter_types import Time, ParameterMap
+from arbok_driver import qua_helpers, Device, ReadSequence
+from arbok_driver.parameter_types import Time, ParameterMap, String, Voltage
 
 @dataclass
 class StabilityMapParameters:
     """Parameter class for StabilityMap read sequence"""
     t_pre_chop: Time
-    v_home: ParameterMap
-    v_level: ParameterMap
+    gate_elements: String
+    v_home: ParameterMap[str, Voltage]
+    v_level: ParameterMap[str, Voltage]
 
 class StabilityMap(ReadSequence):
     """
