@@ -1,5 +1,6 @@
 """ Module containing Sequence class """
 from __future__ import annotations
+from dataclasses import fields
 from typing import TYPE_CHECKING, Any
 import logging
 
@@ -13,6 +14,7 @@ class SubSequence(SequenceBase):
     """
     Class describing a subsequence of a QUA programm (e.g Init, Control, Read). 
     """
+    _enforce_parameter_class: bool = False
     def __init__(
             self,
             parent,
@@ -34,6 +36,7 @@ class SubSequence(SequenceBase):
         super().__init__(
             parent, name, device, sequence_config, check_step_requirements, **kwargs)
         self.parent.add_subsequence(self)
+        self.arbok_params = self.map_arbok_params()
 
     @property
     def measurement(self) -> Measurement:
@@ -47,6 +50,13 @@ class SubSequence(SequenceBase):
             )
         else:
             super().qua_sequence()
+
+    def map_arbok_params(self) -> Any:
+        """Maps required params for QUA code to arbok_params attribute"""
+        arg_names = [f.name for f in fields(self.PARAMETER_CLASS) if f.init]
+        init_dict = self.measurement.get_parameters_and_maps(arg_names)
+        init_dict.update(self.get_parameters_and_maps(arg_names))
+        return self.PARAMETER_CLASS(**init_dict)
 
     def add_subsequences_from_dict(
             self,
