@@ -9,24 +9,27 @@ class SquarePulseParameters(ParameterClass):
     amplitude: Amplitude
     element: String
     t_ramp: Time
+    t_square_pulse: Time
 
 class SquarePulse(SubSequence):
     """
     Class containing parameters and sequence for a simple square pulse
     """
     PARAMETER_CLASS = SquarePulseParameters
-
+    arbok_params: SquarePulseParameters
     def qua_sequence(self):
         """Macro that will be played within the qua.program() context"""
         qua.align()
         qua.play(
-            pulse = 'ramp'*qua.amp(self.amplitude()),
-            element = self.element(),
-            duration = self.t_ramp()
+            pulse = 'ramp'*qua.amp(self.arbok_params.amplitude.qua),
+            element = self.arbok_params.element.qua,
+            duration = self.arbok_params.t_ramp.qua
             )
-        qua.wait(self.t_square_pulse(), self.element())
+        qua.wait(
+            self.arbok_params.t_square_pulse.qua,
+            self.arbok_params.element.qua)
         qua.play(
-            pulse = 'ramp'*qua.amp(self.amplitude()),
-            element = self.element(),
-            duration = self.t_ramp()
+            pulse = 'ramp'*qua.amp(self.arbok_params.amplitude.qua),
+            element = self.arbok_params.element.qua,
+            duration = self.arbok_params.t_ramp.qua
             )
