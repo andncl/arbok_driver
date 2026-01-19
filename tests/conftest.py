@@ -10,8 +10,12 @@ from arbok_driver import (
     SequenceParameter,
     SubSequence,
 )
+from arbok_driver.examples.sub_sequences import (
+    SquarePulse,
+    SquarePulseScalable
+)
 from arbok_driver.parameter_types import (
-    Amplitude, Int, Voltage, ParameterMap
+    Amplitude, Int, List, ParameterMap, String, Time, Voltage
 )
 from .dummy_opx_config import dummy_qua_config
 
@@ -123,3 +127,39 @@ def measurement_parameter(dummy_measurement):
     )
     dummy_measurement.dummy_param.qua_var = 'placeholder'
     return dummy_measurement.dummy_param
+
+@pytest.fixture
+def square_pulse(dummy_measurement, dummy_device):
+    conf = {
+        "parameters": {
+            'amplitude': {'type': Amplitude, 'value': 1.5},
+            'element': {'type': String, 'value': 'P1'},
+            't_ramp': {'type': Time, 'value': int(100)},
+            't_square_pulse': {'type': Time, 'value': int(1000)}
+        }
+    }
+    square_pulse = SquarePulse(
+        dummy_measurement, "square_pulse", dummy_device, conf)
+    yield square_pulse
+
+@pytest.fixture
+def square_pulse_scalable(dummy_measurement, dummy_device):
+    conf = {
+        "parameters": {
+            'amplitude': {'type': Amplitude, 'value': 1.5},
+            't_ramp': {'type': Time, 'value': int(100)},
+            'sticky_elements': {'type': List, 'value': ['P1', 'P2', 'P3']},
+            't_square_pulse': {'type': Time, 'value': int(1000)},
+            'v_home': {
+                'type': Voltage,
+                'elements': {
+                    'P1': 0.1,
+                    'P2': -0.2,
+                    'P3': 0.2
+                }
+            }
+        }
+    }
+    square_pulse = SquarePulseScalable(
+        dummy_measurement, "square_pulse",  dummy_device, conf)
+    yield square_pulse
