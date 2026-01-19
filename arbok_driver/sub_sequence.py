@@ -1,5 +1,6 @@
 """ Module containing Sequence class """
 from __future__ import annotations
+from abc import ABC
 from dataclasses import fields
 from typing import TYPE_CHECKING, Any
 import logging
@@ -10,7 +11,7 @@ if TYPE_CHECKING:
     from .device import Device
     from .measurement import Measurement
 
-class SubSequence(SequenceBase):
+class SubSequence(SequenceBase, ABC):
     """
     Class describing a subsequence of a QUA programm (e.g Init, Control, Read). 
     """
