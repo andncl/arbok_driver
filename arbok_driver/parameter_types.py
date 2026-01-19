@@ -1,5 +1,6 @@
 """ Module containing ParameterType classes """
-from collections.abc import Hashable
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from typing import Generic, TypeVar
 
 import numpy as np
@@ -9,26 +10,21 @@ from qcodes.validators import (
 )
 from .parameters.sequence_parameter import SequenceParameter
 
-K = TypeVar("K", bound=Hashable)
-V = TypeVar("V")
+K = TypeVar("K", bound=str)
+V = TypeVar("V", covariant = True)
 
-class ParameterMap:
-    """
-    Class grouping a parameter family for different elements.
-    E.g v_home_P1, v_home_P2, etc
-    """
-    def __init__(self, mapping: dict[K, V]):
-        """Constructor for ParameterMap"""
-        self._mapping = dict(mapping)
-
-    def get(self, key: K) -> V:
-        return self._mapping[key]
+@dataclass(frozen=True)
+class ParameterMap(Mapping[K, V], Generic[K, V]):
+    _mapping: Mapping[K, V]
 
     def __getitem__(self, key: K) -> V:
         return self._mapping[key]
-    
-    def __contains__(self, key: K) -> bool:
-        return key in self._mapping
+
+    def __iter__(self):
+        return iter(self._mapping)
+
+    def __len__(self) -> int:
+        return len(self._mapping)
         
 class Time(SequenceParameter):
     """
