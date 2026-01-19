@@ -13,12 +13,13 @@ if TYPE_CHECKING:
 
 class ReadSequence(SubSequence):
     """ Baseclass for sequences containing readouts """
+    _enforce_parameter_class: bool = False
     def __init__(
         self,
         parent: SubSequence,
         name: str,
         device: Device,
-        sequence_config: dict,
+        sequence_config: dict | None,
         ):
         """
         Constructor class for ReadSequence class
