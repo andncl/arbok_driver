@@ -1,4 +1,6 @@
 """ Module containing ParameterType classes """
+from collections.abc import Hashable
+from typing import Generic, TypeVar
 
 import numpy as np
 from qm import qua
@@ -7,6 +9,27 @@ from qcodes.validators import (
 )
 from .parameters.sequence_parameter import SequenceParameter
 
+K = TypeVar("K", bound=Hashable)
+V = TypeVar("V")
+
+class ParameterMap:
+    """
+    Class grouping a parameter family for different elements.
+    E.g v_home_P1, v_home_P2, etc
+    """
+    def __init__(self, mapping: dict[K, V]):
+        """Constructor for ParameterMap"""
+        self._mapping = dict(mapping)
+
+    def get(self, key: K) -> V:
+        return self._mapping[key]
+
+    def __getitem__(self, key: K) -> V:
+        return self._mapping[key]
+    
+    def __contains__(self, key: K) -> bool:
+        return key in self._mapping
+        
 class Time(SequenceParameter):
     """
     Cycles sequence parameter. Parameter values and sweeps are given in units of 
