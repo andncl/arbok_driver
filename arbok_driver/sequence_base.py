@@ -194,9 +194,9 @@ class SequenceBase(InstrumentModule, ABC):
         for pre, _, node in RenderTree(root_node):
             print(f"{pre}{node.name}")
 
-    def get_qua_program_as_str(self) -> str:
+    def get_qua_program_as_str(self, recompile: bool = False) -> str:
         """Returns the qua program as str. Will be compiled if it wasnt yet"""
-        if self._qua_program_as_str is None:
+        if self._qua_program_as_str is None or recompile:
             self.get_qua_program()
         return self._qua_program_as_str
 
