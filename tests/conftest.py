@@ -12,6 +12,7 @@ from arbok_driver import (
     SubSequence,
 )
 from arbok_driver.examples.configurations import (
+    device_config,
     square_pulse_conf,
     square_pulse_scalable_conf,
     opx1000_config,
@@ -55,10 +56,11 @@ def dummy_device():
         name = 'dummy_device',
         opx_config = opx1000_config,
         divider_config = divider_config,
+        master_config = device_config
     )
 
 @pytest.fixture
-def arbok_driver(dummy_device):
+def arbok_driver(dummy_device) -> ArbokDriver: # type: ignore[reportInvalidTypeForm]
     """Returns ArbokDriver instance"""
     driver = ArbokDriver(name = 'arbok_driver', device = dummy_device)
     yield driver
@@ -68,8 +70,10 @@ def arbok_driver(dummy_device):
 def dummy_measurement(arbok_driver, dummy_device) -> Measurement: # type: ignore[reportInvalidTypeForm]
     """Returns dummy measurement instance"""
     measurement = Measurement(
-        arbok_driver, 'dummy_measurement', dummy_device,
-        sequence_config= {'iteration': {'type': Int, 'value': 9}})
+        parent = arbok_driver,
+        name = 'dummy_measurement',
+        device = dummy_device,
+        )
     yield measurement
     arbok_driver.submodules.pop(measurement.full_name)
     arbok_driver.measurements.remove(measurement)
@@ -121,7 +125,6 @@ def measurement_parameter(dummy_measurement):
     dummy_measurement.add_parameter(
         parameter_class = SequenceParameter,
         name  = 'dummy_param',
-        # config_name = 'dummy_conf',
         initial_value = 0,
         scale = 1,
         get_cmd = None,
@@ -138,22 +141,6 @@ def square_pulse(dummy_measurement, dummy_device):
 
 @pytest.fixture
 def square_pulse_scalable(dummy_measurement, dummy_device):
-    conf = {
-        "parameters": {
-            'amplitude': {'type': Amplitude, 'value': 1.5},
-            't_ramp': {'type': Time, 'value': int(100)},
-            'sticky_elements': {'type': List, 'value': ['P1', 'P2', 'P3']},
-            't_square_pulse': {'type': Time, 'value': int(1000)},
-            'v_home': {
-                'type': Voltage,
-                'elements': {
-                    'P1': 0.1,
-                    'P2': -0.2,
-                    'P3': 0.2
-                }
-            }
-        }
-    }
     square_pulse = SquarePulseScalable(
         dummy_measurement, "square_pulse",  dummy_device,
         square_pulse_scalable_conf
