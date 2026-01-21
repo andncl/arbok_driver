@@ -5,6 +5,7 @@ from dataclasses import fields
 from typing import TYPE_CHECKING, Any
 import logging
 
+from .parameter_class import ParameterClass
 from .sequence_base import SequenceBase
 
 if TYPE_CHECKING:
@@ -69,8 +70,14 @@ class SubSequence(SequenceBase, ABC):
         Args:
             subsequence_dict (dict): Dictionary containing the subsequences
         """
+        class ContainerParameterClass(ParameterClass):
+            pass
+
+        class ContainerSubSequence(SubSequence):
+            PARAMETER_CLASS = ContainerParameterClass
+    
         super()._add_subsequences_from_dict(
-            default_sequence = SubSequence,
+            default_sequence = ContainerSubSequence,
             subsequence_dict = subsequence_dict,
             namespace_to_add_to = namespace_to_add_to
         )
@@ -96,17 +103,6 @@ class SubSequence(SequenceBase, ABC):
             return f"{self.short_name}__{path}"
         else:
             return self.parent.get_sequence_path(f"{self.short_name}__{path}")
-
-    def __getattr__(self, key: str) -> Any:
-        """Returns parameter from self. If parameter is not found in self, 
-        searches parent sequence"""
-        if key in self.parameters:
-            return self.parameters[key]
-        elif self.measurement is None:
-            raise AttributeError(
-                f"Sub-sequence {self.name} does not have attribute {key}")
-        else:
-            return self._return_measurement_parameters(key)
 
     def _return_measurement_parameters(self, key: str) -> Any:
         """Returns attribute from parent sequence"""
