@@ -6,6 +6,7 @@ import logging
 
 import numpy as np
 from qm import qua
+from qm.qua.lib import Cast
 from qcodes.parameters import Parameter
 from qcodes.validators import Arrays
 
@@ -378,13 +379,13 @@ class Sweep:
             if not reverse:
                 qua.assign(
                     param.qua_var,
-                    sss['start'] + qua.lib.Cast.mul_fixed_by_int(
+                    sss['start'] + Cast.mul_fixed_by_int(
                         sss['step'], sweep_idx_var)
                     )
             else:
                 qua.assign(
                     param.qua_var,
-                    sss['stop'] - qua.lib.Cast.mul_fixed_by_int(
+                    sss['stop'] - Cast.mul_fixed_by_int(
                         sss['step'],sweep_idx_var)
                     )
         else:
@@ -426,7 +427,7 @@ class Sweep:
         stop = sweep_array[-1]
         step = np.mean(np.ediff1d(sweep_array))
         step *= 0.999
-        if param.var_type == int:
+        if param.var_type is int:
             start, stop = int(sweep_array[0]), int(sweep_array[-1] + step)
             step = round(step)
 
