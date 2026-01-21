@@ -1,0 +1,30 @@
+"""Module containing configurations for SquarePulse(Scalable) classes"""
+from arbok_driver.parameter_types import (
+    Amplitude, Int, List, ParameterMap, String, Time, Voltage
+)
+
+square_pulse_conf = {
+    "parameters": {
+        'amplitude': {'type': Amplitude, 'value': 1.5},
+        'element': {'type': String, 'value': 'P1'},
+        't_ramp': {'type': Time, 'value': int(100)},
+        't_square_pulse': {'type': Time, 'value': int(1000)}
+    }
+}
+
+square_pulse_scalable_conf ={
+    "parameters": {
+        'amplitude': {'type': Amplitude, 'value': 1.5},
+        't_ramp': {'type': Time, 'value': int(100)},
+        'sticky_elements': {'type': List, 'value': ['P1', 'P2', 'P3']},
+        't_square_pulse': {'type': Time, 'value': int(1000)},
+        'v_home': {
+            'type': Voltage,
+            'elements': {
+                'P1': 0.1,
+                'P2': -0.2,
+                'P3': 0.2
+            }
+        }
+    }
+}
