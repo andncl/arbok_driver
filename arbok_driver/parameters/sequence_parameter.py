@@ -65,7 +65,8 @@ class SequenceParameter(Parameter, Generic[T_co]):
         if self.qua_var is not None:
             return self.qua_var
         else:
-            return self.get_raw()
+            return_value = self.get_raw()
+            return return_value
 
     def convert_to_real_units(self, value):
         """
@@ -85,10 +86,11 @@ class SequenceParameter(Parameter, Generic[T_co]):
             ) -> T_co | None:
         return self.call_method(value, **kwargs)
 
-    def call_method(self,
-                 value: Optional[float | int | ndarray] = None,
-                 **kwargs
-                 ) -> T_co | None:
+    def call_method(
+            self,
+            value: Optional[float | int | ndarray] = None,
+            **kwargs
+            ) -> T_co | None:
         """
         Method being executed when SequenceParameter is called.
         
@@ -99,8 +101,14 @@ class SequenceParameter(Parameter, Generic[T_co]):
             float|int|np.ndarray: Parameter value if no input value is given
         """
         if value is None:
-            self.qua
+            return self.qua
         else:
+            if self.qua_var is not None:
+                raise ValueError(
+                    f"Parameter {self.full_name}'s qua_var is not None so it"
+                    "cant be set. It is likely being swept or used as a"
+                    "variable elsewhere!"
+                )
             self.set(value)
 
     def reset(self) -> None:
