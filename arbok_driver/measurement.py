@@ -22,6 +22,7 @@ from .parameters import (
     GettableParameterBase,
     SequenceParameter
 )
+from .parameter_class import ParameterClass
 from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
 from .sweep import Sweep
@@ -677,8 +678,14 @@ class Measurement(SequenceBase):
             namespace_to_add_to (dict): Name space to insert the
                 subsequence into (e.g locals(), globals()) defaults to None
         """
+        class ContainerParameterClass(ParameterClass):
+            pass
+
+        class ContainerSubSequence(SubSequence):
+            PARAMETER_CLASS = ContainerParameterClass
+
         super()._add_subsequences_from_dict(
-            default_sequence = SubSequence,
+            default_sequence = ContainerSubSequence,
             subsequence_dict = subsequence_dict,
             namespace_to_add_to = namespace_to_add_to
         )
