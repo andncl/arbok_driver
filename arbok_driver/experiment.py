@@ -1,5 +1,5 @@
 """Module containing abstract class for experiments"""
-from abc import ABC
+from abc import ABC, abstractmethod
 import copy
 from arbok_driver.device import Device
 
@@ -17,14 +17,11 @@ class Experiment(ABC):
         name (str): Name of the experiment to run
         sequences (dict): Sequences to be run within program uploaded to the QM
     """
-    _sequences_config = None
-    _name = None
-
+    _name: str
     def __init__(
             self,
-            name: str,
             device: Device,
-            configs_to_prepare: dict = None
+            configs_to_prepare: dict | None = None
             ) -> None:
         """
         Constructor class for 'Experiment' class.
@@ -32,33 +29,38 @@ class Experiment(ABC):
         Args:
             device (Device): The device object containing configurations and sequences.
         """
-        self._name = name
-        self.device = device
+        self.device: Device = device
         self.configs: dict = copy.deepcopy(device.default_sequence_configs)
         if configs_to_prepare is not None:
             self._prepare_configs(configs_to_prepare)
+
+    @property
+    @abstractmethod
+    def sequences_config(self) -> dict:
+        """Sequences to be run within program uploaded to the OPX"""
+        pass
 
     @property
     def name(self) -> str:
         """Name of the experiment to run"""
         return self._name
 
-    @property
-    def sequences(self) -> dict:
-        """Sequences to be run within program uploaded to the OPX"""
-        return self._sequences_config
-
     def __call__(self) -> dict:
         """Returns the sequences to be run"""
-        return self.sequences
+        return self.sequences_config
 
-    def _prepare_configs(self, configs_to_prepare: list):
+    def _prepare_configs(self, configs_to_prepare: dict):
         """
         Prepare configurations for the experiment by updating the default configs.
 
         Args:
-            configs_to_prepare (list): List of configurations to prepare.
+            configs_to_prepare (dict): List of configurations to prepare.
         """
+        if not isinstance(configs_to_prepare, dict):
+            raise TypeError(
+                f"{self.name}'s 'configs_to_prepare' must be of type dict"
+                f" is type: {type(configs_to_prepare)}."
+            )
         for name, config in configs_to_prepare.items():
             if isinstance(config, dict):
                 self.configs[name] = config
