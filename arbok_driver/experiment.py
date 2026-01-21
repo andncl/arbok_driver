@@ -1,6 +1,5 @@
 """Module containing abstract class for experiments"""
 from abc import ABC, abstractmethod
-import copy
 from arbok_driver.device import Device
 
 class Experiment(ABC):
@@ -12,27 +11,14 @@ class Experiment(ABC):
         1. Initialization of quantum state
         2. Rabi pulse
         3. Readout of quantum state
-    
-    Attributes:
-        name (str): Name of the experiment to run
-        sequences (dict): Sequences to be run within program uploaded to the QM
     """
     _name: str
-    def __init__(
-            self,
-            device: Device,
-            configs_to_prepare: dict | None = None
-            ) -> None:
-        """
-        Constructor class for 'Experiment' class.
-
-        Args:
-            device (Device): The device object containing configurations and sequences.
-        """
-        self.device: Device = device
-        self.configs: dict = copy.deepcopy(device.default_sequence_configs)
+    def __init__(self, configs_to_prepare: dict | None = None):
+        self.configs: dict = {}
         if configs_to_prepare is not None:
-            self._prepare_configs(configs_to_prepare)
+            self.configs_to_prepare = configs_to_prepare
+        else:
+            self.configs_to_prepare = {}
 
     @property
     @abstractmethod
@@ -49,28 +35,38 @@ class Experiment(ABC):
         """Returns the sequences to be run"""
         return self.sequences_config
 
-    def _prepare_configs(self, configs_to_prepare: dict):
+    def get_sequences_config(self, device: Device) -> dict:
+        self.configs = self.get_device_specific_subsequences_dict(device)
+        print("CONFIGS: ", self.configs)
+        return self.sequences_config
+
+    def get_device_specific_subsequences_dict(self, device: Device):
         """
         Prepare configurations for the experiment by updating the default configs.
 
         Args:
-            configs_to_prepare (dict): List of configurations to prepare.
+            device (dict): Device to use for default sequences
         """
-        if not isinstance(configs_to_prepare, dict):
+        configs = device.default_sequence_configs
+        if not isinstance(self.configs_to_prepare, dict):
             raise TypeError(
                 f"{self.name}'s 'configs_to_prepare' must be of type dict"
-                f" is type: {type(configs_to_prepare)}."
+                f" is type: {type(self.configs_to_prepare)}."
             )
-        for name, config in configs_to_prepare.items():
+        for name, config in self.configs_to_prepare.items():
+            print("tpye ", type(config))
             if isinstance(config, dict):
-                self.configs[name] = config
+                configs[name] = config
             elif isinstance(config, str):
-                try:
-                    self.configs[name] = self.configs[config]
-                except KeyError as e:
+                default_name = config
+                if default_name in configs:
+                    configs[name] = configs[config]
+                else:
                     raise KeyError(
                         f"Default config '{config}' not found in default configs."
-                        ) from e
+                        f" Of device: {device.name}"
+                        )
             elif config is None:
                 if name not in self.configs:
                    self.configs[name] = {}
+        return configs
