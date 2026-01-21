@@ -8,11 +8,6 @@ from arbok_driver.examples.configurations import square_pulse_conf
 class SquarePulseExperiment(Experiment):
     """Experiment containing only a single sub-sequence of type SquarePulse"""
     _name = 'square_pulse_experiment'
-    def __init__(
-        self,
-        device: Device,
-    ):
-        super().__init__(device)
 
     @property
     def sequences_config(self):
@@ -29,11 +24,9 @@ class SquarePulseExperimentWithDefaults(Experiment):
     _name = 'square_pulse_experiment'
     def __init__(
         self,
-        device: Device,
         square_pulse_config: dict | None = None
     ):
         super().__init__(
-            device,
             configs_to_prepare = {
                 'square_pulse': square_pulse_config
             })
