@@ -634,6 +634,11 @@ class SequenceBase(InstrumentModule, ABC):
                     f"Config for {self.full_name}__{name} does not contain "
                     "'parameters' key."
                 )
+            if 'sequence' not in seq_conf['config']:
+                raise ValueError(
+                    f"Config for {self.full_name}__{name} does not specify "
+                    "the SubSequence it configures. E.g 'sequence key is missing'"
+                )
             sub_seq_conf = seq_conf['config']
         ### Check if kwargs available and of type dict
         if 'kwargs' in seq_conf:
