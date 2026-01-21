@@ -1,3 +1,4 @@
+"""Module containing fixtures for pytests"""
 from dataclasses import dataclass
 import pytest 
 
@@ -10,28 +11,19 @@ from arbok_driver import (
     SequenceParameter,
     SubSequence,
 )
+from arbok_driver.examples.configurations import (
+    square_pulse_conf,
+    square_pulse_scalable_conf,
+    opx1000_config,
+    divider_config
+)
 from arbok_driver.examples.sub_sequences import (
     SquarePulse,
     SquarePulseScalable
 )
 from arbok_driver.parameter_types import (
-    Amplitude, Int, List, ParameterMap, String, Time, Voltage
+    Amplitude, Int, List, ParameterMap,  Time, Voltage
 )
-from .dummy_opx_config import dummy_qua_config
-
-opx_scale = 2
-divider_config = {
-    'gate_1': {
-        'division': 1*opx_scale,
-    },
-    'gate_2': {
-        'division': 1*opx_scale,
-    },
-    'readout_element': {
-        'division': 1*opx_scale
-    }
-}
-
 
 @dataclass(frozen = True)
 class SubSequenceParameterClass(ParameterClass):
@@ -40,8 +32,18 @@ class SubSequenceParameterClass(ParameterClass):
     iteration: Int
     v_home: ParameterMap[str, Voltage]
 
+@dataclass(frozen = True)
+class SubSequenceParameterClassAlt(ParameterClass):
+    par4: Amplitude
+    par5: Amplitude
+    iteration: Int
+    v_home: ParameterMap[str, Voltage]
+
 class UserSubSequence(SubSequence):
     PARAMETER_CLASS = SubSequenceParameterClass
+
+class UserSubSequenceAlt(SubSequence):
+    PARAMETER_CLASS = SubSequenceParameterClassAlt
 
 class UserReadSequence(ReadSequence):
     PARAMETER_CLASS = SubSequenceParameterClass
@@ -51,7 +53,7 @@ def dummy_device():
     """Returns dummy device instance"""
     return Device(
         name = 'dummy_device',
-        opx_config = dummy_qua_config,
+        opx_config = opx1000_config,
         divider_config = divider_config,
     )
 
@@ -63,7 +65,7 @@ def arbok_driver(dummy_device):
     driver.close()
 
 @pytest.fixture
-def dummy_measurement(arbok_driver, dummy_device):
+def dummy_measurement(arbok_driver, dummy_device) -> Measurement: # type: ignore[reportInvalidTypeForm]
     """Returns dummy measurement instance"""
     measurement = Measurement(
         arbok_driver, 'dummy_measurement', dummy_device,
@@ -93,9 +95,9 @@ def empty_sub_seq_2(dummy_measurement, dummy_device):
         'par5': {'type': Int, 'value': int(3)},
         'v_home': {'type': Voltage, 'elements': {'P1': 0, 'J1': 7, }},
     }
-    seq2 = UserSubSequence(dummy_measurement, 'sub_seq2', dummy_device, config_2)
+    seq2 = UserSubSequenceAlt(
+        dummy_measurement, 'sub_seq2', dummy_device, config_2)
     yield seq2
-    seq2.__del__()
 
 @pytest.fixture
 def read_sequence_no_readouts(dummy_measurement, dummy_device):
@@ -130,16 +132,8 @@ def measurement_parameter(dummy_measurement):
 
 @pytest.fixture
 def square_pulse(dummy_measurement, dummy_device):
-    conf = {
-        "parameters": {
-            'amplitude': {'type': Amplitude, 'value': 1.5},
-            'element': {'type': String, 'value': 'P1'},
-            't_ramp': {'type': Time, 'value': int(100)},
-            't_square_pulse': {'type': Time, 'value': int(1000)}
-        }
-    }
     square_pulse = SquarePulse(
-        dummy_measurement, "square_pulse", dummy_device, conf)
+        dummy_measurement, "square_pulse", dummy_device, square_pulse_conf)
     yield square_pulse
 
 @pytest.fixture
@@ -161,5 +155,7 @@ def square_pulse_scalable(dummy_measurement, dummy_device):
         }
     }
     square_pulse = SquarePulseScalable(
-        dummy_measurement, "square_pulse",  dummy_device, conf)
+        dummy_measurement, "square_pulse",  dummy_device,
+        square_pulse_scalable_conf
+        )
     yield square_pulse
