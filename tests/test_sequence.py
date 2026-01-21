@@ -19,13 +19,12 @@ class SubSequenceParameterClass(ParameterClass):
 class UserSubSequence(SubSequence):
     PARAMETER_CLASS = SubSequenceParameterClass
 
-def test_measurement_init(arbok_driver, dummy_device) -> None:
+def test_measurement_init(arbok_driver) -> None:
     """Tests if sequence is correctly initialized"""
-    seq = Measurement(arbok_driver, 'dummy_measurement', dummy_device)
+    seq = Measurement(arbok_driver, 'dummy_measurement')
     assert seq.name == f'{arbok_driver.name}_dummy_measurement'
 
-def test_measurement_sub_sequence_addition(
-        dummy_measurement, dummy_device) -> None:
+def test_measurement_sub_sequence_addition(dummy_measurement) -> None:
     """Tests if subsequence is correctly added to sequence"""
     config_1 = {
         'parameters':{
@@ -40,7 +39,6 @@ def test_measurement_sub_sequence_addition(
     seq1 = UserSubSequence(
         parent = dummy_measurement,
         name = 'seq1',
-        device = dummy_device,
         sequence_config = config_1
         )
     assert len(dummy_measurement.submodules) == 1
@@ -115,7 +113,6 @@ def test_qua_program_compilation_simple_square_pulse(
 @pytest.mark.parametrize("nr_gates", [0, 1, 2, 4])
 def test_qua_program_compilation_scalable_square_pulse(
     dummy_measurement,
-    dummy_device,
     nr_gates,
     ) -> None:
     conf = {
@@ -137,10 +134,9 @@ def test_qua_program_compilation_scalable_square_pulse(
     init_conf["parameters"]["sticky_elements"]["value"] = [
         f"P{i}" for i in range(nr_gates)
     ]
-    square_pulse = SquarePulseScalable(
+    _ = SquarePulseScalable(
         dummy_measurement,
         f"square_pulse_{nr_gates}",
-        dummy_device,
         init_conf,
     )
     qua_prog_str = dummy_measurement.get_qua_program_as_str()

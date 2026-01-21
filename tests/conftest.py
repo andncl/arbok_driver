@@ -71,8 +71,7 @@ def dummy_measurement(arbok_driver, dummy_device) -> Measurement: # type: ignore
     """Returns dummy measurement instance"""
     measurement = Measurement(
         parent = arbok_driver,
-        name = 'dummy_measurement',
-        device = dummy_device,
+        name = 'dummy_measurement'
         )
     yield measurement
     arbok_driver.submodules.pop(measurement.full_name)
@@ -88,7 +87,7 @@ def empty_sub_seq_1(dummy_measurement, dummy_device):
         'par3': {'type': Voltage, 'value': 1.1},
         'v_home': {'type': Voltage, 'elements': {'P1': 5, 'J1': 6, }},
     }
-    seq1 = UserSubSequence(dummy_measurement, 'sub_seq1', dummy_device, config_1)
+    seq1 = UserSubSequence(dummy_measurement, 'sub_seq1', config_1)
     yield seq1
 
 @pytest.fixture
@@ -100,7 +99,7 @@ def empty_sub_seq_2(dummy_measurement, dummy_device):
         'v_home': {'type': Voltage, 'elements': {'P1': 0, 'J1': 7, }},
     }
     seq2 = UserSubSequenceAlt(
-        dummy_measurement, 'sub_seq2', dummy_device, config_2)
+        dummy_measurement, 'sub_seq2', config_2)
     yield seq2
 
 @pytest.fixture
@@ -117,7 +116,7 @@ def read_sequence_no_readouts(dummy_measurement, dummy_device):
         'readout_groups': {}
     }
     seq1 = UserReadSequence(
-        dummy_measurement, 'read_seq', dummy_device, config_1)
+        dummy_measurement, 'read_seq', config_1)
     yield seq1
 
 @pytest.fixture
@@ -134,15 +133,14 @@ def measurement_parameter(dummy_measurement):
     return dummy_measurement.dummy_param
 
 @pytest.fixture
-def square_pulse(dummy_measurement, dummy_device):
+def square_pulse(dummy_measurement):
     square_pulse = SquarePulse(
-        dummy_measurement, "square_pulse", dummy_device, square_pulse_conf)
+        dummy_measurement, "square_pulse", square_pulse_conf)
     yield square_pulse
 
 @pytest.fixture
-def square_pulse_scalable(dummy_measurement, dummy_device):
+def square_pulse_scalable(dummy_measurement):
     square_pulse = SquarePulseScalable(
-        dummy_measurement, "square_pulse",  dummy_device,
-        square_pulse_scalable_conf
+        dummy_measurement, "square_pulse", square_pulse_scalable_conf
         )
     yield square_pulse

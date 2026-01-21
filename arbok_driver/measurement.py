@@ -45,9 +45,8 @@ class Measurement(SequenceBase):
 
     def __init__(
             self,
-            parent,
+            parent: ArbokDriver,
             name: str,
-            device: Device,
             sequence_config: dict | None = None,
             ) -> None:
         """
@@ -55,13 +54,12 @@ class Measurement(SequenceBase):
 
         Args:
             name (str): Name of the measurement
-            device (Device): Device object describing the device in use
             sequence_config (dict): Config containing all measurement params and
                 their initial values and units0
             **kwargs: Key word arguments for InstrumentModule
         """
-        conf = self.merge_with_device_config(device, sequence_config)
-        super().__init__(parent, name, device, conf)
+        conf = self.merge_with_device_config(parent.device, sequence_config)
+        super().__init__(parent, name, conf)
         self.driver: ArbokDriver = parent
         self.measurement = self
         self._init_vars()

@@ -28,7 +28,6 @@ class CoulombPeaks(ReadSequence):
             self,
             parent,
             name: str,
-            device: Device,
             sequence_config: dict | None,
             reset_gates_only: bool = False
     ):
@@ -37,15 +36,13 @@ class CoulombPeaks(ReadSequence):
 
         Args:
             name (str): name of sequence
-            device  (Device): Device class for physical device
-            seq_config (dict): config containing pulse parameters
+            sequence_config (dict): config containing pulse parameters
             reset_gates_only (bool): True to reset the gates only, not present
                 or false to reset SET too
         """
         super().__init__(
             parent = parent,
             name = name,
-            device = device,
             sequence_config = sequence_config
         )
         self.g_elements = list(self.arbok_params.gate_elements())
