@@ -12,7 +12,7 @@ from arbok_driver.parameter_types import (
     Amplitude, List, Time, Voltage,
 )
 
-@dataclass
+@dataclass(frozen=True)
 class SubSequenceParameterClass(ParameterClass):
     par1: Amplitude
 
@@ -66,7 +66,7 @@ def test_qua_program_compilation_w_linear_sweeps(
     """Tests whether the qua code is compiled correctly"""
     dummy_measurement.set_sweeps(
         {empty_sub_seq_1.par1: np.arange(0, 10, 1)},
-        {empty_sub_seq_1.v_home_P1: np.arange(-0.1, 0.1, 0.1)}
+        {empty_sub_seq_1.v_home_P1: np.arange(-0.1, 0.1, 0.01)}
         )
     qua_prog_str = dummy_measurement.get_qua_program_as_str()
     qua_prog = dummy_measurement.get_qua_program()
