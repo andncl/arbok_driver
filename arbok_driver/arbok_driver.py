@@ -247,7 +247,8 @@ class ArbokDriver(Instrument):
         measurement.qc_experiment = load_or_create_experiment(
             experiment.name, self.device.name)
         measurement.qc_measurement_name = qc_measurement_name
-        measurement.add_subsequences_from_dict(experiment.sequences_config)
+        sub_sequences = experiment.get_sequences_config(self.device)
+        measurement.add_subsequences_from_dict(sub_sequences)
         return measurement
 
     def add_measurement_and_create_qc_measurement(
