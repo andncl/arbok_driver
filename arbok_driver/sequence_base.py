@@ -452,9 +452,11 @@ class SequenceBase(InstrumentModule, ABC):
                 f"Parameter {param_name} does not contain an 'value'"
                 " key")
         if 'elements' in param_dict:
-            raise KeyError(f"Config for parameter {param_name} contains"
-                           "'elements' key. Error in preparation. Check" \
-                           "`_add_element_params` method.")
+            raise KeyError(
+                f"Config for parameter {param_name} contains"
+                "'elements' key. Error in preparation. Check" \
+                "`_add_element_params` method."
+                )
 
     def run_remote_simulation(self, host, port, duration: int):
         """
@@ -647,7 +649,7 @@ class SequenceBase(InstrumentModule, ABC):
                 warnings.warn(
                     "If both 'config' and 'sequence' are given, 'sequence' "
                     "will be used and the seq given in 'config' will be "
-                    "ignored. "
+                    f"ignored. Sequence {name}: " 
                     f"{sub_seq_conf['sequence'].__name__} -> "
                     f"{seq_conf['sequence'].__name__}",
                 )
