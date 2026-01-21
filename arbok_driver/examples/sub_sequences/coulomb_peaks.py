@@ -5,13 +5,15 @@ from arbok_driver import (
     Device, ReadSequence, qua_helpers, ParameterClass
 )
 from arbok_driver.parameter_types import (
-    Time, ParameterMap, String, Voltage
+    Time, ParameterMap, List, Voltage
 )
 
 @dataclass(frozen=True)
 class CoulombPeaksParameters(ParameterClass):
     t_wait_after_ramp: Time
-    gate_elements: String
+    t_wait_before_chop: Time
+    gate_elements: List
+    set_elements: List
     v_home: ParameterMap[str, Voltage]
     v_set_level: ParameterMap[str, Voltage]
 
@@ -21,7 +23,7 @@ class CoulombPeaks(ReadSequence):
     a generic SET
     """
     PARAMETER_CLASS = CoulombPeaksParameters
-
+    arbok_params: CoulombPeaksParameters
     def __init__(
             self,
             parent,
@@ -46,8 +48,8 @@ class CoulombPeaks(ReadSequence):
             device = device,
             sequence_config = sequence_config
         )
-        self.g_elements = list(self.gate_elements())
-        self.elements = list(self.gate_elements()) + list(self.set_elements())
+        self.g_elements = list(self.arbok_params.gate_elements())
+        self.elements = self.g_elements + list(self.arbok_params.set_elements())
         self.qua_rep_index = None
         self.gates_only = reset_gates_only
 
@@ -72,7 +74,7 @@ class CoulombPeaks(ReadSequence):
             cond = self.qua_rep_index < 4,
             update = self.qua_rep_index + 1
         ):
-            qua.wait(self.t_wait_after_ramp(), *self.elements)
+            qua.wait(self.arbok_params.t_wait_after_ramp.qua, *self.elements)
         qua.align(*self.elements)
 
         ### Measure the SET current
@@ -80,7 +82,7 @@ class CoulombPeaks(ReadSequence):
             readout.qua_measure_and_save()
 
         qua.align(*self.elements)
-        qua.wait(self.t_wait_before_chop(), *self.elements)
+        qua.wait(self.arbok_params.t_wait_before_chop.qua, *self.elements)
 
         ### Chopped readout with one iteration to get the peak derivative
         for _, readout in self.readout_groups["chop"].items():
