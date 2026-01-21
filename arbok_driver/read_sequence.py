@@ -18,7 +18,6 @@ class ReadSequence(SubSequence):
         self,
         parent: SubSequence,
         name: str,
-        device: Device,
         sequence_config: dict | None,
         ):
         """
@@ -26,14 +25,12 @@ class ReadSequence(SubSequence):
         Args:
             parent (SubSequence): Parent instrument module
             name (dict): name of the ReadSequence
-            device (Device): device for which sequence is configured
             sequence_config (dict): Dict configuring all parameters for the given
                 read-sequence and its read-points and abstract-readouts
         """
         super().__init__(
             parent=parent,
             name=name,
-            device=device,
             sequence_config=sequence_config
             )
 

@@ -4,7 +4,7 @@ from qm import qua
 from arbok_driver import qua_helpers, Device, ReadSequence
 from arbok_driver.parameter_types import Time, ParameterMap, String, Voltage
 
-@dataclass
+@dataclass(frozen=True)
 class StabilityMapParameters:
     """Parameter class for StabilityMap read sequence"""
     t_pre_chop: Time
@@ -17,11 +17,11 @@ class StabilityMap(ReadSequence):
     Class containing qua sequence to perform a stability map measurement
     """
     PARAMETER_CLASS = StabilityMapParameters
+    arbok_params: StabilityMapParameters
     def __init__(
             self,
             parent,
             name: str,
-            device: Device,
             sequence_config: dict | None = None
     ):
         """
@@ -35,7 +35,6 @@ class StabilityMap(ReadSequence):
         super().__init__(
             parent = parent,
             name = name,
-            device = device,
             sequence_config = sequence_config
         )
         self.elements = list(self.gate_elements())

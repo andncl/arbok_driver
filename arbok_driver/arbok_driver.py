@@ -240,7 +240,6 @@ class ArbokDriver(Instrument):
         measurement = Measurement(
             parent = self,
             name = name,
-            device = self.device,
             sequence_config = self.device.param_config
             )
         if qc_measurement_name is None:

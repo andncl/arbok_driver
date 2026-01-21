@@ -13,13 +13,13 @@ from qcodes.instrument import InstrumentModule
 from qm import SimulationConfig, generate_qua_script, qua, QuantumMachinesManager
 from qm.simulate.credentials import create_credentials
 
-from .device import Device
 from .parameters.sequence_parameter import SequenceParameter
 from .parameter_class import ParameterClass
 from .parameter_types import ParameterMap
 from . import utils
 
 if TYPE_CHECKING:
+    from .device import Device
     from .sub_sequence import SubSequence
 
 class SequenceBase(InstrumentModule, ABC):
@@ -32,7 +32,6 @@ class SequenceBase(InstrumentModule, ABC):
             self,
             parent,
             name: str,
-            device: Device,
             sequence_config: Optional[dict | None] = None,
             check_step_requirements: Optional[bool] = False,
             **kwargs
@@ -42,7 +41,6 @@ class SequenceBase(InstrumentModule, ABC):
         
         Args:
             name (str): Name of the program
-            device (Device): Device class describing phyical device
             sequence_config (dict): Dictionary containing all device parameters
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
@@ -51,7 +49,7 @@ class SequenceBase(InstrumentModule, ABC):
         self.parent.add_submodule(self.name, self)
         setattr(self.parent, self.short_name, self)
 
-        self.device = device
+        self.device: Device = self.parent.device
         self.elements = self.device.elements
         self.sequence_config = sequence_config
         self.check_step_requirements = check_step_requirements
@@ -544,7 +542,6 @@ class SequenceBase(InstrumentModule, ABC):
         seq_instance = subsequence(
             parent = self,
             name = name,
-            device = self.device,
             sequence_config = sequence_config,
             **kwargs
             )

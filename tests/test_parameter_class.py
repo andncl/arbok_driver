@@ -11,7 +11,7 @@ def test_missing_parameter_class() -> None:
         class SubSequenceNoParameterClass(SubSequence):
             pass
 
-def test_missing_parameter(dummy_measurement, dummy_device) -> None:
+def test_missing_parameter(dummy_measurement) -> None:
     config_1 = {
         'par2': {'type': Int, 'value': int(10)},
         'par3': {'type': Voltage, 'value': 1.1},
@@ -19,7 +19,7 @@ def test_missing_parameter(dummy_measurement, dummy_device) -> None:
     }
     with pytest.raises(TypeError):
         _ = UserSubSequence(
-            dummy_measurement, 'sub_seq1', dummy_device, config_1)
+            dummy_measurement, 'sub_seq1', config_1)
 
 def test_parameter_mapping_on_sub_sequence(empty_sub_seq_1) -> None:
     arbok_params = empty_sub_seq_1.arbok_params

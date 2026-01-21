@@ -9,7 +9,6 @@ from .parameter_class import ParameterClass
 from .sequence_base import SequenceBase
 
 if TYPE_CHECKING:
-    from .device import Device
     from .measurement import Measurement
 
 class SubSequence(SequenceBase, ABC):
@@ -21,7 +20,6 @@ class SubSequence(SequenceBase, ABC):
             self,
             parent,
             name: str,
-            device: Device,
             sequence_config: dict | None = None,
             check_step_requirements: bool = False,
             **kwargs
@@ -31,12 +29,13 @@ class SubSequence(SequenceBase, ABC):
         
         Args:
             name (str): Name of the program
-            device (Device): Device class describing phyical device
-            param_config (dict): Dictionary containing all device parameters
+            sequence_config (dict): Dictionary containing all device parameters
+            check_step_requirements (bool): Whether to check step requirements
+                for this subsequence
             **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(
-            parent, name, device, sequence_config, check_step_requirements, **kwargs)
+            parent, name, sequence_config, check_step_requirements, **kwargs)
         self.parent.add_subsequence(self)
         self.arbok_params = self.map_arbok_params()
 
