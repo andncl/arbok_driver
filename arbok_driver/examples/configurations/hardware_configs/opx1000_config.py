@@ -1,21 +1,14 @@
-import numpy as np
+"""
+Module containing a minimal hardware configuration for the OPX1000
 
-opx_scale = 2
-divider_config = {
-    'gate_1': {
-        'division': 1*opx_scale,
-    },
-    'gate_2': {
-        'division': 1*opx_scale,
-    },
-    'readout_element': {
-        'division': 1*opx_scale
-    }
-}
+This is written for an OPX1000 with a single LF-FEM module with outputs 1 and 2
+being used as 'sticky_elements'
+"""
+import numpy as np
 
 unit_ramp_devices = np.linspace(0, 0.5, 20).tolist()
 
-dummy_qua_config = {
+opx1000_config = {
     'version': 1,
     'controllers': {
         'con1': {
