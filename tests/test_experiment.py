@@ -8,7 +8,7 @@ from arbok_driver.examples.configurations import square_pulse_conf
 
 def test_measurement_creation_from_experiment(arbok_driver, dummy_device):
 
-    experiment = SquarePulseExperiment(dummy_device)
+    experiment = SquarePulseExperiment()
     measurement = arbok_driver.create_measurement_from_experiment(
         experiment, 'qc_measurement')
     assert isinstance(measurement, Measurement)
@@ -18,9 +18,7 @@ def test_measurement_creation_with_defaults(arbok_driver, dummy_device):
     """
     Tests whether a experiment configuration is loaded corretly from the measurement defaults
     """
-    experiment_default = SquarePulseExperimentWithDefaults(dummy_device)
-    print("experiments configs: ", experiment_default.configs)
-    print("experiments layout: ", experiment_default.sequences_config)
+    experiment_default = SquarePulseExperimentWithDefaults()
     measurement_default = arbok_driver.create_measurement_from_experiment(
         experiment_default, 'qc_measurement')
     assert isinstance(measurement_default, Measurement)
@@ -28,7 +26,6 @@ def test_measurement_creation_with_defaults(arbok_driver, dummy_device):
 
 def test_measurement_creation_overwrite(arbok_driver, dummy_device):
     experiment_overload = SquarePulseExperimentWithDefaults(
-        dummy_device,
         square_pulse_config = {'config': square_pulse_conf})
     measurement_overload = arbok_driver.create_measurement_from_experiment(
         experiment_overload, 'qc_measurement')
