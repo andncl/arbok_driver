@@ -1,6 +1,6 @@
 """Module containing configurations for SquarePulse(Scalable) classes"""
 from arbok_driver.parameter_types import (
-    Amplitude, Int, List, ParameterMap, String, Time, Voltage
+    Amplitude, List, String, Time, Voltage
 )
 
 from arbok_driver.examples.sub_sequences import SquarePulse, SquarePulseScalable
