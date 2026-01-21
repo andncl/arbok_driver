@@ -248,7 +248,7 @@ class ArbokDriver(Instrument):
         measurement.qc_experiment = load_or_create_experiment(
             experiment.name, self.device.name)
         measurement.qc_measurement_name = qc_measurement_name
-        measurement.add_subsequences_from_dict(experiment.sequences)
+        measurement.add_subsequences_from_dict(experiment.sequences_config)
         return measurement
 
     def add_measurement_and_create_qc_measurement(
@@ -261,7 +261,7 @@ class ArbokDriver(Instrument):
         gettable_keywords = None,
         sweep_list: list = None,
         qc_measurement_name = None
-        ) -> tuple[MeasurementRunner, Measurement]:
+        ) -> tuple[MeasurementRunnerBase, Measurement]:
         """
         Adds a measurement to the arbok_driver based on the arbok_experiment and
         creates a QCoDeS measurement and experiment. Returns the measurement and
