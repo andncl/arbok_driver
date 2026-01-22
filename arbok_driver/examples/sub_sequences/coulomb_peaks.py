@@ -1,8 +1,9 @@
 '''Module containing ReadSequence implementing coulomb peaks measurement'''
 from dataclasses import dataclass
 from qm import qua
+from qm.qua._expressions import QuaVariable
 from arbok_driver import (
-    Device, ReadSequence, qua_helpers, ParameterClass
+    arbok, ReadSequence, ParameterClass
 )
 from arbok_driver.parameter_types import (
     Time, ParameterMap, List, Voltage
@@ -24,6 +25,7 @@ class CoulombPeaks(ReadSequence):
     """
     PARAMETER_CLASS = CoulombPeaksParameters
     arbok_params: CoulombPeaksParameters
+    qua_rep_index: QuaVariable
     def __init__(
             self,
             parent,
@@ -45,9 +47,8 @@ class CoulombPeaks(ReadSequence):
             name = name,
             sequence_config = sequence_config
         )
-        self.g_elements = list(self.arbok_params.gate_elements())
-        self.elements = self.g_elements + list(self.arbok_params.set_elements())
-        self.qua_rep_index = None
+        self.g_elements = list(self.arbok_params.gate_elements.get())
+        self.elements = self.g_elements + list(self.arbok_params.set_elements.get())
         self.gates_only = reset_gates_only
 
     def qua_declare(self):
@@ -58,11 +59,10 @@ class CoulombPeaks(ReadSequence):
         qua.align(*self.elements)
 
         ### Go from the set 'home' voltage point to the 'level' voltage point
-        qua_helpers.arbok_go(
-            sub_sequence= self,
+        arbok.ramp(
             elements = self.elements,
-            from_volt = 'v_home',
-            to_volt = 'v_set_level',
+            from_volt = self.arbok_params.v_home,
+            to_volt = self.arbok_params.v_set_level,
             operation = 'unit_ramp',
         )
         with qua.for_(
@@ -87,14 +87,13 @@ class CoulombPeaks(ReadSequence):
         qua.align(*self.elements)
 
         ### Go back to the set 'level' voltage point to the 'home' voltage point
-        qua_helpers.arbok_go(
-            sub_sequence = self,
+        arbok.ramp(
             elements = self.elements,
-            from_volt = 'v_set_level',
-            to_volt = 'v_home',
+            from_volt = self.arbok_params.v_set_level,
+            to_volt = self.arbok_params.v_home,
             operation = 'unit_ramp',
         )
         if self.gates_only:
-            qua_helpers.reset_elements(self.g_elements, self)
+            arbok.reset_sticky_elements(self.g_elements)
         else:
-            qua_helpers.reset_elements(self.elements, self)
+            arbok.reset_sticky_elements(self.elements)
