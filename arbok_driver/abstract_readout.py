@@ -83,7 +83,7 @@ class AbstractReadout(ABC):
     def create_gettable(
         self,
         gettable_name: str,
-        var_type: int | bool | qua.fixed,
+        var_type: type[int | bool | qua.fixed],
         internal_setpoints: Sequence[Parameter] = None
         ) -> GettableParameter:
         """
