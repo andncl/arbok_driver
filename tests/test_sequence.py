@@ -7,6 +7,9 @@ import pytest
 from qm import generate_qua_script
 
 from arbok_driver import Measurement, SubSequence, ParameterClass
+from arbok_driver.examples.configurations import (
+    divider_config
+)
 from arbok_driver.examples.sub_sequences import SquarePulseScalable
 from arbok_driver.parameter_types import (
     Amplitude, List, Time, Voltage,
@@ -134,11 +137,19 @@ def test_qua_program_compilation_scalable_square_pulse(
     init_conf["parameters"]["sticky_elements"]["value"] = [
         f"P{i}" for i in range(nr_gates)
     ]
-    _ = SquarePulseScalable(
+    square_pulse = SquarePulseScalable(
         dummy_measurement,
         f"square_pulse_{nr_gates}",
         init_conf,
     )
+    for i in range(nr_gates):
+        gate = f"P{i}"
+        if gate in divider_config:
+            scale = divider_config[gate]['division']
+        else:
+            scale = 1
+        assert square_pulse.arbok_params.v_home[gate].qua == 0
+        assert square_pulse.arbok_params.v_square[gate].qua == 0.1 * (1 + i)*scale
     qua_prog_str = dummy_measurement.get_qua_program_as_str()
     nr_of_plays = len(
         list(re.finditer(r'"unit_ramp"\*amp', qua_prog_str))

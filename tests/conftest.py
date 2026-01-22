@@ -23,7 +23,7 @@ from arbok_driver.examples.sub_sequences import (
     SquarePulseScalable
 )
 from arbok_driver.parameter_types import (
-    Amplitude, Int, List, ParameterMap,  Time, Voltage
+    Amplitude, Int, ParameterMap,  Voltage
 )
 
 @dataclass(frozen = True)
@@ -139,7 +139,7 @@ def square_pulse(dummy_measurement):
     yield square_pulse
 
 @pytest.fixture
-def square_pulse_scalable(dummy_measurement):
+def square_pulse_scalable(dummy_measurement) -> SquarePulseScalable:
     square_pulse = SquarePulseScalable(
         dummy_measurement, "square_pulse", square_pulse_scalable_conf
         )

@@ -1,11 +1,11 @@
 """Module containing generic StabilityMap class"""
 from dataclasses import dataclass
 from qm import qua
-from arbok_driver import qua_helpers, Device, ReadSequence
+from arbok_driver import arbok, ReadSequence, ParameterClass
 from arbok_driver.parameter_types import Time, ParameterMap, String, Voltage
 
 @dataclass(frozen=True)
-class StabilityMapParameters:
+class StabilityMapParameters(ParameterClass):
     """Parameter class for StabilityMap read sequence"""
     t_pre_chop: Time
     gate_elements: String
@@ -37,7 +37,7 @@ class StabilityMap(ReadSequence):
             name = name,
             sequence_config = sequence_config
         )
-        self.elements = list(self.gate_elements())
+        self.elements = list(self.arbok_params.gate_elements.get())
         self.arbok_params.v_home
 
     def qua_declare(self):
@@ -48,17 +48,14 @@ class StabilityMap(ReadSequence):
 
     def qua_sequence(self):
         qua.align(*self.elements)
-
         ### Go to point in voltage space
-        qua_helpers.arbok_go(
-            sub_sequence= self,
-            elements= self.gate_elements(),
-            from_volt = 'v_home',
-            to_volt = 'v_level',
+        arbok.ramp(
+            elements= self.arbok_driver.gate_elements(),
+            from_volt = self.arbok_params.v_home,
+            to_volt = self.arbok_params.v_level,
             operation = 'unit_ramp',
-            align_after = 'elements'
             )
-        qua.wait(self.t_pre_chop(), *self.elements)
+        qua.wait(self.arbok_params.t_pre_chop.qua, *self.elements)
         qua.align(*self.elements)
 
         ### Conduct chopped readout(s)
@@ -67,4 +64,4 @@ class StabilityMap(ReadSequence):
         qua.align(*self.elements)
 
         ### Reset elements to home voltage
-        qua_helpers.reset_elements(self.gate_elements(), self)
+        arbok.reset_sticky_elements(self.arbok_params.gate_elements.get())
