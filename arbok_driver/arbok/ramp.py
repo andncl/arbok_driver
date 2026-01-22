@@ -84,4 +84,4 @@ def _check_voltage_point_input(
     if not set(elements).issubset(parameter_maps):
         missing = set(elements) - parameter_maps.keys()
         raise ValueError(
-            f"Parameter map {parameter_maps} is missing elements: {missing}")
+            f"Missing elements in arbok.ramp parameter maps: {missing}")
