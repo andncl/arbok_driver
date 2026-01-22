@@ -29,7 +29,6 @@ class SquarePulseScalable(SubSequence):
             duration = self.arbok_params.t_ramp,
             operation = 'unit_ramp',
             )
-        print("HIa", self.arbok_params.sticky_elements.qua)
         qua.wait(
             self.arbok_params.t_square_pulse.qua,
             *self.arbok_params.sticky_elements.qua
