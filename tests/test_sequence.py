@@ -134,11 +134,14 @@ def test_qua_program_compilation_scalable_square_pulse(
     init_conf["parameters"]["sticky_elements"]["value"] = [
         f"P{i}" for i in range(nr_gates)
     ]
-    _ = SquarePulseScalable(
+    square_pulse = SquarePulseScalable(
         dummy_measurement,
         f"square_pulse_{nr_gates}",
         init_conf,
     )
+    for i in range(nr_gates):
+        assert square_pulse.arbok_params.v_home[f"P{i}"].qua == 0
+        assert square_pulse.arbok_params.v_square[f"P{i}"].qua == 0.1 * (1 + i)
     qua_prog_str = dummy_measurement.get_qua_program_as_str()
     nr_of_plays = len(
         list(re.finditer(r'"unit_ramp"\*amp', qua_prog_str))
