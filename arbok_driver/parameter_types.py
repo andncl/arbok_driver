@@ -26,7 +26,7 @@ class ParameterMap(Mapping[K, V], Generic[K, V]):
 
     def __len__(self) -> int:
         return len(self._mapping)
-        
+
 class Time(SequenceParameter[int]):
     """
     Cycles sequence parameter. Parameter values and sweeps are given in units of 
