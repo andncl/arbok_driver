@@ -25,6 +25,14 @@ square_pulse_scalable_conf = {
         'v_home': {
             'type': Voltage,
             'elements': {
+                'P1': 0.0,
+                'P2': 0.0,
+                'P3': 0.0
+            }
+        },
+        'v_square': {
+            'type': Voltage,
+            'elements': {
                 'P1': 0.1,
                 'P2': -0.2,
                 'P3': 0.2
