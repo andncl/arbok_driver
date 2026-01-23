@@ -1,12 +1,15 @@
 """Module containing abstract class for dependent readouts"""
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, fields
 import logging
-from typing import Sequence, TYPE_CHECKING
+from typing import Generic, Sequence, TYPE_CHECKING, Type, TypeVar
 
 from qm import qua
 
+from .parameter_class import ParameterClass
 from .parameters.gettable_parameter import GettableParameter
+from .parameters.gettable_parameter_base import GettableParameterBase
 from .parameters.gettable_parameter_multi import GettableParameterMulti
 from .import path_finders
 from .signal import Signal
@@ -16,12 +19,21 @@ if TYPE_CHECKING:
     from .read_sequence import ReadSequence
     from qcodes.parameters import Parameter
 
-class AbstractReadout(ABC):
+P = TypeVar("P", bound=ParameterClass)
+
+@dataclass(frozen = True)
+class EmptyParameterClass(ParameterClass):
+    pass
+
+class AbstractReadout(Generic[P], ABC):
     """
     Abstract base class for abstract readouts. This base class handles qua
     variable and stream declaration, saving and streaming. The child class only
     needs to handle the abstract method `qua_measure`
     """
+    PARAMETER_CLASS: Type[P]
+    arbok_params: P
+
     def __init__(
         self,
         name: str,
@@ -57,11 +69,17 @@ class AbstractReadout(ABC):
         self.signal: Signal = signal
         self.save_results = save_results
         self._parameters: dict[str, SequenceParameter] = {}
-        self._gettables: dict[str, GettableParameter] = {}
+        self._gettables: dict[str, GettableParameterBase] = {}
 
         ### Parameters are added to the sequence with the readout prefix
         if parameters is not None:
             self.add_qc_params_from_config(parameters)
+            self.arbok_params = self.map_arbok_params()
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if "PARAMETER_CLASS" not in cls.__dict__:
+            cls.PARAMETER_CLASS = EmptyParameterClass  # type: ignore[assignment]
 
     @abstractmethod
     def qua_measure(self):
@@ -76,43 +94,64 @@ class AbstractReadout(ABC):
         return self._parameters
 
     @property
-    def gettables(self) -> dict[str, GettableParameter]:
+    def gettables(self) -> dict[str, GettableParameterBase]:
         """Returns the gettables of the readout"""
         return self._gettables
 
     def create_gettable(
         self,
         gettable_name: str,
-        var_type: type[int | bool | qua.fixed],
-        internal_setpoints: Sequence[Parameter] = None
+        var_type: type[int | bool | qua.fixed]
         ) -> GettableParameter:
         """
-        Creates a new gettable for the AbstractReadout. The gettable is added to
-        the read sequence as a parameter and registered under the given name.
+        Creates a new GettableParameter for the AbstractReadout.
+        The gettable is added to the read sequence as a parameter and registered
+          under the given name.
         
         Args:
             gettable_name (str): Name of the gettable to be created
             var_type (int | bool | qua.fixed): Type of the gettable variable
-            size (int, optional): Size of the gettable array. Defaults to 1.
 
         Returns:
             GettableParameter: The created gettable parameter
         """
-        if not internal_setpoints:
-            gettable = self.read_sequence.add_parameter(
-                parameter_class = GettableParameter,
-                name = gettable_name,
-                read_sequence = self.read_sequence,
-                var_type = var_type
-            )
-        else:
-            gettable = self.read_sequence.add_parameter(
-                parameter_class = GettableParameterMulti,
-                name = gettable_name,
-                read_sequence = self.read_sequence,
-                var_type = var_type,
-                internal_setpoints = internal_setpoints
-            )
+        gettable = self.read_sequence.add_parameter(
+            parameter_class = GettableParameter,
+            name = gettable_name,
+            read_sequence = self.read_sequence,
+            var_type = var_type
+        )
+        self.signal.add_gettable(gettable)
+        self._gettables[gettable.full_name] = gettable
+        return gettable
+
+    def create_multi_gettable(
+        self,
+        gettable_name: str,
+        var_type: type[int | bool | qua.fixed],
+        internal_setpoints: Sequence[Parameter]
+    ) -> GettableParameterMulti:
+        """
+        Creates a new GettableParameterMulti for the AbstractReadout.
+        The gettable is added to the read sequence as a parameter and registered
+        under the given name.
+        
+        Args:
+            gettable_name (str): Name of the gettable to be created
+            var_type (int | bool | qua.fixed): Type of the gettable variable
+            internal_setpoints (internal_setpoints: Sequence[Parameter]):
+                setpoints for this multi gettable
+
+        Returns:
+            GettableParameter: The created gettable parameter
+        """
+        gettable = self.read_sequence.add_parameter(
+            parameter_class = GettableParameterMulti,
+            name = gettable_name,
+            read_sequence = self.read_sequence,
+            var_type = var_type,
+            internal_setpoints = internal_setpoints
+        )
         self.signal.add_gettable(gettable)
         self._gettables[gettable.full_name] = gettable
         return gettable
@@ -160,16 +199,32 @@ class AbstractReadout(ABC):
         """
         full_params = {f'{self.name}__{k}': v for k, v in param_dict.items()}
         self.read_sequence.add_qc_params_from_config(full_params)
-        for param_name, conf in param_dict.items():
-            if 'initial_value' in conf:
-                logging.debug(
-                    "Adding parameter %s with initial value %s to read sequence"
-                    " '%s'",
-                    param_name, conf['initial_value'], self.read_sequence.name
-                    )
-                parameter = getattr(self.read_sequence, f"{self.name}__{param_name}")
-                setattr(self, param_name, parameter)
-                self.parameters[param_name] = parameter
+
+    def map_arbok_params(self) -> ParameterClass:
+        """
+        Adds the parameters to a ParameterClass instance
+
+        Returns:
+            ParameterClass: ParameterClass with references to all needed params
+        """
+        if not hasattr(self, "PARAMETER_CLASS"):
+            raise AttributeError(
+                f"AbstractReadout {self.name} does not have a PARAMETER_CLASS"
+                " class-attribute"
+            )
+        arg_names = [f.name for f in fields(self.PARAMETER_CLASS) if f.init]
+        arg_names_full = [
+            f'{self.name}__{f}' for f in arg_names
+            ]
+        init_dict_full = self.read_sequence.get_parameters_and_maps(arg_names_full)
+        init_dict = self.read_sequence.measurement.get_parameters_and_maps(arg_names)
+        init_dict.update(self.read_sequence.get_parameters_and_maps(arg_names))
+        init_dict.update(
+            {n.split(f"{self.name}__")[1]: p for n, p in init_dict_full.items()}
+        )
+        print(init_dict)
+        return self.PARAMETER_CLASS(**init_dict)
+        
 
     def get_gettable_from_path(self, attr_path: str) -> GettableParameter:
         """
