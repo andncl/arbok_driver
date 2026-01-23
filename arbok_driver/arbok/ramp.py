@@ -52,7 +52,7 @@ def ramp(
             "Arbok_go: Moving %s from %s to %s by %s", 
             element, from_volt, to_volt, amplitude
             )
-        if not isinstance(amplitude, float):
+        if not isinstance(amplitude, (float, int)):
             qua.play(**kwargs)
         elif math.isclose(amplitude, 0, abs_tol= no_play_tolerance):
             logging.debug(

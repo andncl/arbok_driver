@@ -22,7 +22,7 @@ class StabilityMap(ReadSequence):
             self,
             parent,
             name: str,
-            sequence_config: dict | None = None
+            sequence_config: dict
     ):
         """
         Constructor method for 'MixedDownUpInit' class
@@ -50,7 +50,7 @@ class StabilityMap(ReadSequence):
         qua.align(*self.elements)
         ### Go to point in voltage space
         arbok.ramp(
-            elements= self.arbok_driver.gate_elements(),
+            elements= self.arbok_params.gate_elements.get(),
             from_volt = self.arbok_params.v_home,
             to_volt = self.arbok_params.v_level,
             operation = 'unit_ramp',

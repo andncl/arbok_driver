@@ -52,7 +52,7 @@ class SubSequence(SequenceBase, ABC):
         else:
             super().qua_sequence()
 
-    def map_arbok_params(self) -> Any:
+    def map_arbok_params(self) -> ParameterClass:
         """Maps required params for QUA code to arbok_params attribute"""
         arg_names = [f.name for f in fields(self.PARAMETER_CLASS) if f.init]
         init_dict = self.measurement.get_parameters_and_maps(arg_names)
@@ -81,7 +81,7 @@ class SubSequence(SequenceBase, ABC):
             namespace_to_add_to = namespace_to_add_to
         )
 
-    def find_measurement(self):
+    def find_measurement(self) -> Measurement:
         """Recursively searches the parent sequence"""
         if self.parent.__class__.__name__ == 'Measurement':
             return self.parent

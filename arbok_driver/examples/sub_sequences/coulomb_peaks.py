@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from qm import qua
 from qm.qua._expressions import QuaVariable
 from arbok_driver import (
-    arbok, ReadSequence, ParameterClass
+    arbok, ParameterClass, ReadSequence, SequenceBase
 )
 from arbok_driver.parameter_types import (
     Time, ParameterMap, List, Voltage
@@ -26,17 +26,19 @@ class CoulombPeaks(ReadSequence):
     PARAMETER_CLASS = CoulombPeaksParameters
     arbok_params: CoulombPeaksParameters
     qua_rep_index: QuaVariable
+
     def __init__(
             self,
-            parent,
+            parent: SequenceBase,
             name: str,
-            sequence_config: dict | None,
+            sequence_config: dict,
             reset_gates_only: bool = False
     ):
         """
         Constructor method for 'MixedDownUpInit' class
 
         Args:
+            parent (SequenceBase): Parent sequence to be added to
             name (str): name of sequence
             sequence_config (dict): config containing pulse parameters
             reset_gates_only (bool): True to reset the gates only, not present

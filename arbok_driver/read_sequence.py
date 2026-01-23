@@ -5,6 +5,7 @@ import logging
 
 from .abstract_readout import AbstractReadout
 from .parameters.gettable_parameter_base import GettableParameterBase
+from .sequence_base import SequenceBase
 from .signal import Signal
 from .sub_sequence import SubSequence
 
@@ -16,9 +17,9 @@ class ReadSequence(SubSequence):
     _enforce_parameter_class: bool = False
     def __init__(
         self,
-        parent: SubSequence,
+        parent: SequenceBase,
         name: str,
-        sequence_config: dict | None,
+        sequence_config: dict,
         ):
         """
         Constructor class for ReadSequence class
@@ -35,10 +36,10 @@ class ReadSequence(SubSequence):
             )
 
         self._check_read_sequence_config(sequence_config)
-        self.sequence_config = sequence_config
-        self._signals = {}
-        self._readout_groups = {}
-        self._abstract_readouts = {}
+        self.sequence_config: dict = sequence_config
+        self._signals: dict[str, Signal] = {}
+        self._readout_groups: dict[str, dict[str, AbstractReadout]] = {}
+        self._abstract_readouts: dict[str, AbstractReadout] = {}
 
         logging.debug("Adding signals to ReadSequence: %s", self.name)
         self._add_signals_from_config(self.sequence_config['signals'])
@@ -254,13 +255,3 @@ class ReadSequence(SubSequence):
                 f"Expected GettableParameter, got {type(gettable)}"
             )
         self._gettables.append(gettable)
-
-    def get_qm_elements_from_signals(self):
-        """
-        Gets all qm elements from the configured signals in this read sequence
-        """
-        qm_elements = []
-        for _, signal in self.signals.items():
-            qm_elements += signal.readout_elements.values()
-        # this is meant to be deterministic with non duplicates in the list.
-        return list(dict.fromkeys(qm_elements))
