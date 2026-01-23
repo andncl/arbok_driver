@@ -9,3 +9,8 @@ class ParameterClass(ABC):
     """
     def __len__(self) -> int:
         return len(fields(self))
+
+@dataclass(frozen = True)
+class EmptyParameterClass(ParameterClass):
+    """Empty ParameterClass for all sub-sequences that require no parameters"""
+    pass
