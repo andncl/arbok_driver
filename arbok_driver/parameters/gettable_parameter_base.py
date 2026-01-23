@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 import copy
-from typing import TYPE_CHECKING
+from typing import Type, TYPE_CHECKING
 import logging
 import numpy as np
 import warnings
@@ -35,11 +35,12 @@ class GettableParameterBase(ParameterWithSetpoints):
             QUA program
 
     """
+    qua_stream: ResultStreamSource
     def __init__(
             self,
             name: str,
             read_sequence: ReadSequence,
-            var_type: int | bool | qua.fixed,
+            var_type: Type[int | bool | qua.fixed],
             **kwargs
             ) -> None:
         """
@@ -50,7 +51,7 @@ class GettableParameterBase(ParameterWithSetpoints):
         """
         super().__init__(name, vals=Arrays(shape=(1,)), **kwargs)
         self.vals: Arrays
-        self.var_type: int | bool | qua.fixed = var_type
+        self.var_type: Type[int | bool | qua.fixed] = var_type
         self.read_sequence: ReadSequence = read_sequence
         self.read_sequence.add_gettable(self)
         self.measurement: Measurement = read_sequence.measurement
@@ -59,7 +60,6 @@ class GettableParameterBase(ParameterWithSetpoints):
         self._register_name = self.full_name.split(measurement_full_name)[-1]
         
         self.reset_measuerement_attributes()
-        self.qua_stream: None | ResultStreamSource = None
         self.buffer: None = None
         self.is_mock: bool = self.measurement.is_mock
 
