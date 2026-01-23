@@ -251,65 +251,6 @@ class ArbokDriver(Instrument):
         measurement.add_subsequences_from_dict(sub_sequences)
         return measurement
 
-    def add_measurement_and_create_qc_measurement(
-        self,
-        measurement_name: str,
-        arbok_experiment: 'Experiment',
-        iterations: str = None,
-        sweeps: dict = None,
-        gettables = None,
-        gettable_keywords = None,
-        sweep_list: list = None,
-        qc_measurement_name = None
-        ) -> tuple[MeasurementRunnerBase, Measurement]:
-        """
-        Adds a measurement to the arbok_driver based on the arbok_experiment and
-        creates a QCoDeS measurement and experiment. Returns the measurement and
-        the measurement loop function
-
-        Args:
-            measurement_name (str): Name of the measurement
-            arbok_experiment (ArbokExperiment): Experiment to be run
-            iterations (int): Amount of repetitions to be performed
-            sweeps (list): List of sweep parameters
-            gettables (str): Gettables to be registered in the measurement
-            gettable_keywords (dict): Keywords to search for gettable parameters
-            sweep_list (list): List of of sweep dicts for external instruments
-        """
-        if qc_measurement_name is None:
-            qc_measurement_name = measurement_name
-        meas = self.create_measurement_from_experiment(
-            name = measurement_name,
-            experiment = arbok_experiment,
-            qc_measurement_name = qc_measurement_name
-            )
-
-        if sweeps is not None:
-            meas.set_sweeps(*sweeps)
-
-        if gettables is not None and gettable_keywords is not None:
-            raise ValueError(
-                "Please provide gettables OR gettable_keywords, not both")
-        elif gettables is not None:
-            ### Registering all gettables
-            meas.register_gettables(*gettables)
-        elif gettable_keywords is not None:
-            ### Finding all gettables with the given keywords
-            meas.register_gettables(keywords=gettable_keywords)
-        else:
-            ### Registers all available gettables if both are None
-            meas.register_gettables(*meas.available_gettables)
-
-        if iterations is not None:
-            sweep_list_arg = [{self.iteration: np.arange(iterations)}]
-        else:
-            sweep_list_arg = []
-        if sweep_list is not None:
-            sweep_list_arg.extend(sweep_list)
-
-        measurement_runner = meas.get_measurement_runner(sweep_list_arg)
-        return measurement_runner, meas
-
     def check_db_engine_and_bucket_connected(self):
         """
         Checks if database engine and s3 bucket are connected
@@ -341,6 +282,10 @@ class ArbokDriver(Instrument):
                 "engine to the arbok_driver before fetching runs.")
         with Session(self.database_engine) as session:
             sql_run = session.get(SqlRun, run_id)
+        if sql_run is None:
+            raise LookupError(
+                f"No SqlRun found for run-ID: {run_id}"
+            )
         return sql_run
 
     def get_data_from_id(self, run_id: int) -> xr.Dataset:
