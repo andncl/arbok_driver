@@ -37,7 +37,6 @@ class Experiment(ABC):
 
     def get_sequences_config(self, device: Device) -> dict:
         self.configs = self.get_device_specific_subsequences_dict(device)
-        print("CONFIGS: ", self.configs)
         return self.sequences_config
 
     def get_device_specific_subsequences_dict(self, device: Device):
@@ -54,7 +53,6 @@ class Experiment(ABC):
                 f" is type: {type(self.configs_to_prepare)}."
             )
         for name, config in self.configs_to_prepare.items():
-            print("tpye ", type(config))
             if isinstance(config, dict):
                 configs[name] = config
             elif isinstance(config, str):

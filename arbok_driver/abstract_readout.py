@@ -222,7 +222,6 @@ class AbstractReadout(Generic[P], ABC):
         init_dict.update(
             {n.split(f"{self.name}__")[1]: p for n, p in init_dict_full.items()}
         )
-        print(init_dict)
         return self.PARAMETER_CLASS(**init_dict)
         
 
