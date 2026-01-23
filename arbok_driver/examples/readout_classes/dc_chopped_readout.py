@@ -1,12 +1,30 @@
 """Module containing ChoppedReadout class"""
+from dataclasses import dataclass
 
 from qm import qua
+from qm.qua._expressions import QuaVariable, QuaBinaryOperation
 from arbok_driver import (
-    ReadSequence, AbstractReadout, qua_helpers, Signal
+    ReadSequence, AbstractReadout, arbok, Signal, ParameterClass
 )
+from arbok_driver.parameter_types import (
+    Voltage, Time, Int, ParameterMap
+)
+
+@dataclass(frozen = True)
+class DcChoppedReadoutParameters(ParameterClass):
+    v_home: ParameterMap[str, Voltage]
+    v_chop: ParameterMap[str, Voltage]
+    n_chops: Int
+    chop_wait: Time
 
 class DcChoppedReadout(AbstractReadout):
     """Abstract readout class for chopped readout"""
+    PARAMETER_CLASS = DcChoppedReadoutParameters
+    arbok_params: DcChoppedReadoutParameters
+
+    n_chops: QuaVariable
+    qua_chop_nr: QuaVariable
+    n_chops_division: float | QuaBinaryOperation
 
     def __init__(
         self,
@@ -23,13 +41,14 @@ class DcChoppedReadout(AbstractReadout):
         Args:
             name (str): Name of the abstract readout. Will be added to
                 respective signals like this
-            sequence (arbok_driver.Sequence): ReadSequence in which this
+            read_sequence (arbok_driver.ReadSequence): ReadSequence in which this
                 abstract readout is performed
-            attr_name (str): Name under which this readout saves observables
             save_results (bool): Whether to save the results
-            params (dict): Parameters to be added to the read sequence
+            parameters (dict): Parameters to be added to the read sequence
+            readout_qua_elements (dict[str, str]): Dict with signals as keys and
+                qua readout elements as values
         """
-        self.n_chops: callable = None
+
         super().__init__(
             name = name,
             read_sequence = read_sequence,
@@ -38,30 +57,28 @@ class DcChoppedReadout(AbstractReadout):
             parameters = parameters
         )
         self.readout_qua_elements = readout_qua_elements
-        self.qua_chop_nr = None
 
-        self.n_chops_division = 1/self.n_chops()
-        self.gate_elements = list(parameters['v_chop']['elements'].keys())
-        self.elements = self.gate_elements + list(self.readout_qua_elements.values())
-        self.target = f'{self.name}__v_chop'
+        self.gate_elements = list(self.arbok_params.v_chop.keys())
+        self.elements = self.gate_elements + list(
+            self.readout_qua_elements.values())
 
-        self.ref_temp_vars = {}
-        self.read_temp_vars = {}
-        self.read_gettables = {}
-        self.ref_gettables = {}
-        self.diff_gettables = {}
+        self.ref_temp_vars: dict = {}
+        self.read_temp_vars: dict = {}
+        self.read_gettables: dict = {}
+        self.ref_gettables: dict = {}
+        self.diff_gettables: dict = {}
         self._create_gettables()
 
-    def qua_declare_variables(self):
+    def qua_declare_variables(self) -> None:
         """Declares all necessary qua variables for readout"""
-        self.n_chops_division = 1/self.n_chops()
+        self.n_chops_division = 1/self.arbok_params.n_chops.qua
         super().qua_declare_variables()
         self.qua_chop_nr = qua.declare(int)
         for sub_readout, _ in self.readout_qua_elements.items():
             self.ref_temp_vars[sub_readout] = qua.declare(qua.fixed)
             self.read_temp_vars[sub_readout] = qua.declare(qua.fixed)
 
-    def qua_measure(self):
+    def qua_measure(self) -> None:
         """Measures the given observables and assigns the result to the vars"""
         for sub_readout, _ in self.readout_qua_elements.items():
             qua.assign(self.diff_gettables[sub_readout].qua_result_var, 0.)
@@ -71,41 +88,38 @@ class DcChoppedReadout(AbstractReadout):
         with qua.for_(
             var = self.qua_chop_nr,
             init = 0,
-            cond = self.qua_chop_nr < self.n_chops(),
+            cond = self.qua_chop_nr < self.arbok_params.n_chops.qua,
             update = self.qua_chop_nr + 1
             ):
             qua.align()
-            qua_helpers.arbok_go(
-                sub_sequence = self.read_sequence,
+            arbok.ramp(
                 elements= self.gate_elements,
-                from_volt = 'v_home',
-                to_volt = self.target,
+                to_volt = self.arbok_params.v_chop,
                 operation = 'unit_ramp',
-                align_after = 'elements'
                 )
 
             qua.align(*self.elements)
-            qua.wait(self.chop_wait(), *self.elements)
+            qua.wait(self.arbok_params.chop_wait.qua, *self.elements)
             qua.align(*self.elements)
 
             for sub_readout, qua_element in self.readout_qua_elements.items():
                 outputs = [
-                    qua.integration.full('x_const', self.ref_gettables[sub_readout].qua_result_var),
+                    qua.integration.full(
+                        'x_const',
+                        self.ref_gettables[sub_readout].qua_result_var),
                     ]
                 qua.measure('measure', qua_element, None, *outputs)
             qua.align(*self.elements)
 
-            qua_helpers.arbok_go(
-                sub_sequence = self.read_sequence,
+            arbok.ramp(
                 elements= self.gate_elements,
-                from_volt = self.target,
-                to_volt = 'v_home',
+                from_volt = self.arbok_params.v_chop,
+                to_volt = self.arbok_params.v_home,
                 operation = 'unit_ramp',
-                align_after = 'elements'
                 )
 
             qua.align(*self.elements)
-            qua.wait(self.chop_wait(), *self.elements)
+            qua.wait(self.arbok_params.chop_wait.qua, *self.elements)
             qua.align(*self.elements)
 
             for sub_readout, qua_element in self.readout_qua_elements.items():
@@ -148,7 +162,7 @@ class DcChoppedReadout(AbstractReadout):
                 )
         qua.align(*self.elements)
 
-    def _create_gettables(self):
+    def _create_gettables(self) -> None:
         """
         Populates helper attributes for chopped readout class instance.
 
