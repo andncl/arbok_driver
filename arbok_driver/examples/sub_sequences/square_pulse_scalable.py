@@ -24,8 +24,8 @@ class SquarePulseScalable(SubSequence):
         qua.align(*self.arbok_params.sticky_elements.qua)
         arbok.ramp(
             elements= self.arbok_params.sticky_elements.qua,
-            from_volt = self.arbok_params.v_home,
-            to_volt = self.arbok_params.v_square,
+            reference = self.arbok_params.v_home,
+            target = self.arbok_params.v_square,
             duration = self.arbok_params.t_ramp,
             operation = 'unit_ramp',
             )
@@ -35,8 +35,8 @@ class SquarePulseScalable(SubSequence):
             )
         arbok.ramp(
             elements= self.arbok_params.sticky_elements.qua,
-            from_volt = self.arbok_params.v_square,
-            to_volt = self.arbok_params.v_home,
+            reference = self.arbok_params.v_square,
+            target = self.arbok_params.v_home,
             duration = self.arbok_params.t_ramp,
             operation = 'unit_ramp',
             )

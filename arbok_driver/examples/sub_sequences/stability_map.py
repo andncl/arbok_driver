@@ -51,8 +51,8 @@ class StabilityMap(ReadSequence):
         ### Go to point in voltage space
         arbok.ramp(
             elements= self.arbok_params.gate_elements.get(),
-            from_volt = self.arbok_params.v_home,
-            to_volt = self.arbok_params.v_level,
+            reference = self.arbok_params.v_home,
+            target = self.arbok_params.v_level,
             operation = 'unit_ramp',
             )
         qua.wait(self.arbok_params.t_pre_chop.qua, *self.elements)

@@ -8,10 +8,10 @@ from arbok_driver.parameter_types import ParameterMap, Voltage, Time
 
 def ramp(
         elements: list,
-        to_volt: ParameterMap,
+        target: ParameterMap,
         operation: str,
         duration: Time | None = None,
-        from_volt: Optional[ParameterMap | None] = None,
+        reference: Optional[ParameterMap | None] = None,
         do_align: bool = True,
         no_play_tolerance: float = 1e-6
     ):
@@ -21,17 +21,17 @@ def ramp(
 
     Args:
         elements (list): elements on which pulse is applied
-        to_volt (ParameterMap): voltage point to move to
+        target (ParameterMap): voltage point to move to
         operation (str): Operation to be played -> find in OPX config
-        from_volt (Optional[ParameterMap | None]): voltage point to come from
+        reference (Optional[ParameterMap | None]): voltage point to come from
         duration (str | qcodes.Parameter): duration of the operation 
         do_align (optional, bool): whether to align elements before and after
             the ramp
         no_play_tolerance (optional, float): tolerance for not playing a pulse
     """
-    target_params = to_volt
-    origin_params = from_volt
-    _check_voltage_point_input(to_volt, elements)
+    target_params = target
+    origin_params = reference
+    _check_voltage_point_input(target, elements)
     if origin_params is not None:
         _check_voltage_point_input(origin_params, elements)
     if do_align:
@@ -50,7 +50,7 @@ def ramp(
             kwargs['duration'] = duration.qua
         logging.debug(
             "Arbok_go: Moving %s from %s to %s by %s", 
-            element, from_volt, to_volt, amplitude
+            element, reference, target, amplitude
             )
         if not isinstance(amplitude, (float, int)):
             qua.play(**kwargs)

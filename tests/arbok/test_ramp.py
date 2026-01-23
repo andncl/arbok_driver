@@ -78,7 +78,7 @@ def test_ramp_without_origin(dummy_measurement):
     with qua.program() as prg:
         arbok.ramp(
             elements = ["P1", "P2"],
-            to_volt = test_sequence.arbok_params.v_home3,
+            target = test_sequence.arbok_params.v_home3,
             operation = "unit_ramp"
         )
     prg_str = generate_qua_script(prg)
@@ -92,7 +92,7 @@ def test_missing_elements_in_mapping(dummy_measurement):
     with pytest.raises(ValueError):
         arbok.ramp(
             elements = ["P1", "P2", "P12"],
-            to_volt = test_sequence.arbok_params.v_home0,
+            target = test_sequence.arbok_params.v_home0,
             operation = "unit_ramp"
         )
 
@@ -103,8 +103,8 @@ def test_difference_calulated_correctly(dummy_measurement):
     with qua.program() as prg:
         arbok.ramp(
             elements = ["P1"],
-            to_volt = test_sequence.arbok_params.v_home3,
-            from_volt = test_sequence.arbok_params.v_home0,
+            target = test_sequence.arbok_params.v_home3,
+            reference = test_sequence.arbok_params.v_home0,
             operation = "unit_ramp"
         )
     prg_str = generate_qua_script(prg)

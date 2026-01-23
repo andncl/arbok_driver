@@ -94,7 +94,7 @@ class DcChoppedReadout(AbstractReadout):
             qua.align()
             arbok.ramp(
                 elements= self.gate_elements,
-                to_volt = self.arbok_params.v_chop,
+                target = self.arbok_params.v_chop,
                 operation = 'unit_ramp',
                 )
 
@@ -113,8 +113,8 @@ class DcChoppedReadout(AbstractReadout):
 
             arbok.ramp(
                 elements= self.gate_elements,
-                from_volt = self.arbok_params.v_chop,
-                to_volt = self.arbok_params.v_home,
+                reference = self.arbok_params.v_chop,
+                target = self.arbok_params.v_home,
                 operation = 'unit_ramp',
                 )
 

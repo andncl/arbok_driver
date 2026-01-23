@@ -63,8 +63,8 @@ class CoulombPeaks(ReadSequence):
         ### Go from the set 'home' voltage point to the 'level' voltage point
         arbok.ramp(
             elements = self.elements,
-            from_volt = self.arbok_params.v_home,
-            to_volt = self.arbok_params.v_set_level,
+            reference = self.arbok_params.v_home,
+            target = self.arbok_params.v_set_level,
             operation = 'unit_ramp',
         )
         with qua.for_(
@@ -91,8 +91,8 @@ class CoulombPeaks(ReadSequence):
         ### Go back to the set 'level' voltage point to the 'home' voltage point
         arbok.ramp(
             elements = self.elements,
-            from_volt = self.arbok_params.v_set_level,
-            to_volt = self.arbok_params.v_home,
+            reference = self.arbok_params.v_set_level,
+            target = self.arbok_params.v_home,
             operation = 'unit_ramp',
         )
         if self.gates_only:
