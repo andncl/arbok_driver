@@ -108,7 +108,7 @@ class DcChoppedReadout(AbstractReadout):
                         'x_const',
                         self.ref_gettables[sub_readout].qua_result_var),
                     ]
-                qua.measure('measure', qua_element, None, *outputs)
+                qua.measure('measure', qua_element, *outputs)
             qua.align(*self.elements)
 
             arbok.ramp(
@@ -126,7 +126,7 @@ class DcChoppedReadout(AbstractReadout):
                 outputs = [
                     qua.integration.full('x_const', self.read_gettables[sub_readout].qua_result_var),
                     ]
-                qua.measure('measure', qua_element, None, *outputs)
+                qua.measure('measure', qua_element, *outputs)
             qua.align(*self.elements)
 
             ### Calculate difference between read and reference point
