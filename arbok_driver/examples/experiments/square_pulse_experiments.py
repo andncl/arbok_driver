@@ -26,10 +26,7 @@ class SquarePulseExperimentWithDefaults(Experiment):
         self,
         square_pulse_config: dict | None = None
     ):
-        super().__init__(
-            configs_to_prepare = {
-                'square_pulse': square_pulse_config
-            })
+        super().__init__(square_pulse =  square_pulse_config)
 
     @property
     def sequences_config(self):
