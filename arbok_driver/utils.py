@@ -179,30 +179,6 @@ def set_qm_logging_to_file(filename):
     for handler in logger.handlers:
         logger.removeHandler(handler)
 
-def remove_instrument(instrument_name: str, station: Station):
-    """
-    Deletes and removes an established instrument
-    Args:
-        instrument (str): name of instrument to delete
-        station (Station): Station that instrument is registered to
-    """
-    if instrument_name in station.components:
-        station.remove_component(instrument_name)
-        print(f"Removing '{instrument_name}' from station")
-
-    if instrument_name in globals():
-        instrument = eval(instrument_name)
-        print(f"closing and deleting '{instrument.name}'")
-        instrument.close()
-        del globals()[instrument_name]
-    else:
-        print(f"'{instrument_name}' is not deleted, it does not exist")
-    instrument_dict = Instrument._all_instruments
-    if instrument_name in dict(instrument_dict):
-        del instrument_dict[instrument_name]
-        print(
-            f"Removed '{instrument_name}' from global qcodes instrument index")
-
 def get_module(name: str = None, mod_path: str = None):
     """
     Dynamically loads a Python module from a specified file path.

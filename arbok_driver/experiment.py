@@ -1,5 +1,6 @@
 """Module containing abstract class for experiments"""
 from abc import ABC, abstractmethod
+from typing import Mapping
 from arbok_driver.device import Device
 
 class Experiment(ABC):
@@ -13,12 +14,9 @@ class Experiment(ABC):
         3. Readout of quantum state
     """
     _name: str
-    def __init__(self, configs_to_prepare: dict | None = None):
+    def __init__(self, **configs_to_prepare: str | Mapping[str, dict] | None):
         self.configs: dict = {}
-        if configs_to_prepare is not None:
-            self.configs_to_prepare = configs_to_prepare
-        else:
-            self.configs_to_prepare = {}
+        self.configs_to_prepare: Mapping = configs_to_prepare
 
     @property
     @abstractmethod
@@ -37,7 +35,6 @@ class Experiment(ABC):
 
     def get_sequences_config(self, device: Device) -> dict:
         self.configs = self.get_device_specific_subsequences_dict(device)
-        print("CONFIGS: ", self.configs)
         return self.sequences_config
 
     def get_device_specific_subsequences_dict(self, device: Device):
@@ -54,7 +51,6 @@ class Experiment(ABC):
                 f" is type: {type(self.configs_to_prepare)}."
             )
         for name, config in self.configs_to_prepare.items():
-            print("tpye ", type(config))
             if isinstance(config, dict):
                 configs[name] = config
             elif isinstance(config, str):

@@ -6,7 +6,7 @@ from .device import Device
 from .experiment import Experiment
 from .generic_tunig_interface import GenericTuningInterface
 from .parameters.gettable_parameter import GettableParameter
-from .parameter_class import ParameterClass
+from .parameter_class import EmptyParameterClass, ParameterClass
 from .measurement import Measurement
 from .read_sequence import ReadSequence
 from .sequence_base import SequenceBase
