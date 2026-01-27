@@ -886,7 +886,11 @@ class Measurement(SequenceBase):
             timeout = 3,
             stream_names = stream_names
         )
-        results_dict = {g: res[g.full_name] for _, g in self.gettables.items()}
+        import numpy as np
+        results_dict = {
+            g: np.array(res[g.full_name], dtype= np.floating)
+            for _, g in self.gettables.items()
+            }
         return results_dict
 
     def _fetch_all_results_from_opx_plus(self) -> dict[ndarray]:
