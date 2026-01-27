@@ -63,6 +63,6 @@ class Experiment(ABC):
                         f" Of device: {device.name}"
                         )
             elif config is None:
-                if name not in self.configs:
-                   self.configs[name] = {}
+                if name not in configs:
+                   configs[name] = {}
         return configs
