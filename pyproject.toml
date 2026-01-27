@@ -47,3 +47,14 @@ docs = [
   "sphinx-rtd-theme",
   "sphinx-autodoc-typehints"
 ]
+
+dev = [
+  "pytest~=9.0",
+  "pytest-cov~=7.0"
+]
+
+[tool.pytest.ini_options]
+testpaths = "tests"
+filterwarnings = [
+    "ignore:Passing field metadata as keyword arguments is deprecated:marshmallow.warnings.RemovedInMarshmallow4Warning",
+]

@@ -1,6 +1,6 @@
 """ Module containing GettableParameter class """
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import Type, TYPE_CHECKING
 
 from qm import qua
 
@@ -14,11 +14,13 @@ class GettableParameter(GettableParameterBase):
     """
     Gettableparameter class handling sclar results from an abstract readout
     """
+    qua_result_var: QuaVariable
+
     def __init__(
             self,
             name: str,
             read_sequence: ReadSequence,
-            var_type: int | bool | qua.fixed,
+            var_type: Type[int | bool | qua.fixed],
             **kwargs
             ) -> None:
         """
@@ -37,7 +39,6 @@ class GettableParameter(GettableParameterBase):
             **kwargs
             )
         self.reset_measuerement_attributes()
-        self.qua_result_var: QuaVariable | None = None
 
     def qua_declare_variables(self):
         """Saves acquired results to qua stream"""

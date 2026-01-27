@@ -32,6 +32,7 @@ class Device():
         self.elements = list(self.config['elements'].keys())
         self.divider_config = divider_config
         self._update_master_config(master_config)
+        self.master_config: dict = master_config
         self.sub_device_name = None
 
     def _update_master_config(self, master_config = None):
@@ -94,3 +95,5 @@ class Device():
         if self._master_config_path is not None:
             mcp = self.master_config_path
             self.master_config_path = mcp
+        else:
+            return self.master_config

@@ -1,23 +1,25 @@
 """ Module containing Sequence class """
 from __future__ import annotations
+from abc import ABC
+from dataclasses import fields
 from typing import TYPE_CHECKING, Any
 import logging
 
+from .parameter_class import ParameterClass
 from .sequence_base import SequenceBase
 
 if TYPE_CHECKING:
-    from .device import Device
     from .measurement import Measurement
 
-class SubSequence(SequenceBase):
+class SubSequence(SequenceBase, ABC):
     """
     Class describing a subsequence of a QUA programm (e.g Init, Control, Read). 
     """
+    _enforce_parameter_class: bool = False
     def __init__(
             self,
             parent,
             name: str,
-            device: Device,
             sequence_config: dict | None = None,
             check_step_requirements: bool = False,
             **kwargs
@@ -27,13 +29,15 @@ class SubSequence(SequenceBase):
         
         Args:
             name (str): Name of the program
-            device (Device): Device class describing phyical device
-            param_config (dict): Dictionary containing all device parameters
+            sequence_config (dict): Dictionary containing all device parameters
+            check_step_requirements (bool): Whether to check step requirements
+                for this subsequence
             **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(
-            parent, name, device, sequence_config, check_step_requirements, **kwargs)
+            parent, name, sequence_config, check_step_requirements, **kwargs)
         self.parent.add_subsequence(self)
+        self.arbok_params = self.map_arbok_params()
 
     @property
     def measurement(self) -> Measurement:
@@ -48,6 +52,13 @@ class SubSequence(SequenceBase):
         else:
             super().qua_sequence()
 
+    def map_arbok_params(self) -> ParameterClass:
+        """Maps required params for QUA code to arbok_params attribute"""
+        arg_names = [f.name for f in fields(self.PARAMETER_CLASS) if f.init]
+        init_dict = self.measurement.get_parameters_and_maps(arg_names)
+        init_dict.update(self.get_parameters_and_maps(arg_names))
+        return self.PARAMETER_CLASS(**init_dict)
+
     def add_subsequences_from_dict(
             self,
             subsequence_dict: dict,
@@ -58,13 +69,19 @@ class SubSequence(SequenceBase):
         Args:
             subsequence_dict (dict): Dictionary containing the subsequences
         """
+        class ContainerParameterClass(ParameterClass):
+            pass
+
+        class ContainerSubSequence(SubSequence):
+            PARAMETER_CLASS = ContainerParameterClass
+    
         super()._add_subsequences_from_dict(
-            default_sequence = SubSequence,
+            default_sequence = ContainerSubSequence,
             subsequence_dict = subsequence_dict,
             namespace_to_add_to = namespace_to_add_to
         )
 
-    def find_measurement(self):
+    def find_measurement(self) -> Measurement:
         """Recursively searches the parent sequence"""
         if self.parent.__class__.__name__ == 'Measurement':
             return self.parent
@@ -85,17 +102,6 @@ class SubSequence(SequenceBase):
             return f"{self.short_name}__{path}"
         else:
             return self.parent.get_sequence_path(f"{self.short_name}__{path}")
-
-    def __getattr__(self, key: str) -> Any:
-        """Returns parameter from self. If parameter is not found in self, 
-        searches parent sequence"""
-        if key in self.parameters:
-            return self.parameters[key]
-        elif self.measurement is None:
-            raise AttributeError(
-                f"Sub-sequence {self.name} does not have attribute {key}")
-        else:
-            return self._return_measurement_parameters(key)
 
     def _return_measurement_parameters(self, key: str) -> Any:
         """Returns attribute from parent sequence"""

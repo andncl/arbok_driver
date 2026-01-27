@@ -12,8 +12,6 @@ import warnings
 
 from qm import qua, generate_qua_script
 import qcodes as qc
-from qcodes.dataset.data_set import DataSet
-import xarray
 
 from .measurement_runners import(
     NativeMeasurementRunner,
@@ -24,6 +22,7 @@ from .parameters import (
     GettableParameterBase,
     SequenceParameter
 )
+from .parameter_class import ParameterClass
 from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
 from .sweep import Sweep
@@ -46,9 +45,8 @@ class Measurement(SequenceBase):
 
     def __init__(
             self,
-            parent,
+            parent: ArbokDriver,
             name: str,
-            device: Device,
             sequence_config: dict | None = None,
             ) -> None:
         """
@@ -56,13 +54,12 @@ class Measurement(SequenceBase):
 
         Args:
             name (str): Name of the measurement
-            device (Device): Device object describing the device in use
             sequence_config (dict): Config containing all measurement params and
                 their initial values and units0
             **kwargs: Key word arguments for InstrumentModule
         """
-        conf = self.merge_with_device_config(device, sequence_config)
-        super().__init__(parent, name, device, conf)
+        conf = self.merge_with_device_config(parent.device, sequence_config)
+        super().__init__(parent, name, conf)
         self.driver: ArbokDriver = parent
         self.measurement = self
         self._init_vars()
@@ -679,8 +676,14 @@ class Measurement(SequenceBase):
             namespace_to_add_to (dict): Name space to insert the
                 subsequence into (e.g locals(), globals()) defaults to None
         """
+        class ContainerParameterClass(ParameterClass):
+            pass
+
+        class ContainerSubSequence(SubSequence):
+            PARAMETER_CLASS = ContainerParameterClass
+
         super()._add_subsequences_from_dict(
-            default_sequence = SubSequence,
+            default_sequence = ContainerSubSequence,
             subsequence_dict = subsequence_dict,
             namespace_to_add_to = namespace_to_add_to
         )
