@@ -18,14 +18,14 @@ class DcAverage(AbstractReadout):
     in a static averaging manner
     """
     def __init__(
-            self,
-            name: str,
-            read_sequence: ReadSequence,
-            signal: Signal,
-            save_results: bool,
-            parameters: dict,
-            qua_element: str,
-            ):
+        self,
+        name: str,
+        read_sequence: ReadSequence,
+        signal: Signal,
+        save_results: bool,
+        parameters: dict,
+        qua_element: str,
+        ):
         """
         Constructor method of ReadoutPoint class
         
