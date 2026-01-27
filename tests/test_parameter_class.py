@@ -1,15 +1,17 @@
 """Testing that the a sub-sequences parameter class is added correctly"""
 import pytest
-from arbok_driver import SubSequence
+from arbok_driver import SubSequence, EmptyParameterClass
 from arbok_driver.parameter_types import (
     Int, Voltage, ParameterMap
 )
 from .conftest import UserSubSequence
 
 def test_missing_parameter_class() -> None:
-    with pytest.raises(TypeError):
-        class SubSequenceNoParameterClass(SubSequence):
-            pass
+    
+    class SubSequenceNoParameterClass(SubSequence):
+        pass
+    assert not hasattr(SubSequenceNoParameterClass, 'arbok_params')
+    assert SubSequenceNoParameterClass.PARAMETER_CLASS == EmptyParameterClass
 
 def test_missing_parameter(dummy_measurement) -> None:
     config_1 = {
