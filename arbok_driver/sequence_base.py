@@ -14,7 +14,7 @@ from qm import SimulationConfig, generate_qua_script, qua, QuantumMachinesManage
 from qm.simulate.credentials import create_credentials
 
 from .parameters.sequence_parameter import SequenceParameter
-from .parameter_class import ParameterClass
+from .parameter_class import ParameterClass, EmptyParameterClass
 from .parameter_types import ParameterMap
 from . import utils
 
@@ -66,9 +66,7 @@ class SequenceBase(InstrumentModule, ABC):
         super().__init_subclass__(**kwargs)
         if cls._enforce_parameter_class:
             if 'PARAMETER_CLASS' not in cls.__dict__:
-                raise TypeError(
-                    f"{cls.__name__} must define class attribute PARAMETER_CLASS"
-                )
+                cls.PARAMETER_CLASS = EmptyParameterClass
         cls._enforce_parameter_class = True
 
     @staticmethod

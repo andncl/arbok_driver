@@ -74,7 +74,8 @@ class AbstractReadout(Generic[P], ABC):
         ### Parameters are added to the sequence with the readout prefix
         if parameters is not None:
             self.add_qc_params_from_config(parameters)
-            self.arbok_params = self.map_arbok_params()
+            if hasattr(self, "PARAMETER_CLASS"):
+                self.arbok_params = self.map_arbok_params()
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -200,7 +201,7 @@ class AbstractReadout(Generic[P], ABC):
         full_params = {f'{self.name}__{k}': v for k, v in param_dict.items()}
         self.read_sequence.add_qc_params_from_config(full_params)
 
-    def map_arbok_params(self) -> ParameterClass:
+    def map_arbok_params(self) -> P:
         """
         Adds the parameters to a ParameterClass instance
 
@@ -223,7 +224,6 @@ class AbstractReadout(Generic[P], ABC):
             {n.split(f"{self.name}__")[1]: p for n, p in init_dict_full.items()}
         )
         return self.PARAMETER_CLASS(**init_dict)
-        
 
     def get_gettable_from_path(self, attr_path: str) -> GettableParameter:
         """
