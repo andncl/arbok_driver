@@ -40,7 +40,6 @@ def ramp(
         if origin_params is not None:
             amplitude = target_params[element].qua - origin_params[element].qua
         else:
-            print(target_params)
             amplitude = target_params[element].qua
         kwargs = {
             'pulse': operation*qua.amp(amplitude),
