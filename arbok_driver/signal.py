@@ -1,5 +1,11 @@
 """Module containing signal class"""
+from __future__ import annotations
+from typing import TYPE_CHECKING
 import logging
+
+if TYPE_CHECKING:
+    from arbok_driver import ReadSequence
+    from arbok_driver.parameters import GettableParameterBase
 
 class Signal:
     """
@@ -8,7 +14,7 @@ class Signal:
     def __init__(
         self,
         name: str,
-        read_sequence: 'ReadSequence',
+        read_sequence: ReadSequence,
         ):
         """
         Constructor method of Signal class
@@ -18,17 +24,16 @@ class Signal:
             read_sequence (arbok_driver.ReadSequence): ReadSequence performing the
                 abstract readout
         """
-        self.name = name
-        self.read_sequence = read_sequence
-
-        self._gettables = {}
+        self.name: str = name
+        self.read_sequence: ReadSequence = read_sequence
+        self._gettables: dict[str, GettableParameterBase] = {}
 
     @property
-    def gettables(self):
+    def gettables(self) -> dict[str, GettableParameterBase]:
         """Dictionary with all gettables registered on the signal"""
         return self._gettables
 
-    def add_gettable(self, gettable: 'GettableParameter') -> None:
+    def add_gettable(self, gettable: GettableParameterBase) -> None:
         """
         Adds a gettable parameter to the signal
 
