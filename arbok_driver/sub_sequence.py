@@ -62,7 +62,7 @@ class SubSequence(SequenceBase, ABC):
     def add_subsequences_from_dict(
             self,
             subsequence_dict: dict,
-            namespace_to_add_to: dict = None) -> None:
+            namespace_to_add_to: dict | None = None) -> None:
         """
         Adds subsequences to the sequence from a given dictionary
 
@@ -92,7 +92,7 @@ class SubSequence(SequenceBase, ABC):
                 "Parent sequence must be of type Sequence. "
                 f"Is of type {self.parent.__class__.__name__}")
 
-    def get_sequence_path(self, path: str = None) -> str:
+    def get_sequence_path(self, path: str | None = None) -> str:
         """Returns the path of subsequences up to the parent sequence"""
         if path is None:
             path = ""
