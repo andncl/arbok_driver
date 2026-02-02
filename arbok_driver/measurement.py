@@ -29,7 +29,6 @@ from .sweep import Sweep
 
 if TYPE_CHECKING:
     from .arbok_driver import ArbokDriver
-    from .arbok_driver import Device
     from arbok_driver.measurement_runners.measurement_runner_base import (
         MeasurementRunnerBase,
     )
