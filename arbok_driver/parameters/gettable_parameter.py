@@ -8,7 +8,7 @@ from .gettable_parameter_base import GettableParameterBase
 
 if TYPE_CHECKING:
     from arbok_driver.read_sequence import ReadSequence
-    from qm.qua._expressions import QuaVariable   
+    from qm.qua._expressions import QuaVariable
 
 class GettableParameter(GettableParameterBase):
     """
