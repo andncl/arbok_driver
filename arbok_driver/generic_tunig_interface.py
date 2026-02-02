@@ -1,8 +1,10 @@
 """Module containing GenericTuningInterface class."""
+from __future__ import annotations
 from abc import abstractmethod
 import copy
 import random
 import time
+from typing import TYPE_CHECKING
 
 from scipy.stats import qmc
 import matplotlib.pyplot as plt
@@ -14,16 +16,24 @@ from IPython import display
 
 from .parameters.gettable_parameter import GettableParameter
 
+if TYPE_CHECKING:
+    from qm.qua._scope_management._core_scopes import _ProgramScope
+
+    from .arbok_driver import ArbokDriver
+    from .device import Device
+    from .measurement import Measurement
+    from .parameters import SequenceParameter, GettableParameterBase
+
 class GenericTuningInterface:
     """Generic streaming interface for ML tuning."""
-    device = None
-    parameter_dict = None
-    bounds = None
-    input_stream_params = None
-    program = None
-    measurement = None
-    gettables = None
-    qua_program = None
+    device: Device
+    parameter_dict: dict[str, dict]
+    bounds: dict[str, tuple]
+    input_stream_params: list[SequenceParameter]
+    driver: ArbokDriver
+    measurement: Measurement
+    gettables: GettableParameterBase
+    qua_program: _ProgramScope
 
     @abstractmethod
     def _initialize_sequences(self) -> None:
@@ -105,9 +115,9 @@ class GenericTuningInterface:
         Compiles, connects and runs the parity readout sequences on device with
         given host ip.
         """
-        self.program.connect_opx(host_ip = host_ip)
+        self.driver.connect_opx(host_ip = host_ip)
         self.qua_program = self.measurement.get_qua_program()
-        self.program.run(self.qua_program)
+        self.driver.run(self.qua_program)
 
     def run_parameter_set(
         self, input_params: list, progress_bar = None
@@ -135,7 +145,7 @@ class GenericTuningInterface:
             raise ValueError(
                 f"Input params must be list or dict. Are {type(input_params)}")
         self.measurement.insert_single_value_input_streams(input_param_dict)
-        self.program.qm_job.resume()
+        self.driver.qm_job.resume()
 
         gettable_results = {}
         for i, (tag, obs) in enumerate(self.gettables.items()):
