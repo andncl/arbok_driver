@@ -69,8 +69,8 @@ class SequenceBase(InstrumentModule, ABC):
                 cls.PARAMETER_CLASS = EmptyParameterClass
         cls._enforce_parameter_class = True
 
-    @staticmethod
-    def config_template():
+    @classmethod
+    def config_template(cls)  -> None:
         """
         The user can get an example config template.
         This feature is useful if building from scratch or for UI 
@@ -81,32 +81,32 @@ class SequenceBase(InstrumentModule, ABC):
         """
         return {}
 
-    def qua_declare(self):
+    def qua_declare(self) -> None:
         """Contains raw QUA code to initialize the qua variables"""
         for sub_sequence in self.sub_sequences:
             sub_sequence.qua_declare()
 
-    def qua_before_sweep(self):
+    def qua_before_sweep(self) -> None:
         """Contains raw QUA code that is being executed before sweeps"""
         for sub_sequence in self.sub_sequences:
             sub_sequence.qua_before_sweep()
 
-    def qua_before_sequence(self):
+    def qua_before_sequence(self) -> None:
         """Contains raw QUA code that is being executed before the sequence"""
         for sub_sequence in self.sub_sequences:
             sub_sequence.qua_before_sequence()
 
-    def qua_sequence(self):
+    def qua_sequence(self) -> None:
         """Contains raw QUA code to define the pulse sequence"""
         for sub_sequence in self.sub_sequences:
             sub_sequence.qua_sequence()
 
-    def qua_after_sequence(self):
+    def qua_after_sequence(self) -> None:
         """Contains raw QUA code that is being executed after the sequence"""
         for sub_sequence in self.sub_sequences:
             sub_sequence.qua_after_sequence()
 
-    def qua_stream(self):
+    def qua_stream(self) -> None:
         """Contains raw QUA code to define streams"""
         for sub_sequence in self.sub_sequences:
             sub_sequence.qua_stream()
@@ -123,7 +123,6 @@ class SequenceBase(InstrumentModule, ABC):
         """
         List of `SubSequences`s that build the given sequence
         """
-        # return 'hi'
         structure_dict = {}
         for sub_sequence in self._sub_sequences:
             if len(sub_sequence.sub_sequences) > 0:
@@ -483,7 +482,7 @@ class SequenceBase(InstrumentModule, ABC):
     def find_parameters_from_keywords(
         self,
         keys: str | list,
-        elements: list[str] = None
+        elements: list[str] | None = None
         ) -> dict:
         """
         Returns a list containing all parameters of the seqeunce with names that
@@ -515,8 +514,8 @@ class SequenceBase(InstrumentModule, ABC):
     def _add_subsequence(
         self,
         name: str,
-        sequence_config: dict = None,
-        namespace_to_add_to: dict = None,
+        sequence_config: dict,
+        namespace_to_add_to: dict | None= None,
         **kwargs
         ) -> SubSequence:
         """
@@ -553,7 +552,7 @@ class SequenceBase(InstrumentModule, ABC):
             self,
             default_sequence,
             subsequence_dict: dict,
-            namespace_to_add_to: dict = None) -> None:
+            namespace_to_add_to: dict | None = None) -> None:
         """
         Adds subsequences to the sequence from a given dictionary
 
@@ -615,7 +614,7 @@ class SequenceBase(InstrumentModule, ABC):
         self,
         name: str,
         seq_conf: dict,
-        namespace_to_add_to: dict = None
+        namespace_to_add_to: dict | None = None
         ) -> None:
         ### Check if config available and of type dict
         sub_seq_conf = {'parameters': {}}
@@ -661,7 +660,7 @@ class SequenceBase(InstrumentModule, ABC):
             **kwargs
             )
 
-    def find_parameters(self, key: str, elements: list = None) -> dict:
+    def find_parameters(self, key: str, elements: list | None = None) -> dict:
         """
         Finds all parameters generated from elements and a the given key.
         Similar to `find_parameters_from_keywords` but returns a non nested
@@ -699,7 +698,8 @@ class SequenceBase(InstrumentModule, ABC):
         """                                                                                   
         return reduce(getattr, path.split('.'), self)     
 
-    def find_parameter_from_str_path(self, path: str):
+    def find_parameter_from_str_path(
+            self, path: str | list[str]) -> SequenceParameter:
         """
         Returns the parameter from the given path
 
@@ -727,7 +727,7 @@ class SequenceBase(InstrumentModule, ABC):
         """Overwrites abstract method"""
         raise NotImplementedError("This driver does not support `set_raw`")
 
-    def set_params_with_unit_to_value(self, unit: str, value: any):
+    def set_params_with_unit_to_value(self, unit: str, value: any) -> None:
         """
         Sets all parameters with the given unit to the given value
 
