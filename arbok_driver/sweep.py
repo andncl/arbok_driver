@@ -72,7 +72,7 @@ class Sweep:
 
     @property
     def length(self) -> int:
-        """ Number of devices for parameters on the given axis """
+        """Length of sweep array for parameters on the given axis """
         return self._length
 
     @property
@@ -232,6 +232,8 @@ class Sweep:
         """
         if self.inputs_are_streamed:
             return False
+        if self.length < 5:
+            return False 
         parameterizability_list = []
         for param in self.parameters:
             sweep_arr = self.config[param]
