@@ -68,6 +68,8 @@ class SubSequence(SequenceBase, ABC):
 
         Args:
             subsequence_dict (dict): Dictionary containing the subsequences
+            namespace_to_add_to (dict): Namespace to add the registered
+                subsequences to
         """
         class ContainerParameterClass(ParameterClass):
             pass
