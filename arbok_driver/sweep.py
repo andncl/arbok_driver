@@ -14,17 +14,17 @@ from qcodes.validators import Arrays
 from .parameters.sequence_parameter import SequenceParameter
 if TYPE_CHECKING:
     from .measurement import Measurement
+    from qm.qua._expressions import QuaVariable, QuaVariableInputStream
     from numpy import ndarray
 
 class Sweep:
     """ Class characterizing a parameter sweep along one axis in the OPX """
 
-    _config_to_register = None
-    _length = None
-    _inputs_are_streamed = None
-    _input_streams = None
-    _can_be_parameterized = None
-    snake_scan = False # Assume by default non snake scanning
+    _length: int
+    _inputs_are_streamed: bool
+    _input_streams: list[QuaVariableInputStream]
+    _can_be_parameterized: bool
+    snake_scan: bool
     dim_parameter: SequenceParameter
 
     def __init__(
@@ -46,14 +46,12 @@ class Sweep:
         self.measurement: Measurement = measurement
         self.register_all: bool = register_all
         self._config: dict[SequenceParameter, ndarray] = param_dict
-
+        self.snake_scan: bool = False
+    
         self._parameters: list[SequenceParameter] = []
         self.inferred_parameters: list[SequenceParameter] = []
         self._config_to_register: dict[SequenceParameter, ndarray] = {}
 
-        if 'snake' in self._config: # check if the user defined the snake state
-            self.snake_scan = self._config['snake']
-            del self._config['snake']
         self.configure_sweep()
         self._check_if_parametrizable()
 
@@ -63,17 +61,17 @@ class Sweep:
         return self._parameters
 
     @property
-    def qua_variables(self):
+    def qua_variables(self) -> tuple(QuaVariable):
         """ Tuple containing all qua variables of parameters """
         return tuple(par.qua_var for par in self.parameters)
 
     @property
-    def qua_sweep_arrays(self):
+    def qua_sweep_arrays(self) -> tuple(ndarray):
         """ Tuple containing all qua sweep arrays of parameters """
         return tuple(par.qua_sweep_arr for par in self.parameters)
 
     @property
-    def length(self):
+    def length(self) -> int:
         """ Number of devices for parameters on the given axis """
         return self._length
 
@@ -83,7 +81,7 @@ class Sweep:
         return tuple(par.input_stream for par in self.parameters)
 
     @property
-    def inputs_are_streamed(self):
+    def inputs_are_streamed(self) -> bool:
         """Whether sweep is fed by input stream"""
         return self._inputs_are_streamed
 
@@ -295,7 +293,7 @@ class Sweep:
         """Runs a qua for loop for an array that is imported from a stream"""
         warnings.warn("Input streaming is not fully supported")
         for param in self.parameters:
-            qua.wait(int(1e6))
+            qua.wait(int(1e6)) # TODO: Check if this is still necessay!
             qua.advance_input_stream(param.input_stream)
             logging.debug(
                 "Assigning %s with length %s (input stream)",
