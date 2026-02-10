@@ -93,7 +93,8 @@ class Sweep:
         entries of the given arrays
         """
         if self._can_be_parameterized is None:
-            return self._check_if_parametrizable()
+            self._can_be_parameterized = self._check_if_parametrizable()
+            return self._can_be_parameterized
         else:
             return self._can_be_parameterized
 
@@ -106,7 +107,7 @@ class Sweep:
                 parameter.can_be_parameterized = False
         elif value is True:
             if self._can_be_parameterized is True:
-                self._can_be_parameterized = True
+                return
         else:
             raise ValueError("can_be_parameterized must be of type bool")
 
@@ -252,7 +253,8 @@ class Sweep:
                 param.can_be_parameterized = False
         return parameterizabel
 
-    def qua_generate_parameter_sweep(self, next_action: Callable, next_sweep) -> None:
+    def qua_generate_parameter_sweep(
+            self, next_action: Callable, next_sweep) -> None:
         """
         Runs a qua loop based on the configured method. Currently three
         different methods are available:
