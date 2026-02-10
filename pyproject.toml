@@ -13,25 +13,22 @@ requires-python = ">=3.12"
 license = {text = "BSD-3-Clause"}
 classifiers = [
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
     "anytree>=2.13",
-    "jupyterlab",
     "numpy >= 1.23",
-    "matplotlib",
+    "matplotlib ~= 3.10",
     "minio ~= 7.2",
-    "ipython",
     "psycopg2-binary ~= 2.9",
     "s3fs~=2025.10",
-    "scipy", 
+    "scipy ~= 1.17", 
     "SQLAlchemy ~= 2.0",
-    
-    "qm-qua >= 1.2.1",
-    "qcodes >= 0.54.4",
-    "qualang_tools >= 0.19",
-    "qcodes-contrib-drivers >= 0.23",
-    "rich >= 14.0",
-   
+    "qm-qua ~= 1.2.5",
+    "qcodes ~= 0.54",
+    "qualang_tools ~= 0.21",
+    "qcodes-contrib-drivers ~= 0.24",
+    "rich ~= 14.0",
     "zarr ~= 2.18"
 ]
 dynamic = ["version"]

@@ -29,19 +29,20 @@ from .sweep import Sweep
 
 if TYPE_CHECKING:
     from .arbok_driver import ArbokDriver
-    from .arbok_driver import Device
     from arbok_driver.measurement_runners.measurement_runner_base import (
         MeasurementRunnerBase,
     )
     from numpy import ndarray
     from qcodes.dataset import Measurement as QcMeasurement
+    from qcodes.dataset.experiment_container import Experiment as QcExperiment
+    from qm.qua._expressions import QuaVariable
+    from qm.qua._dsl.stream_processing.stream_processing import ResultStreamSource
     from xarray import Dataset as XrDataset
 
 class Measurement(SequenceBase):
     """Class describing a Measurement in an OPX driver"""
-    qc_experiment = None
-    qc_measurement = None
-    qc_measurement_name = None
+    shot_tracker_qua_var: QuaVariable
+    shot_tracker_qua_stream: ResultStreamSource
 
     def __init__(
             self,
@@ -66,15 +67,16 @@ class Measurement(SequenceBase):
         self._reset_sweeps_setpoints()
         self.driver.add_measurement(self)
 
+        self.qc_experiment: QcExperiment | None = None
         self.qc_measurement: QcMeasurement | None = None
+        self.qc_measurement_name: str | None = None
 
         self._is_mock: bool = False
         self._sweep_dims: tuple | None = None
         self._sweep_size: int | None = None
+        self._gettables: dict[str, GettableParameterBase] = {}
         self.measurement_runner: MeasurementRunnerBase | None = None
 
-        self.shot_tracker_qua_var = None
-        self.shot_tracker_qua_stream = None
         self.nr_registered_results = 0
 
         self.qm_job = None
@@ -115,7 +117,7 @@ class Measurement(SequenceBase):
         """
         Put variables into a reasonable init state
         """
-        self._gettables = []
+        self._gettables = {}
         self._sweep_size = 1
         self._sweep_dims = ()
         self.shot_tracker_qua_var = None
@@ -153,7 +155,7 @@ class Measurement(SequenceBase):
         return self._sweeps
 
     @property
-    def gettables(self) -> dict[str, GettableParameter]:
+    def gettables(self) -> dict[str, GettableParameterBase]:
         """List of `GettableParameter`s for data acquisition"""
         return self._gettables
 
