@@ -92,11 +92,8 @@ class Sweep:
         saving. If the user has not set this value, it will be checked by the
         entries of the given arrays
         """
-        if self._can_be_parameterized is None:
-            self._can_be_parameterized = self._check_if_parametrizable()
-            return self._can_be_parameterized
-        else:
-            return self._can_be_parameterized
+        self._can_be_parameterized = self._check_if_parametrizable()
+        return self._can_be_parameterized
 
     @can_be_parameterized.setter
     def can_be_parameterized(self, value: bool):
