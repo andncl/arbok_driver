@@ -2,10 +2,10 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import logging
-from qcodes.validators import Arrays
 
 from .abstract_readout import AbstractReadout
-from .gettable_parameter import GettableParameter
+from .parameters.gettable_parameter_base import GettableParameterBase
+from .sequence_base import SequenceBase
 from .signal import Signal
 from .sub_sequence import SubSequence
 
@@ -14,11 +14,11 @@ if TYPE_CHECKING:
 
 class ReadSequence(SubSequence):
     """ Baseclass for sequences containing readouts """
+    _enforce_parameter_class: bool = False
     def __init__(
         self,
-        parent: SubSequence,
+        parent: SequenceBase,
         name: str,
-        device: Device,
         sequence_config: dict,
         ):
         """
@@ -26,22 +26,20 @@ class ReadSequence(SubSequence):
         Args:
             parent (SubSequence): Parent instrument module
             name (dict): name of the ReadSequence
-            device (Device): device for which sequence is configured
             sequence_config (dict): Dict configuring all parameters for the given
                 read-sequence and its read-points and abstract-readouts
         """
         super().__init__(
             parent=parent,
             name=name,
-            device=device,
             sequence_config=sequence_config
             )
 
         self._check_read_sequence_config(sequence_config)
-        self.sequence_config = sequence_config
-        self._signals = {}
-        self._readout_groups = {}
-        self._abstract_readouts = {}
+        self.sequence_config: dict = sequence_config
+        self._signals: dict[str, Signal] = {}
+        self._readout_groups: dict[str, dict[str, AbstractReadout]] = {}
+        self._abstract_readouts: dict[str, AbstractReadout] = {}
 
         logging.debug("Adding signals to ReadSequence: %s", self.name)
         self._add_signals_from_config(self.sequence_config['signals'])
@@ -69,8 +67,7 @@ class ReadSequence(SubSequence):
         QUA variable and stream declaration based on the given sequence
         configuration. Only to be called within qua.program() context manager!
         """
-        for readout_name, abstract_readout in self._abstract_readouts.items():
-            logging.debug("Declaring qua vars for %s", readout_name)
+        for _, abstract_readout in self._abstract_readouts.items():
             abstract_readout.qua_declare_variables()
 
     def qua_stream(self):
@@ -245,7 +242,7 @@ class ReadSequence(SubSequence):
                 f" {group_name}__{readout_name})!"
             )
 
-    def add_gettable(self, gettable: GettableParameter) -> None:
+    def add_gettable(self, gettable: GettableParameterBase) -> None:
         """
         Adds a gettable parameter to the read sequence. This is used to make
         the gettable fetchable during a measurement.
@@ -253,18 +250,8 @@ class ReadSequence(SubSequence):
         Args:
             gettable (GettableParameter): Gettable parameter to be added
         """
-        if not isinstance(gettable, GettableParameter):
+        if not isinstance(gettable, GettableParameterBase):
             raise TypeError(
                 f"Expected GettableParameter, got {type(gettable)}"
             )
         self._gettables.append(gettable)
-
-    def get_qm_elements_from_signals(self):
-        """
-        Gets all qm elements from the configured signals in this read sequence
-        """
-        qm_elements = []
-        for _, signal in self.signals.items():
-            qm_elements += signal.readout_elements.values()
-        # this is meant to be deterministic with non duplicates in the list.
-        return list(dict.fromkeys(qm_elements))

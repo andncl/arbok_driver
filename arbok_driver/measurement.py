@@ -1,7 +1,6 @@
 """Module containing the Measurement class"""
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from datetime import datetime
 import math
 import time
 import copy
@@ -9,35 +8,46 @@ import logging
 import os
 from collections import Counter
 import warnings
-from pathlib import Path
+
 
 from qm import qua, generate_qua_script
 import qcodes as qc
-from qcodes.dataset.data_set import DataSet
-import xarray
 
-from .measurement_runner import MeasurementRunner
-from .gettable_parameter import GettableParameter
-from .sequence_parameter import SequenceParameter
-from .device import Device
+from .measurement_runners import(
+    NativeMeasurementRunner,
+    QCodesMeasurementRunner
+)
+from .parameters import (
+    GettableParameter,
+    GettableParameterBase,
+    SequenceParameter
+)
+from .parameter_class import ParameterClass
 from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
 from .sweep import Sweep
 
 if TYPE_CHECKING:
     from .arbok_driver import ArbokDriver
+    from arbok_driver.measurement_runners.measurement_runner_base import (
+        MeasurementRunnerBase,
+    )
+    from numpy import ndarray
+    from qcodes.dataset import Measurement as QcMeasurement
+    from qcodes.dataset.experiment_container import Experiment as QcExperiment
+    from qm.qua._expressions import QuaVariable
+    from qm.qua._dsl.stream_processing.stream_processing import ResultStreamSource
+    from xarray import Dataset as XrDataset
 
 class Measurement(SequenceBase):
     """Class describing a Measurement in an OPX driver"""
-    qc_experiment = None
-    qc_measurement = None
-    qc_measurement_name = None
+    shot_tracker_qua_var: QuaVariable
+    shot_tracker_qua_stream: ResultStreamSource
 
     def __init__(
             self,
-            parent,
+            parent: ArbokDriver,
             name: str,
-            device: Device,
             sequence_config: dict | None = None,
             ) -> None:
         """
@@ -45,33 +55,35 @@ class Measurement(SequenceBase):
 
         Args:
             name (str): Name of the measurement
-            device (Device): Device object describing the device in use
             sequence_config (dict): Config containing all measurement params and
                 their initial values and units0
             **kwargs: Key word arguments for InstrumentModule
         """
-        conf = self.merge_with_device_config(device, sequence_config)
-        super().__init__(parent, name, device, conf)
+        conf = self.merge_with_device_config(parent.device, sequence_config)
+        super().__init__(parent, name, conf)
         self.driver: ArbokDriver = parent
         self.measurement = self
         self._init_vars()
         self._reset_sweeps_setpoints()
         self.driver.add_measurement(self)
 
-        self._is_mock = False
-        self._sweep_dims = None
-        self._sweep_size = None
-        self.measurement_runner = None
+        self.qc_experiment: QcExperiment | None = None
+        self.qc_measurement: QcMeasurement | None = None
+        self.qc_measurement_name: str | None = None
 
-        self.shot_tracker_qua_var = None
-        self.shot_tracker_qua_stream = None
+        self._is_mock: bool = False
+        self._sweep_dims: tuple | None = None
+        self._sweep_size: int | None = None
+        self._gettables: dict[str, GettableParameterBase] = {}
+        self.measurement_runner: MeasurementRunnerBase | None = None
+
         self.nr_registered_results = 0
 
         self.qm_job = None
         self.batch_counter = None
-        self._dataset = None
-        self._xr_dataset = None
-        self._run_id = None
+        ### the following are being set by the measurement runner
+        self._run_id: int | None = None
+        self._dataset: XrDataset | None = None
 
     def merge_with_device_config(self, device, sequence_config):
         """
@@ -105,7 +117,7 @@ class Measurement(SequenceBase):
         """
         Put variables into a reasonable init state
         """
-        self._gettables = []
+        self._gettables = {}
         self._sweep_size = 1
         self._sweep_dims = ()
         self.shot_tracker_qua_var = None
@@ -143,7 +155,7 @@ class Measurement(SequenceBase):
         return self._sweeps
 
     @property
-    def gettables(self) -> dict[str, GettableParameter]:
+    def gettables(self) -> dict[str, GettableParameterBase]:
         """List of `GettableParameter`s for data acquisition"""
         return self._gettables
 
@@ -183,19 +195,22 @@ class Measurement(SequenceBase):
         return self._is_mock
 
     @property
-    def run_id(self) -> str:
+    def run_id(self) -> int:
         """Run id of the measurement"""
         return self._run_id
+    
+    def _set_run_id(self, run_id: int) -> None:
+        """Sets the run id of the measurement"""
+        self._run_id = run_id
 
     @property
-    def dataset(self) -> DataSet:
-        """Dataset of the measurement"""
+    def dataset(self) -> XrDataset:
+        """Xarray Dataset of the measurement"""
         return self._dataset
-
-    @property
-    def xr_dataset(self) -> DataSet:
-        """Extended Dataset of the measurement"""
-        return self._xr_dataset
+    
+    def _set_dataset(self, dataset: XrDataset) -> None:
+        """Sets the xarray dataset of the measurement"""
+        self._dataset = dataset
 
     @input_stream_parameters.setter
     def input_stream_parameters(self, parameters: list) -> None:
@@ -371,7 +386,7 @@ class Measurement(SequenceBase):
                     f"Keywords must be of type str or list. Is {type(keywords)}")
         ### Remove duplicates
         gettables = list(dict.fromkeys(gettables))
-        gettables = {g.name: g for g in gettables}
+        gettables = {g.full_name: g for g in gettables}
         self._check_given_gettables(gettables)
 
         self._gettables = gettables
@@ -437,7 +452,7 @@ class Measurement(SequenceBase):
         self.register_gettables(*list(self.gettables.values()))
 
         self.nr_registered_results = 0
-        qua_program = self.get_qua_program()
+        self.qua_program = self.get_qua_program()
         print('QUA program compiled')
         if save_path:
             # Check if the directory exists
@@ -449,12 +464,11 @@ class Measurement(SequenceBase):
                 )
             with open(save_path, 'w', encoding="utf-8") as file:
                 file.write(
-                    generate_qua_script(qua_program, self.parent.device.config))
-        print('QUA program saved')
+                    generate_qua_script(self.qua_program, self.parent.device.config))
+            print('QUA program saved')
 
         if not self.driver.is_mock:
-            # This is the real run, not a dummy run
-            self.driver.run(qua_program)
+            self.driver.run(self.qua_program)
             self.qm_job = self.driver.qm_job
             self._add_streams_to_gettables()
             self.batch_counter = getattr(
@@ -462,7 +476,7 @@ class Measurement(SequenceBase):
                 f"{self.name}_shots"
             )
         print('QUA program compiled and is running')
-        return qua_program
+        return self.qua_program
 
     def _add_streams_to_gettables(self):
         for _, gettable in self.gettables.items():
@@ -533,8 +547,7 @@ class Measurement(SequenceBase):
         setpoints and vals
         """
         for _, gettable in self.gettables.items():
-            gettable.setpoints = self._setpoints_for_gettables
-            gettable.configure_from_measurement()
+            gettable.configure_from_measurement(self._setpoints_for_gettables)
 
     def _check_given_gettables(self, gettables: dict) -> None:
         """
@@ -551,7 +564,7 @@ class Measurement(SequenceBase):
         gettables = gettables.values()
         ### Check if gettables are of type GettableParameter and belong to self
         all_gettable_parameters = all(
-            isinstance(gettable, GettableParameter) for gettable in gettables)
+            isinstance(gettable, GettableParameterBase) for gettable in gettables)
         all_gettables_from_self = all(
             gettable.measurement == self for gettable in gettables)
         if not all_gettable_parameters:
@@ -665,8 +678,14 @@ class Measurement(SequenceBase):
             namespace_to_add_to (dict): Name space to insert the
                 subsequence into (e.g locals(), globals()) defaults to None
         """
+        class ContainerParameterClass(ParameterClass):
+            pass
+
+        class ContainerSubSequence(SubSequence):
+            PARAMETER_CLASS = ContainerParameterClass
+
         super()._add_subsequences_from_dict(
-            default_sequence = SubSequence,
+            default_sequence = ContainerSubSequence,
             subsequence_dict = subsequence_dict,
             namespace_to_add_to = namespace_to_add_to
         )
@@ -692,9 +711,10 @@ class Measurement(SequenceBase):
             exp = self.qc_experiment, name = measurement_name)
         return self.qc_measurement
 
-    def get_xr_dataset_and_id(self) -> xarray.Dataset:
+    def get_xr_dataset_and_id(self) -> tuple[XrDataset, int]:
         """
         Creates a QCoDeS dataset from the given experiment
+        TODO: THIS NEEDS TO BE IN QCODES MEASUREMENT RUNNER
 
         Returns:
             qc_dataset (qc.dataset.Dataset): Dataset instance
@@ -707,18 +727,19 @@ class Measurement(SequenceBase):
 
     def run_measurement(
             self,
-            sweep_list: list[dict] | None = None,
+            ext_sweep_list: list[dict] | None = None,
             inner_func = None,
             qua_program_save_path: str = None,
             opx_address: str = None,
-            ) -> DataSet:
+            measurement_backend: str = 'qcodes',
+            ) -> XrDataset:
         """
         Runs the measurement with the given sweep list based on MeasurementRunner
         class
         TODO: add default save path! 
 
         Args:
-            sweep_list (list[dict]): List of dictionaries with parameters as keys
+            ext_sweep_list (list[dict]): List of dictionaries with parameters as keys
                 and np.ndarrays as setpoints. Each list entry creates one sweep axis.
                 If you want to sweep params concurrently enter more entries into
                 their sweep dict
@@ -729,39 +750,51 @@ class Measurement(SequenceBase):
                 being auto-saved next to the database.
             opx_address (str): The address of the OPX. Defaults to None. If not
                 given does not attempt to connect to the OPX.
+            measurement_backend (str): The measurement backend to use. Can be either
+                'qcodes' or 'native'.
         """
         if opx_address is not None:
             self.driver.connect_opx(opx_address)
         qua_prog = self.compile_qua_and_run(save_path = qua_program_save_path)
-        if qua_program_save_path is None:
-            self._auto_save_qua_program(qua_prog)
-        self.measurement_runner = self.get_measurement_runner(sweep_list)
+        self.measurement_runner = self.get_measurement_runner(
+            ext_sweep_list, measurement_backend)
         self.measurement_runner.run_arbok_measurement(
             inner_func = inner_func)
-        self._dataset = self.measurement_runner.datasaver.dataset
-        self._xr_dataset = self.dataset.to_xarray_dataset()
-        self._run_id = self.dataset.run_id
-        self._save_qua_program_as_metadata(qua_prog)
         return self.dataset
 
     def get_measurement_runner(
-            self, sweep_list: list[dict] | None = None) -> MeasurementRunner:
+            self,
+            ext_sweep_list: list[dict] | None = None,
+            measurement_backend: str = 'qcodes') -> MeasurementRunnerBase:
         """
         Returns the measurement runner for the current measurement
 
         Args:
-            sweep_list (list[dict]): List of dictionaries with parameters as keys
+            ext_sweep_list (list[dict]): List of dictionaries with parameters as keys
                 and np.ndarrays as setpoints. Each list entry creates one sweep axis.
                 If you want to sweep params concurrently enter more entries into
                 their sweep dict
+            measurement_backend (str): The measurement backend to use. Can be either
+                'qcodes' or 'native'.
 
         Returns:
             MeasurementRunner: The measurement runner instance
         """
-        if self.measurement_runner is None:
-            self.measurement_runner = MeasurementRunner(
+        if measurement_backend == 'qcodes':
+            self.measurement_runner = QCodesMeasurementRunner(
                 measurement = self,
-                sweep_list = sweep_list)
+                ext_sweep_list = ext_sweep_list
+                )
+        elif measurement_backend == 'native':
+            self.measurement_runner = NativeMeasurementRunner(
+                measurement = self,
+                ext_sweep_list = ext_sweep_list
+                )
+        else:
+            raise ValueError(
+                f"Invalid measurement backend: {measurement_backend}. "
+                "Choose either 'qcodes' or 'native'."
+                )
         return self.measurement_runner
 
     def wait_until_result_buffer_full(self, progress_tracker: tuple = None):
@@ -812,6 +845,71 @@ class Measurement(SequenceBase):
             progress_tracker[1].update(progress_tracker[0], completed = batch_count)
         self.nr_registered_results += self.sweep_size
 
+    def fetch_all_results(self) -> dict:
+        """
+        Fetches all results from the quantum machine
+
+        Returns:
+            dict: Contains a dict with result names and results as key value pair
+        """
+        from qm.api.v2.qm_api_old import QmApiWithDeprecations
+        from qm.api.v2.qm_api import QmApi
+        from qm.quantum_machine import QuantumMachine
+        stream_names = [x.full_name for x in self.gettables.values()]
+        if self.is_mock:
+            results_dict = {}
+            for _, gettable in self.gettables.items():
+                results_dict[gettable] = gettable.get_mock_result()
+        elif isinstance(self.driver.opx, (QmApi, QmApiWithDeprecations)):
+            results_dict = self._fetch_all_results_from_opx_1000()
+        elif isinstance(self.driver.opx, QuantumMachine):
+            results_dict = self._fetch_all_results_from_opx_plus()
+        else:
+            raise TypeError(
+                "Unsupported OPX type for fetching results: "
+                f"{type(self.driver.opx)}"
+            )
+        return results_dict
+
+    def _fetch_all_results_from_opx_1000(
+            self
+            ) -> dict[GettableParameterBase, ndarray]:
+        """
+        Fetches all results registered in gettables and returns dict with results
+        This is OPX1000 specific
+
+        Returns:
+            dict: Dict containing measurement data as values and stream names as
+                keys
+        """
+        stream_names = [x.full_name for x in self.gettables.values()]
+        res = self.driver.qm_job.result_handles.fetch_results(
+            wait_until_done = False,
+            timeout = 3,
+            stream_names = stream_names
+        )
+        import numpy as np
+        results_dict = {
+            g: np.array(res[g.full_name], dtype= np.floating)
+            for _, g in self.gettables.items()
+            }
+        return results_dict
+
+    def _fetch_all_results_from_opx_plus(self) -> dict[ndarray]:
+        """
+        Fetches all results registered in gettables and returns dict with results
+        This is OPX+ specific
+
+        Returns:
+            dict: Dict containing measurement data as values and stream names as
+                keys
+        """
+        results_dict = {}
+        result_handles = self.driver.qm_job.result_handles
+        for stream_name, _ in self.gettables.items():
+            results_dict[stream_name] = result_handles[stream_name].fetch_all()
+        return results_dict
+
     def _mock_wait_until_result_buffer_full(
             self, progress_tracker: tuple, bar_title: str) -> None:
         """
@@ -831,38 +929,3 @@ class Measurement(SequenceBase):
             )
             progress_tracker[1].refresh()
             time.sleep(0.1)
-
-    def _auto_save_qua_program(self, qua_program: qua.program) -> None:
-        """
-        Automatically saves the QUA program in a folder next to the database
-        if the folder 'qua_programs' does not exist it is created
-
-        Args:
-            qua_program (qua.program): The QUA program to save
-        """
-        print("Auto saving qua program next to database in './qua_programs/'")
-        db_path = os.path.abspath(qc.dataset.experiment_container.get_DB_location())
-        db_dir = os.path.dirname(db_path)
-        programs_dir = Path(db_dir) / "qua_programs/"
-        if not os.path.isdir(programs_dir):
-            os.makedirs(programs_dir)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        save_path = programs_dir / f"{timestamp}__{self.qc_measurement_name}.py"
-        with open(save_path, 'w', encoding="utf-8") as file:
-            file.write(
-                generate_qua_script(qua_program, self.parent.device.config))
-
-    def _save_qua_program_as_metadata(self, qua_program: qua.program) -> None:
-        """
-        Saves the QUA program as metadata in the dataset.
-        """
-        if self.dataset is not None:
-            self.dataset.add_metadata(
-                "qua_program",
-                generate_qua_script(qua_program, self.parent.device.config)
-                )
-        else:
-            raise ValueError(
-                "Dataset is not available yet for saving QUA program metadata."
-                " Run measurement first."
-                )

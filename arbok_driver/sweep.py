@@ -1,29 +1,37 @@
 """ Module with Sweep class """
 from __future__ import annotations
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 import warnings
 import logging
 
 import numpy as np
 from qm import qua
+from qm.qua.lib import Cast
 from qcodes.parameters import Parameter
+from qcodes.validators import Arrays
 
-from .sequence_parameter import SequenceParameter
+from .parameters.sequence_parameter import SequenceParameter
 if TYPE_CHECKING:
     from .measurement import Measurement
+    from qm.qua._expressions import QuaVariable, QuaVariableInputStream
+    from numpy import ndarray
 
 class Sweep:
     """ Class characterizing a parameter sweep along one axis in the OPX """
 
-    _config_to_register = None
-    _parameters = None
-    _length = None
-    _inputs_are_streamed = None
-    _input_streams = None
-    _can_be_parameterized = None
-    snake_scan = False # Assume by default non snake scanning
+    _length: int
+    _inputs_are_streamed: bool
+    _input_streams: list[QuaVariableInputStream]
+    _can_be_parameterized: bool
+    snake_scan: bool
+    dim_parameter: SequenceParameter
 
-    def __init__(self, measurement : Measurement, param_dict: dict, register_all = False):
+    def __init__(
+            self, measurement : Measurement,
+            param_dict: dict,
+            register_all = False
+            ):
         """
         Constructor class of Sweep class
 
@@ -35,33 +43,36 @@ class Sweep:
             register_all (bool): Whether all parameters should be registered in
                 the QCoDeS measurement
         """
-        self.measurement = measurement
-        self.register_all = register_all
-        self._config = param_dict
-        if 'snake' in self._config: # check if the user defined the snake state
-            self.snake_scan = self._config['snake']
-            del self._config['snake']
+        self.measurement: Measurement = measurement
+        self.register_all: bool = register_all
+        self._config: dict[SequenceParameter, ndarray] = param_dict
+        self.snake_scan: bool = False
+    
+        self._parameters: list[SequenceParameter] = []
+        self.inferred_parameters: list[SequenceParameter] = []
+        self._config_to_register: dict[SequenceParameter, ndarray] = {}
+
         self.configure_sweep()
         self._check_if_parametrizable()
 
     @property
-    def parameters(self):
+    def parameters(self) -> list[SequenceParameter]:
         """ List containing all varied parameters """
         return self._parameters
 
     @property
-    def qua_variables(self):
+    def qua_variables(self) -> tuple(QuaVariable):
         """ Tuple containing all qua variables of parameters """
         return tuple(par.qua_var for par in self.parameters)
 
     @property
-    def qua_sweep_arrays(self):
+    def qua_sweep_arrays(self) -> tuple(ndarray):
         """ Tuple containing all qua sweep arrays of parameters """
         return tuple(par.qua_sweep_arr for par in self.parameters)
 
     @property
-    def length(self):
-        """ Number of devices for parameters on the given axis """
+    def length(self) -> int:
+        """Length of sweep array for parameters on the given axis """
         return self._length
 
     @property
@@ -70,7 +81,7 @@ class Sweep:
         return tuple(par.input_stream for par in self.parameters)
 
     @property
-    def inputs_are_streamed(self):
+    def inputs_are_streamed(self) -> bool:
         """Whether sweep is fed by input stream"""
         return self._inputs_are_streamed
 
@@ -81,10 +92,8 @@ class Sweep:
         saving. If the user has not set this value, it will be checked by the
         entries of the given arrays
         """
-        if self._can_be_parameterized is None:
-            return self._check_if_parametrizable()
-        else:
-            return self._can_be_parameterized
+        self._can_be_parameterized = self._check_if_parametrizable()
+        return self._can_be_parameterized
 
     @can_be_parameterized.setter
     def can_be_parameterized(self, value: bool):
@@ -95,70 +104,48 @@ class Sweep:
                 parameter.can_be_parameterized = False
         elif value is True:
             if self._can_be_parameterized is True:
-                self._can_be_parameterized = True
+                return
         else:
             raise ValueError("can_be_parameterized must be of type bool")
 
     @property
-    def config(self) -> dict:
+    def config(self) -> dict[SequenceParameter, ndarray]:
         """Config dict for parameter sweep. Keys are params, values setpoints"""
         return self._config
 
     @property
-    def config_to_register(self) -> list:
+    def config_to_register(self) -> dict:
         """ Parameters that will be registered in QCoDeS measurement """
         return self._config_to_register
 
-    @config_to_register.setter
-    def config_to_register(self, param_list: list) -> None:
-        """Setter for config_to_register"""
-        if all(param in self.parameters for param in param_list):
-            self._config_to_register = param_list
-        else:
-            raise KeyError(
-                "Some of the given parameters are not within the swept params")
-
     def configure_sweep(self) -> None:
-        """Configures the sweep from the given dictionairy"""
+        """
+        Configures the sweep from the given dictionairy
+        TODO: This breaks the input stream implementation, needs to be fixed
+              i am quite sure this can be done more elegantly!
+              perhaps not even using set_sweeps but a different method on measurement
+        """
         self.check_input_dict()
+
         self._parameters = []
+        self.inferred_parameters = []
         self._config_to_register = {}
         for i, parameter in enumerate(self.config.keys()):
             self._parameters.append(parameter)
             ### Remove scalar validators and setup the sweep_validator
-            while parameter.remove_validator():
-                pass
-            parameter.add_validator(parameter.sweep_validator)
-            parameter.validate(self.config[parameter])
-            ### Usually not all params are registered (issue with live plotting)
-            if self.register_all:
-                setpoints = parameter.convert_to_real_units(
-                    self.config[parameter])
-                self._config_to_register[parameter] = setpoints*parameter.scale
-                parameter.set(setpoints)
-            elif i == 0:
-                value = self.config[parameter]
-                setpoints = parameter.convert_to_real_units(self.config[parameter])
-                if isinstance(value, (list, np.ndarray)):
-                    if parameter.scale is None:
-                        raise ValueError(
-                            f"Parameter scale of '{parameter.full_name}' is None."
-                            " Must be set for sweep arrays. Check the type of"
-                            " the parameter in the config file. If it does not"
-                            " have a type, set the scale manually."
-                            )
-                    parameter.set(setpoints)
-                    self._config_to_register[parameter] = setpoints*parameter.scale
-                elif isinstance(value, int):
-                    ### creates a mock set of values (stream array indices)
-                    self._config_to_register[parameter] = np.arange(value)
-                else:
-                    raise ValueError(
-                        "Keys in sweep dictionairies must be of type int, list"
-                        f"or numpy.ndarray, is:  {type(value)}")
-            if isinstance(self.config[parameter], int):
-                parameter.input_stream = True
-                #parameter.add_stream_param_to_sequence()
+            setpoints = parameter.convert_to_real_units(
+                self.config[parameter])
+            while parameter.remove_validator(): pass
+            parameter.vals = Arrays(shape = (len(setpoints),))
+            parameter.validate(setpoints)
+            parameter.set(setpoints)
+            if i == 0:
+                self.dim_parameter = parameter
+                self._config_to_register[parameter] = setpoints
+            else:
+                self.inferred_parameters.append(parameter)
+                parameter.is_controlled_by.add(self.dim_parameter)
+                self.dim_parameter.has_control_of.add(parameter)
         if all(param.input_stream is not None for param in self.parameters):
             self._inputs_are_streamed = True
         else:
@@ -178,7 +165,7 @@ class Sweep:
                 raise TypeError(
                     f"Key {param} in sweep config must be of type "
                     "SequenceParameter or Parameter")
-            if not param.var_type in (int, bool, qua.fixed):
+            if param.var_type not in (int, bool, qua.fixed):
                 raise TypeError(
                     f"Key {param.full_name} in sweep config must have a var_type"
                     f" of int, bool, or qua.fixed. Is: {param.var_type}."
@@ -245,6 +232,8 @@ class Sweep:
         """
         if self.inputs_are_streamed:
             return False
+        if self.length < 5:
+            return False 
         parameterizability_list = []
         for param in self.parameters:
             sweep_arr = self.config[param]
@@ -263,7 +252,8 @@ class Sweep:
                 param.can_be_parameterized = False
         return parameterizabel
 
-    def qua_generate_parameter_sweep(self, next_action: callable, next_sweep) -> None:
+    def qua_generate_parameter_sweep(
+            self, next_action: Callable, next_sweep) -> None:
         """
         Runs a qua loop based on the configured method. Currently three
         different methods are available:
@@ -300,11 +290,11 @@ class Sweep:
             return self.sweep_snake_var
         return None
 
-    def _qua_input_stream_loop(self, next_action: callable) -> None:
+    def _qua_input_stream_loop(self, next_action: Callable) -> None:
         """Runs a qua for loop for an array that is imported from a stream"""
         warnings.warn("Input streaming is not fully supported")
         for param in self.parameters:
-            qua.wait(int(1e6))
+            qua.wait(int(1e6)) # TODO: Check if this is still necessay!
             qua.advance_input_stream(param.input_stream)
             logging.debug(
                 "Assigning %s with length %s (input stream)",
@@ -319,13 +309,13 @@ class Sweep:
             next_action()
             self._advance_step_counter(sweep_idx_var)
 
-    def _qua_parmetrized_loop(self, next_action: callable) -> None:
+    def _qua_parmetrized_loop(self, next_action: Callable) -> None:
         """
         Runs a qua for loop from parametrized qua_arange. Start, stop and step
         are calculated from the input array
 
         Args:
-            next_action (callable): Next action to be executed after the loop
+            next_action (Callable): Next action to be executed after the loop
         """
         ### Define start, stop and step for all params that can be parameterized
         parameters_sss = self._parameterize_sweep()
@@ -388,13 +378,13 @@ class Sweep:
             if not reverse:
                 qua.assign(
                     param.qua_var,
-                    sss['start'] + qua.lib.Cast.mul_fixed_by_int(
+                    sss['start'] + Cast.mul_fixed_by_int(
                         sss['step'], sweep_idx_var)
                     )
             else:
                 qua.assign(
                     param.qua_var,
-                    sss['stop'] - qua.lib.Cast.mul_fixed_by_int(
+                    sss['stop'] - Cast.mul_fixed_by_int(
                         sss['step'],sweep_idx_var)
                     )
         else:
@@ -436,7 +426,7 @@ class Sweep:
         stop = sweep_array[-1]
         step = np.mean(np.ediff1d(sweep_array))
         step *= 0.999
-        if param.var_type == int:
+        if param.var_type is int:
             start, stop = int(sweep_array[0]), int(sweep_array[-1] + step)
             step = round(step)
 
@@ -496,3 +486,12 @@ class Sweep:
             self.measurement.qua_check_step_requirements(step_counter)
         else:
             step_counter()
+
+    def remove_parameter_dependencies(self) -> None:
+        """
+        Removes all qcodes parameter dependencies set by is_controlled_by
+        and has_control_of methods.
+        """
+        for parameter in self.inferred_parameters:
+            self.dim_parameter.has_control_of.remove(parameter)
+            parameter.is_controlled_by.remove(self.dim_parameter)

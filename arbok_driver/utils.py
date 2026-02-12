@@ -1,12 +1,14 @@
 """Module containing various utils"""
 import logging
+from importlib.util import spec_from_file_location, module_from_spec
+
+from anytree import Node
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from qcodes.instrument import Instrument
 from qcodes.station import Station
-from importlib.util import spec_from_file_location, module_from_spec
 
 def plot_qmm_simulation_results(simulated_devices):
     """ 
@@ -177,30 +179,6 @@ def set_qm_logging_to_file(filename):
     for handler in logger.handlers:
         logger.removeHandler(handler)
 
-def remove_instrument(instrument_name: str, station: Station):
-    """
-    Deletes and removes an established instrument
-    Args:
-        instrument (str): name of instrument to delete
-        station (Station): Station that instrument is registered to
-    """
-    if instrument_name in station.components:
-        station.remove_component(instrument_name)
-        print(f"Removing '{instrument_name}' from station")
-
-    if instrument_name in globals():
-        instrument = eval(instrument_name)
-        print(f"closing and deleting '{instrument.name}'")
-        instrument.close()
-        del globals()[instrument_name]
-    else:
-        print(f"'{instrument_name}' is not deleted, it does not exist")
-    instrument_dict = Instrument._all_instruments
-    if instrument_name in dict(instrument_dict):
-        del instrument_dict[instrument_name]
-        print(
-            f"Removed '{instrument_name}' from global qcodes instrument index")
-
 def get_module(name: str = None, mod_path: str = None):
     """
     Dynamically loads a Python module from a specified file path.
@@ -225,3 +203,10 @@ def get_module(name: str = None, mod_path: str = None):
     mod = module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+def dict_to_anytree(name, d, parent=None):
+    """Convert a nested dictionary to an anytree structure."""
+    node = Node(name, parent=parent)
+    for key, val in d.items():
+        dict_to_anytree(key, val, parent=node)
+    return node

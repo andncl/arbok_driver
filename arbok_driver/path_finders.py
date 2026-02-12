@@ -6,7 +6,7 @@ from functools import reduce
 
 if TYPE_CHECKING:
     from .abstract_readout import AbstractReadout
-    from .gettable_parameter import GettableParameter
+    from .parameters.gettable_parameter import GettableParameter
     from .measurement import Measurement
     from .read_sequence import ReadSequence
     from .signal import Signal
@@ -30,7 +30,7 @@ def get_gettable_from_read_sequence(
         KeyError: If the GettableParameter is not found in the signal
         ValueError: If the found object is not a child class of GettableParameter
     """
-    from .gettable_parameter import GettableParameter
+    from .parameters.gettable_parameter import GettableParameter
     if signal_name not in read_sequence.signals:
         raise KeyError(
             f"Signal {signal_name} not found in read sequence"
