@@ -6,6 +6,7 @@ from arbok_driver.parameter_types import Amplitude, String, Time
 
 @dataclass(frozen = True)
 class SquarePulseParameters(ParameterClass):
+    """ParameterClass for SquarePulse"""
     amplitude: Amplitude
     element: String
     t_ramp: Time
@@ -17,6 +18,7 @@ class SquarePulse(SubSequence):
     """
     PARAMETER_CLASS = SquarePulseParameters
     arbok_params: SquarePulseParameters
+
     def qua_sequence(self):
         """Macro that will be played within the qua.program() context"""
         qua.align()

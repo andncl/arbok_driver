@@ -22,14 +22,15 @@ dependencies = [
     "minio ~= 7.2",
     "psycopg2-binary ~= 2.9",
     "s3fs~=2025.10",
-    "scipy ~= 1.17", 
+    "scipy ~= 1.17",
     "SQLAlchemy ~= 2.0",
     "qm-qua ~= 1.2.5",
     "qcodes ~= 0.54",
     "qualang_tools ~= 0.21",
     "qcodes-contrib-drivers ~= 0.24",
     "rich ~= 14.0",
-    "zarr ~= 2.18"
+    "zarr ~= 2.18",
+    "jupyterlab>=4.5.4",
 ]
 dynamic = ["version"]
 

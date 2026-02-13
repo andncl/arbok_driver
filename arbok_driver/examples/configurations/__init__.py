@@ -1,3 +1,4 @@
+"""Init module for example configurations"""
 from .sequence_configs.square_pulse_confs import (
     square_pulse_conf,
     square_pulse_scalable_conf,
