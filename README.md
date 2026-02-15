@@ -1,4 +1,4 @@
-# arbok_driver 🐍⚡️
+# arbok-driver 🐍⚡️
 [![Documentation Status](https://readthedocs.org/projects/arbok-driver/badge/?version=latest)](https://arbok-driver.readthedocs.io/en/latest/index.html)
 [![PyPI](https://img.shields.io/pypi/v/arbok-driver.svg)](https://pypi.org/project/arbok-driver/)
 [![License](https://img.shields.io/github/license/andncl/arbok_driver.svg)](LICENSE)
@@ -54,6 +54,7 @@ Install the git hook so that your notebooks are stripped before committing.
 ```
 ./tools/git.hooks/setupLinux.sh
 ```
+
 
 
 
