@@ -171,8 +171,6 @@ class ArbokDriver(Instrument):
             self,
             qua_program,
             duration: int,
-            nr_controllers: int = 1,
-            plot = True,
             **kwargs
             ):
         """
@@ -181,8 +179,6 @@ class ArbokDriver(Instrument):
         Args:
             qua_program (program): QUA program to be simulated
             duration (int): Simulation duration in cycles
-            nr_controllers (int): Number of controllers to simulate
-            plot (bool): Whether to plot the simulation results
             **kwargs: Arbitrary keyword arguments for QMM simulation
 
         Returns:
@@ -193,17 +189,11 @@ class ArbokDriver(Instrument):
             raise ConnectionError(
                 "No QMM found! Connect an OPX via `connect_OPX`")
         simulated_job = self.qmm.simulate(
-            self.device.config,
+            self.opx.get_config(),
             qua_program,
             SimulationConfig(duration=duration),
             **kwargs
         )
-
-        devices = simulated_job.get_simulated_devices()
-        if plot:
-            for i in range(nr_controllers):
-                con_devices = getattr(devices, f'con{i+1}')
-                utils.plot_qmm_simulation_results(con_devices)
         return simulated_job
 
     def get_idn(self):
