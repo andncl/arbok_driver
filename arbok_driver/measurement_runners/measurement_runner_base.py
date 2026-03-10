@@ -1,6 +1,6 @@
 """Base class for measurement runners."""
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import Callable, TYPE_CHECKING
 from abc import ABC, abstractmethod
 import logging
 import copy
@@ -15,12 +15,13 @@ from arbok_driver.sweep import Sweep
 
 if TYPE_CHECKING:
     from arbok_driver.measurement import Measurement
-    from arbok_driver.measurement_runners.parameters.sequence_parameter import SequenceParameter
+    from arbok_driver.parameters.sequence_parameter import SequenceParameter
 
 class MeasurementRunnerBase(ABC):
     """
     Helper class constructing QCoDeS measurement loops
     """
+    progress_tracker: Progress
 
     def __init__(
         self,
@@ -35,8 +36,7 @@ class MeasurementRunnerBase(ABC):
             self.ext_sweep_list, register_all)
 
         self.nr_total_batches = self._calculate_nr_total_batches()
-        self.inner_func = None
-        self.progress_tracker: Progress | None = None
+        self.inner_func: Callable | None = None
         self.progress_bars = {}
         self.batch_count = 0
 
@@ -78,7 +78,11 @@ class MeasurementRunnerBase(ABC):
         """
         pass
 
-    def run_arbok_measurement(self, inner_func: callable = None) -> None:
+    def run_arbok_measurement(
+            self,
+            inner_func: Callable | None = None,
+            cancle_job_finally: bool = True
+            ) -> None:
         """
         Runs the measurement with the given inner function.
         
@@ -102,6 +106,9 @@ class MeasurementRunnerBase(ABC):
             logging.debug("Measurement interrupted by user.")
             print("Measurement interrupted by user.")
             self._handle_keyboard_interrupt()
+        finally:
+            if cancle_job_finally:
+                self.measurement.driver.qm_job.cancel()
         self._wrap_up_measurement()
 
     def _run_measurement(self):
@@ -260,12 +267,16 @@ class MeasurementRunnerBase(ABC):
         return np.reshape(result, (1,)*len(self.ext_dims) + result.shape)
 
 def generate_dims_and_coords(
-        sweeps: list[dict[str, np.ndarray]] | list[Sweep]
+        sweeps: list[dict[SequenceParameter, np.ndarray]] | list[Sweep]
     ) -> tuple[
         list[str],
         dict[str, tuple[str, list]],
         dict[str, str]
         ]:
+    """
+    Generates a list[str] of dims, coordinates (dict[str, tuple[str, list]])
+    and units (dict[str, str])
+    """
     dims = []
     coords = {}
     units = {}
