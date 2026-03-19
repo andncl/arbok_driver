@@ -16,11 +16,13 @@ from arbok_driver.examples.configurations import (
     square_pulse_conf,
     square_pulse_scalable_conf,
     opx1000_config,
-    divider_config
+    divider_config,
+    stability_map_config
 )
 from arbok_driver.examples.sub_sequences import (
     SquarePulse,
-    SquarePulseScalable
+    SquarePulseScalable,
+    StabilityMap
 )
 from arbok_driver.parameter_types import (
     Amplitude, Int, ParameterMap,  Voltage
@@ -118,6 +120,13 @@ def read_sequence_no_readouts(dummy_measurement, dummy_device):
     seq1 = UserReadSequence(
         dummy_measurement, 'read_seq', config_1)
     yield seq1
+
+@pytest.fixture
+def stability_map(dummy_measurement, dummy_device):
+    """Returns dummy subsequence with a few parameters"""
+    stability_map = StabilityMap(
+        dummy_measurement, 'stability_map', stability_map_config)
+    yield stability_map
 
 @pytest.fixture
 def measurement_parameter(dummy_measurement):
