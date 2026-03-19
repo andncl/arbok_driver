@@ -1,38 +1,44 @@
 
-# Single QUA script generated at 2024-06-27 17:39:01.069504
-# QUA library version: 1.1.7
+# Single QUA script generated at 2026-03-19 06:08:17.748244
+# QUA library version: 1.2.5
 
+
+from qm import CompilerOptionArguments
 from qm.qua import *
 
 with program() as prog:
     v1 = declare(fixed, )
     v2 = declare(int, )
+    a1 = declare(int, value=[10, 20, 30, 40])
     v3 = declare(int, )
+    a2 = declare(int, value=[10, 20, 30, 40])
     v4 = declare(int, value=0)
     v5 = declare(int, )
     v6 = declare(int, )
     with infinite_loop_():
         pause()
-        assign(v2, 10)
-        assign(v3, 10)
-        with for_(v5,0,(v5<4),(v5+1)):
+        assign(v4, 0)
+        assign(v5, 0)
+        with while_((v5<5)):
+            assign(v1, (0.1+Cast.mul_fixed_by_int(0.224775,v5)))
             align()
-            assign(v1, 0.1)
-            with for_(v6,0,(v6<5),(v6+1)):
-                align()
+            assign(v6, 0)
+            with while_((v6<4)):
+                assign(v2, a1[v6])
+                assign(v3, a2[v6])
                 align()
                 play("ramp"*amp(v1), "gate_1", duration=v3)
                 wait(v2, "gate_1")
-                play("ramp"*amp((0-v1)), "gate_1", duration=v3)
+                play("ramp"*amp(v1), "gate_1", duration=v3)
+                align()
                 assign(v4, (v4+1))
-                r1 = declare_stream()
-                save(v4, r1)
-                assign(v1, (v1+0.225))
-            assign(v2, (v2+10))
-            assign(v3, (v3+10))
+                r0 = declare_stream()
+                save(v4, r0)
+                align()
+                assign(v6, (v6+1))
+            assign(v5, (v5+1))
     with stream_processing():
-        r1.buffer(1).save("dummy_squence_shots")
-
+        r0.buffer(1).save("qm_driver_dummy_squence_shots")
 
 config = None
 

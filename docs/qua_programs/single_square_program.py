@@ -1,6 +1,7 @@
 
-# Single QUA script generated at 2025-09-03 16:51:02.305902
-# QUA library version: 1.2.1
+# Single QUA script generated at 2026-03-19 05:58:34.896999
+# QUA library version: 1.2.5
+
 
 from qm import CompilerOptionArguments
 from qm.qua import *
@@ -13,7 +14,7 @@ with program() as prog:
         align()
         play("ramp"*amp(0.1), "gate_1", duration=200)
         wait(100, "gate_1")
-        play("ramp"*amp(-0.1), "gate_1", duration=200)
+        play("ramp"*amp(0.1), "gate_1", duration=200)
         align()
         assign(v1, (v1+1))
         r0 = declare_stream()
@@ -21,7 +22,6 @@ with program() as prog:
         align()
     with stream_processing():
         r0.buffer(1).save("mock_driver_mock_measurement_shots")
-
 
 config = None
 
