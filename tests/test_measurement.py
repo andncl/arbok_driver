@@ -62,6 +62,32 @@ def test_set_sweeps(empty_sub_seq_1, dummy_measurement) -> None:
     assert len(dummy_measurement.sweeps[0].parameters) == 1
     assert dummy_measurement.sweep_size == 50
 
+def test_set_uneven_sweeps(empty_sub_seq_1, dummy_measurement) -> None:
+    with pytest.raises(ValueError):
+        dummy_measurement.set_sweeps(
+            {
+                empty_sub_seq_1.par1: np.arange(10),
+                empty_sub_seq_1.par2: np.arange(5)
+            }
+            )
+        
+def test_non_dict_sweeps(empty_sub_seq_1, dummy_measurement) -> None:
+    with pytest.raises(TypeError):
+        dummy_measurement.set_sweeps(6, 'test')
+
+def test_non_sequence_parameter_sweeps(empty_sub_seq_1, dummy_measurement) -> None:
+    with pytest.raises(TypeError):
+        dummy_measurement.set_sweeps({'test': np.arange(10)})
+
+def test_zero_length_sweeps(empty_sub_seq_1, dummy_measurement) -> None:
+    with pytest.raises(ValueError):
+        dummy_measurement.set_sweeps({empty_sub_seq_1.par1: np.arange(0)})
+
+def test_warning_for_duplicate_value_sweeps(
+        empty_sub_seq_1, dummy_measurement) -> None:
+    with pytest.warns(UserWarning):
+        dummy_measurement.set_sweeps({empty_sub_seq_1.par1: [1, 1, 2, 3, 4]})
+
 def test_qua_program_compilation_w_linear_sweeps(
         empty_sub_seq_1, dummy_measurement) -> None:
     """Tests whether the qua code is compiled correctly"""
