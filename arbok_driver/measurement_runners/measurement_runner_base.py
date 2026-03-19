@@ -107,7 +107,7 @@ class MeasurementRunnerBase(ABC):
             print("Measurement interrupted by user.")
             self._handle_keyboard_interrupt()
         finally:
-            if cancle_job_finally:
+            if cancle_job_finally and not self.measurement.driver.is_mock:
                 self.measurement.driver.qm_job.cancel()
         self._wrap_up_measurement()
 
