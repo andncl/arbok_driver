@@ -1,6 +1,6 @@
 """Module containing the Measurement class"""
 from __future__ import annotations
-from collections.abc import Mapping
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 import math
 import time
@@ -327,7 +327,8 @@ class Measurement(SequenceBase):
         for sub_sequence in self.sub_sequences:
             sub_sequence.qua_stream()
 
-    def set_sweeps(self, *args) -> None:
+    def set_sweeps(self, *args: dict[SequenceParameter, list | np.ndarray]
+                   ) -> None:
         """
         Sets the given sweeps from its dict type arguments. Each argument
         creates one sweep axis. Each dict key, value pair is sweept concurrently
@@ -338,10 +339,9 @@ class Measurement(SequenceBase):
                 and np arrays as setpoints. All values (arrays) must have same
                 length!
         """
-        if not all(isinstance(sweep_dict, dict) for sweep_dict in args):
-            raise TypeError("All arguments need to be of type dict")
+        sweep_dicts = self._prepare_and_validate_sweeps(list(args))
         self._reset_sweeps_setpoints()
-        for sweep_dict in args:
+        for sweep_dict in sweep_dicts:
             logging.debug("Adding parameter sweep for %s", sweep_dict.keys())
             self._sweeps.append(Sweep(self, sweep_dict))
         for sweep in self.sweeps:
@@ -396,6 +396,73 @@ class Measurement(SequenceBase):
             warnings.warn(f"No gettables registered for measurement {self.name}")
         self._configure_gettables()
         print(f"Registered {len(self._gettables)} gettables for measurement")
+
+    def _prepare_and_validate_sweeps(
+        self,
+        sweep_dicts: Sequence[dict[SequenceParameter, list | np.ndarray]]
+    ) -> list[dict[SequenceParameter, np.ndarray]]:
+        """
+        Validate and normalize sweep definitions into NumPy arrays.
+
+        Each input dictionary defines one sweep axis, where keys are
+        ``SequenceParameter`` instances and values are array-like objects
+        (e.g. lists or NumPy arrays) representing the sweep setpoints.
+        All values within a single dictionary are swept concurrently and
+        must have the same length.
+
+        This function converts all sweep values to ``np.ndarray`` and
+        validates their consistency.
+
+        Args:
+            sweep_dicts (list[dict[SequenceParameter, Sequence[float] | numpy.ndarray]]):
+                A list of sweep definitions. Each dictionary represents one
+                sweep axis, mapping parameters to array-like setpoints.
+
+        Returns:
+            list[dict[SequenceParameter, numpy.ndarray]]:
+                A new list of sweep dictionaries where all values have been
+                converted to NumPy arrays.
+
+        Raises:
+            TypeError:
+                If any element of ``sweep_dicts`` is not a dictionary.
+            TypeError:
+                If any key in a sweep dictionary is not a ``SequenceParameter``.
+            ValueError:
+                If any sweep array is empty.
+            ValueError:
+                If sweep arrays within a dictionary have inconsistent lengths.
+
+        Notes:
+            - Input dictionaries are not modified; a new validated structure is returned.
+            - All sweep values are converted using ``np.asarray``.
+            - Length consistency is enforced per sweep axis (i.e., per dictionary).
+        """
+        checked_sweep_dicts: list[dict[SequenceParameter, np.ndarray]] = []
+        for sweep_dict in sweep_dicts:
+            if not isinstance(sweep_dict, dict):
+                raise TypeError("All arguments need to be of type dict")
+            new_dict: dict[SequenceParameter, np.ndarray] = {}
+            for param, sweep_list in sweep_dict.items():
+                if not isinstance(param, SequenceParameter):
+                    raise TypeError(
+                        "Param to sweep must be of type SequenceParameter. "
+                        f"Is: {type(param)}"
+                    )
+                sweep_array = np.asarray(sweep_list)
+                if sweep_array.size == 0:
+                    raise ValueError(
+                        f"Given sweep array for {param.full_name} has 0 length"
+                    )
+                new_dict[param] = sweep_array
+            lengths = [len(v) for v in new_dict.values()]
+            if len(set(lengths)) > 1:
+                raise ValueError(
+                    "All sweep arrays in a dict must have the same length. "
+                    f"Got lengths: {lengths}"
+                )
+            checked_sweep_dicts.append(new_dict)
+        return checked_sweep_dicts
 
     def _find_gettables_from_keyword(self, keyword: str | tuple) -> list:
         """Returns all gettables that contain the given keyword"""
