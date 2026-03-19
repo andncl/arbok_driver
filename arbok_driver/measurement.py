@@ -437,6 +437,7 @@ class Measurement(SequenceBase):
             - Input dictionaries are not modified; a new validated structure is returned.
             - All sweep values are converted using ``np.asarray``.
             - Length consistency is enforced per sweep axis (i.e., per dictionary).
+            - Duplicate values in a sweep will trigger a warning but are allowed.
         """
         checked_sweep_dicts: list[dict[SequenceParameter, np.ndarray]] = []
         for sweep_dict in sweep_dicts:
@@ -453,6 +454,14 @@ class Measurement(SequenceBase):
                 if sweep_array.size == 0:
                     raise ValueError(
                         f"Given sweep array for {param.full_name} has 0 length"
+                    )
+                if len(np.unique(sweep_array)) != len(sweep_array):
+                    warnings.warn(
+                        f"Sweep array for parameter '{param.full_name}'"
+                        f" contains duplicate values: {sweep_array}."
+                        "This is rarely intentional. Remove duplicates e.g with"
+                        " numpy.unique. Expect the results to have index"
+                        " coordinates (can't be plotted trivially)."
                     )
                 new_dict[param] = sweep_array
             lengths = [len(v) for v in new_dict.values()]
