@@ -275,7 +275,7 @@ def generate_dims_and_coords(
         ]:
     """
     Generates a list[str] of dims, coordinates (dict[str, tuple[str, list]])
-    and units (dict[str, str])
+    and units (dict[str, str]) from a list of sweeps.
     """
     dims = []
     coords = {}
