@@ -6,7 +6,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 import copy
 
-import numpy as np
 import xarray as xr
 from qm import SimulationConfig, generate_qua_script
 from qm.quantum_machines_manager import QuantumMachinesManager
@@ -21,14 +20,21 @@ from .sqlalchemy_classes import SqlRun
 if TYPE_CHECKING:
     from .device import Device
     from .experiment import Experiment
-    from .measurement_runners.measurement_runner_base import MeasurementRunnerBase
     from .sqlalchemy_classes import SqlRun
+    from qm.jobs.running_qm_job import RunningQmJob
+    from qm.quantum_machine import QuantumMachine
+    from qm.quantum_machines_manager import QuantumMachinesManager
+    from qm import StreamsManager
 
 class ArbokDriver(Instrument):
     """
     Class containing all functionality to manage and run modular sequences on a 
     physical OPX instrument
     """
+    opx: QuantumMachine
+    qm_job: RunningQmJob
+    qmm: QuantumMachinesManager
+    result_handles: StreamsManager
 
     def __init__(
             self,
@@ -45,14 +51,9 @@ class ArbokDriver(Instrument):
             **kwargs: Arbitrary keyword arguments for qcodes Instrument class
         """
         super().__init__(name, **kwargs)
-        self.device = device
-        self.qmm = None
-        self.opx = None
-        self.qm_job = None
-        self.result_handles = None
-        self.no_pause = False
-        self.is_mock = False
-        self._measurements = []
+        self.device: Device = device
+        self.is_mock: bool = False
+        self._measurements: list[Measurement] = []
         self.add_parameter('iteration', get_cmd = None, set_cmd =None)
 
         self.database_engine = None
@@ -170,8 +171,6 @@ class ArbokDriver(Instrument):
             self,
             qua_program,
             duration: int,
-            nr_controllers: int = 1,
-            plot = True,
             **kwargs
             ):
         """
@@ -180,8 +179,6 @@ class ArbokDriver(Instrument):
         Args:
             qua_program (program): QUA program to be simulated
             duration (int): Simulation duration in cycles
-            nr_controllers (int): Number of controllers to simulate
-            plot (bool): Whether to plot the simulation results
             **kwargs: Arbitrary keyword arguments for QMM simulation
 
         Returns:
@@ -192,17 +189,11 @@ class ArbokDriver(Instrument):
             raise ConnectionError(
                 "No QMM found! Connect an OPX via `connect_OPX`")
         simulated_job = self.qmm.simulate(
-            self.device.config,
+            self.opx.get_config(),
             qua_program,
             SimulationConfig(duration=duration),
             **kwargs
         )
-
-        devices = simulated_job.get_simulated_devices()
-        if plot:
-            for i in range(nr_controllers):
-                con_devices = getattr(devices, f'con{i+1}')
-                utils.plot_qmm_simulation_results(con_devices)
         return simulated_job
 
     def get_idn(self):
@@ -215,7 +206,7 @@ class ArbokDriver(Instrument):
         """Abstract method from qcodes Instrument"""
         raise NotImplementedError
 
-    def write_raw(self, cmd: str) -> str:
+    def write_raw(self, cmd: str) -> None:
         """Abstract method from qcodes Instrument"""
         raise NotImplementedError
 

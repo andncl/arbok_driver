@@ -1,5 +1,6 @@
 """Module containing the Measurement class"""
 from __future__ import annotations
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 import math
 import time
@@ -9,7 +10,8 @@ import os
 from collections import Counter
 import warnings
 
-
+import numpy as np
+import numpy.typing as npt
 from qm import qua, generate_qua_script
 import qcodes as qc
 
@@ -873,7 +875,7 @@ class Measurement(SequenceBase):
 
     def _fetch_all_results_from_opx_1000(
             self
-            ) -> dict[GettableParameterBase, ndarray]:
+            ) -> dict[GettableParameterBase, npt.NDArray[np.float64]]:
         """
         Fetches all results registered in gettables and returns dict with results
         This is OPX1000 specific
@@ -888,11 +890,10 @@ class Measurement(SequenceBase):
             timeout = 3,
             stream_names = stream_names
         )
-        import numpy as np
-        results_dict = {
-            g: np.array(res[g.full_name], dtype= np.floating)
+        results_dict: dict[GettableParameter, npt.NDArray[np.float64]] = {
+            g: np.array(res[g.full_name], dtype=np.float64)
             for _, g in self.gettables.items()
-            }
+        }
         return results_dict
 
     def _fetch_all_results_from_opx_plus(self) -> dict[ndarray]:
