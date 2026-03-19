@@ -857,7 +857,7 @@ class Measurement(SequenceBase):
         from qm.api.v2.qm_api_old import QmApiWithDeprecations
         from qm.api.v2.qm_api import QmApi
         from qm.quantum_machine import QuantumMachine
-        stream_names = [x.full_name for x in self.gettables.values()]
+
         if self.is_mock:
             results_dict = {}
             for _, gettable in self.gettables.items():
