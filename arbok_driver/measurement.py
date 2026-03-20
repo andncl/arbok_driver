@@ -24,6 +24,7 @@ from .parameters import (
     GettableParameterBase,
     SequenceParameter
 )
+from .generic_tunig_interface import GenericTuningInterface
 from .parameter_class import ParameterClass
 from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
@@ -555,6 +556,12 @@ class Measurement(SequenceBase):
             )
         print('QUA program compiled and is running')
         return self.qua_program
+
+    def initialize_tuning_interface(self) -> GenericTuningInterface:
+        """
+        Initializes a GenericTuningInterface based on the current measurement
+        """
+        ...
 
     def _add_streams_to_gettables(self):
         for _, gettable in self.gettables.items():
