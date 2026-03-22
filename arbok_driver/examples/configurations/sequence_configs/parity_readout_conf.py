@@ -23,6 +23,12 @@ parity_read_conf = {
                 'P8',
             ]
         },
+        'readout_elements': {
+            'type': List,
+            'value': [
+                'SET1', 'SET2'
+            ]
+        },
         't_wait_home_before': {
             'type': Time,
             'label': 'Wait time at the home point before readout',
@@ -49,6 +55,16 @@ parity_read_conf = {
             'type': Time,
             'value': int(4e3/4)
             },
+        'v_home': {
+            'type': Voltage,
+            'elements': {
+                    'P1': 0, 'J1': 0,
+                    'P2': 0,
+
+                    'P7': 0, 'J7': 0,
+                    'P8': 0,
+            }
+        },
         'v_reference': {
             'type': Voltage,
             'label': 'Default voltage point during the sequence',
@@ -115,8 +131,8 @@ parity_read_conf = {
                 'readout_class': Difference,
                 'signal': 'p1p2',
                 'kwargs': {
-                    'minuend': 'parity_read.p1p2.ref__p1p2',
-                    'subtrahend': 'parity_read.p1p2.read__p1p2',
+                    'minuend': 'p1p2.ref__p1p2',
+                    'subtrahend': 'p1p2.read__p1p2',
                 },
 
             },
