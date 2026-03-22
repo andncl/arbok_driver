@@ -12,7 +12,7 @@ def test_sequence_parameter_call(measurement_parameter):
     with pytest.raises(ValueError):
         measurement_parameter(3)
 
-def test_parameter_gettin_in_program(dummy_measurement) -> None:
+def test_parameter_gettin_in_program(mock_measurement) -> None:
     conf = {
         "parameters": {
             'amplitude': {'type': Amplitude, 'value': 1.5},
@@ -22,14 +22,14 @@ def test_parameter_gettin_in_program(dummy_measurement) -> None:
         }
     }
     _ = SquarePulse(
-        dummy_measurement, "square_pulse", conf)
-    qua_prog_str = dummy_measurement.get_qua_program_as_str()
+        mock_measurement, "square_pulse", conf)
+    qua_prog_str = mock_measurement.get_qua_program_as_str()
     qua_prog_str = qua_prog_str.split("program() as prog:")[1]
-    dummy_measurement.submodules = {}
-    dummy_measurement._sub_sequences = []
+    mock_measurement.submodules = {}
+    mock_measurement._sub_sequences = []
     _ = SquarePulse(
-        dummy_measurement, "square_pulse", conf)
-    qua_prog__legacy_str = dummy_measurement.get_qua_program_as_str(
+        mock_measurement, "square_pulse", conf)
+    qua_prog__legacy_str = mock_measurement.get_qua_program_as_str(
         recompile = True)
     qua_prog__legacy_str = qua_prog__legacy_str.split("program() as prog:")[1]
     assert qua_prog__legacy_str == qua_prog_str

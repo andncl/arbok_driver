@@ -9,7 +9,7 @@ def test_arbok_driver_init(arbok_driver)-> None:
 
 def test_arbok_driver_adding_measurement(arbok_driver)-> None:
     """Tests if measurement is correctly added to arbok_driver"""
-    meas = Measurement(arbok_driver, 'dummy_measurement')
+    meas = Measurement(arbok_driver, 'mock_measurement')
     assert len(arbok_driver.measurements) == 1
     assert arbok_driver.measurements[0] == meas
     assert len(arbok_driver.submodules) == 1

@@ -69,11 +69,11 @@ def arbok_driver(dummy_device) -> ArbokDriver: # type: ignore[reportInvalidTypeF
     driver.close()
 
 @pytest.fixture
-def dummy_measurement(arbok_driver, dummy_device) -> Measurement: # type: ignore[reportInvalidTypeForm]
+def mock_measurement(arbok_driver, dummy_device) -> Measurement: # type: ignore[reportInvalidTypeForm]
     """Returns dummy measurement instance"""
     measurement = Measurement(
         parent = arbok_driver,
-        name = 'dummy_measurement'
+        name = 'mock_measurement'
         )
     yield measurement
     arbok_driver.submodules.pop(measurement.full_name)
@@ -81,7 +81,7 @@ def dummy_measurement(arbok_driver, dummy_device) -> Measurement: # type: ignore
     del measurement
 
 @pytest.fixture
-def empty_sub_seq_1(dummy_measurement, dummy_device):
+def empty_sub_seq_1(mock_measurement, dummy_device):
     """Returns dummy subsequence with a few parameters"""
     config_1 = {
         'par1': {'type': Int, 'value': int(1)},
@@ -89,11 +89,11 @@ def empty_sub_seq_1(dummy_measurement, dummy_device):
         'par3': {'type': Voltage, 'value': 1.1},
         'v_home': {'type': Voltage, 'elements': {'P1': 5, 'J1': 6, }},
     }
-    seq1 = UserSubSequence(dummy_measurement, 'sub_seq1', config_1)
+    seq1 = UserSubSequence(mock_measurement, 'sub_seq1', config_1)
     yield seq1
 
 @pytest.fixture
-def empty_sub_seq_2(dummy_measurement, dummy_device):
+def empty_sub_seq_2(mock_measurement, dummy_device):
     """Returns dummy subsequence with a few parameters"""
     config_2 = {
         'par4': {'type': Int, 'value': int(2)},
@@ -101,11 +101,11 @@ def empty_sub_seq_2(dummy_measurement, dummy_device):
         'v_home': {'type': Voltage, 'elements': {'P1': 0, 'J1': 7, }},
     }
     seq2 = UserSubSequenceAlt(
-        dummy_measurement, 'sub_seq2', config_2)
+        mock_measurement, 'sub_seq2', config_2)
     yield seq2
 
 @pytest.fixture
-def read_sequence_no_readouts(dummy_measurement, dummy_device):
+def read_sequence_no_readouts(mock_measurement, dummy_device):
     """Returns dummy subsequence with a few parameters"""
     config_1 = {
         'parameters': {
@@ -118,19 +118,19 @@ def read_sequence_no_readouts(dummy_measurement, dummy_device):
         'readout_groups': {}
     }
     seq1 = UserReadSequence(
-        dummy_measurement, 'read_seq', config_1)
+        mock_measurement, 'read_seq', config_1)
     yield seq1
 
 @pytest.fixture
-def stability_map(dummy_measurement, dummy_device):
+def stability_map(mock_measurement, dummy_device):
     """Returns dummy subsequence with a few parameters"""
     stability_map = StabilityMap(
-        dummy_measurement, 'stability_map', stability_map_config)
+        mock_measurement, 'stability_map', stability_map_config)
     yield stability_map
 
 @pytest.fixture
-def measurement_parameter(dummy_measurement):
-    dummy_measurement.add_parameter(
+def measurement_parameter(mock_measurement):
+    mock_measurement.add_parameter(
         parameter_class = SequenceParameter,
         name  = 'dummy_param',
         initial_value = 0,
@@ -138,18 +138,18 @@ def measurement_parameter(dummy_measurement):
         get_cmd = None,
         set_cmd = None,
     )
-    dummy_measurement.dummy_param.qua_var = 'placeholder'
-    return dummy_measurement.dummy_param
+    mock_measurement.dummy_param.qua_var = 'placeholder'
+    return mock_measurement.dummy_param
 
 @pytest.fixture
-def square_pulse(dummy_measurement):
+def square_pulse(mock_measurement):
     square_pulse = SquarePulse(
-        dummy_measurement, "square_pulse", square_pulse_conf)
+        mock_measurement, "square_pulse", square_pulse_conf)
     yield square_pulse
 
 @pytest.fixture
-def square_pulse_scalable(dummy_measurement) -> SquarePulseScalable:
+def square_pulse_scalable(mock_measurement) -> SquarePulseScalable:
     square_pulse = SquarePulseScalable(
-        dummy_measurement, "square_pulse", square_pulse_scalable_conf
+        mock_measurement, "square_pulse", square_pulse_scalable_conf
         )
     yield square_pulse
