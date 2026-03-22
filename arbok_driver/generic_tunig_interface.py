@@ -157,11 +157,7 @@ class GenericTuningInterface:
                         print(f"Adding input stream for {parameter.name} ({name})")
                 else:
                     master_param = self.input_stream_params[-1]
-                    def call(
-                            x = None,
-                            par = self.input_stream_params[-1],
-                            factor = factor
-                            ):
+                    def call(x = None, par = master_param, factor = factor):
                         if factor == 1:
                             return par(x)
                         else:
@@ -223,7 +219,7 @@ class GenericTuningInterface:
             saved_params[param_name] = value
         return float(cost), gettable_results, saved_params
 
-    def run_cross_entropy_devicer(
+    def run_cross_entropy_sampler(
             self, populations: list,
             select_frac: float = 0.3,
             plot_histograms: bool = False,
