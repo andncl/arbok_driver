@@ -36,8 +36,7 @@ class CostStrategy(ABC):
 
     def __init__(
         self,
-        gettables: list[GettableParameterBase],
-        sweeps: list[dict[SequenceParameter, Sequence]]
+        gettables: list[GettableParameterBase]
     ):
         """
         Initialize the cost strategy.
@@ -45,12 +44,9 @@ class CostStrategy(ABC):
         Args:
             gettables (list[GettableParameterBase]):
                 Measurement parameters used as inputs for the cost computation.
-            sweeps (list[dict[SequenceParameter, Sequence]]):
-                List of sweep configurations defining remaining parameters are
-                being varied
+
         """
         self.gettables = gettables
-        self.sweeps = sweeps
 
     @abstractmethod
     def get_cost(self, results: dict[GettableParameterBase, np.ndarray]) -> float:
@@ -83,14 +79,10 @@ class GenericTuningInterface:
             Strategy object used to compute the optimization cost.
         parameter_dict (dict[str, dict]):
             Dictionary describing tunable parameters and their configurations.
-        bounds (dict[str, tuple]):
-            Parameter bounds used during optimization.
-        input_stream_params (list[SequenceParameter]):
-            Parameters streamed into the QUA program.
-        gettables (dict[str, GettableParameterBase]):
-            Mapping of measurement outputs used for cost evaluation.
-        qua_program (_ProgramScope):
-            Compiled QUA program used for execution.
+        sweeps (list[dict[SequenceParameter, Sequence]]):
+            List of sweep configurations defining remaining parameters are
+            being varied
+        verbose (bool): Whether all optional printouts are shown
     """
 
     def __init__(
@@ -98,6 +90,7 @@ class GenericTuningInterface:
         measurement: Measurement,
         parameter_dicts: dict[str, dict],
         cost_strategy: CostStrategy,
+        sweeps: list[dict[SequenceParameter, Sequence]],
         verbose: bool = False
     ) -> None:
         """
@@ -130,8 +123,9 @@ class GenericTuningInterface:
                 "cost_strategy must be an instance of CostStrategy"
             )
         self.cost_strategy = cost_strategy
+        self.sweeps = sweeps
         self.gettables: list[GettableParameterBase] = self.cost_strategy.gettables
-        self.measurement.set_sweeps(*self.cost_strategy.sweeps)
+        self.measurement.set_sweeps(*self.sweeps)
         self.measurement.register_gettables(*self.cost_strategy.gettables)
 
     def _add_parameters(self, parameter_dicts: dict, verbose: bool = False) -> None:
