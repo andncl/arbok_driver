@@ -580,7 +580,8 @@ class Measurement(SequenceBase):
             gettable.qm_job = self.driver.qm_job
             gettable.set_qm_buffer(self.driver.qm_job)
 
-    def insert_single_value_input_streams(self, value_dict: dict) -> None:
+    def insert_single_value_input_streams(
+            self, value_dict: dict[SequenceParameter, float]) -> None:
         """
         Compresses all input streams to single array stream
 
