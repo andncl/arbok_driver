@@ -203,8 +203,12 @@ class GenericTuningInterface:
         self.driver.qm_job.resume()
 
         gettable_results = {}
+        self.measurement.wait_until_result_buffer_full(
+            progress_bar
+            )
+        results = self.measurement.fetch_all_results()
         for i, obs in enumerate(self.cost_strategy.gettables):
-            gettable_results[obs.name] = obs.get_raw()
+            gettable_results[obs.name] = results[obs.name]
         cost = self.cost_strategy.get_cost(gettable_results)
         saved_params = {}
         for param_name, value in zip(self.parameter_dict.keys(), input_param_dict.values()):
