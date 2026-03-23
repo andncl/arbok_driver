@@ -56,24 +56,24 @@ test_conf = {
     }
 }
 
-def test_nr_of_ramps(square_pulse_scalable, dummy_measurement):
-    prog_str = dummy_measurement.get_qua_program_as_str(recompile = True)
+def test_nr_of_ramps(square_pulse_scalable, mock_measurement):
+    prog_str = mock_measurement.get_qua_program_as_str(recompile = True)
     assert len(list(re.finditer("unit_ramp", prog_str))) == 6
 
     square_pulse_scalable.arbok_params.sticky_elements.set(["P1", "P2"])
-    prog_str = dummy_measurement.get_qua_program_as_str(recompile = True)
+    prog_str = mock_measurement.get_qua_program_as_str(recompile = True)
     assert len(list(re.finditer("unit_ramp", prog_str))) == 4
 
 def test_no_ramps_for_negligible_amplitudes(
-        square_pulse_scalable, dummy_measurement):
+        square_pulse_scalable, mock_measurement):
     square_pulse_scalable.arbok_params.v_square["P1"].set(0)
     square_pulse_scalable.arbok_params.v_square["P2"].set(0)
-    prog_str = dummy_measurement.get_qua_program_as_str(recompile = True)
+    prog_str = mock_measurement.get_qua_program_as_str(recompile = True)
     assert len(list(re.finditer("unit_ramp", prog_str))) == 2
 
-def test_ramp_without_origin(dummy_measurement):
+def test_ramp_without_origin(mock_measurement):
     test_sequence = UserSubSequence(
-        dummy_measurement, "test_sequence", test_conf
+        mock_measurement, "test_sequence", test_conf
         )
     with qua.program() as prg:
         arbok.ramp(
@@ -85,9 +85,9 @@ def test_ramp_without_origin(dummy_measurement):
     print(prg_str)
     assert len(list(re.finditer("unit_ramp", prg_str))) == 2
 
-def test_missing_elements_in_mapping(dummy_measurement):
+def test_missing_elements_in_mapping(mock_measurement):
     test_sequence = UserSubSequence(
-        dummy_measurement, "test_sequence", test_conf
+        mock_measurement, "test_sequence", test_conf
         )
     with pytest.raises(ValueError):
         arbok.ramp(
@@ -96,9 +96,9 @@ def test_missing_elements_in_mapping(dummy_measurement):
             operation = "unit_ramp"
         )
 
-def test_difference_calulated_correctly(dummy_measurement):
+def test_difference_calulated_correctly(mock_measurement):
     test_sequence = UserSubSequence(
-        dummy_measurement, "test_sequence", test_conf
+        mock_measurement, "test_sequence", test_conf
         )
     with qua.program() as prg:
         arbok.ramp(

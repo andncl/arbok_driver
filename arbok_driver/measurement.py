@@ -1,7 +1,7 @@
 """Module containing the Measurement class"""
 from __future__ import annotations
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import Sequence, TYPE_CHECKING
 import math
 import time
 import copy
@@ -24,6 +24,7 @@ from .parameters import (
     GettableParameterBase,
     SequenceParameter
 )
+from .generic_tunig_interface import CostStrategy, GenericTuningInterface
 from .parameter_class import ParameterClass
 from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
     from qcodes.dataset.experiment_container import Experiment as QcExperiment
     from qm.qua._expressions import QuaVariable
     from qm.qua._dsl.stream_processing.stream_processing import ResultStreamSource
+    from qm.grpc.qua import QuaProgram
     from xarray import Dataset as XrDataset
 
 class Measurement(SequenceBase):
@@ -327,7 +329,7 @@ class Measurement(SequenceBase):
         for sub_sequence in self.sub_sequences:
             sub_sequence.qua_stream()
 
-    def set_sweeps(self, *args: dict[SequenceParameter, list | np.ndarray]
+    def set_sweeps(self, *args: dict[SequenceParameter, Sequence]
                    ) -> None:
         """
         Sets the given sweeps from its dict type arguments. Each argument
@@ -487,7 +489,7 @@ class Measurement(SequenceBase):
                 gettables.append(gettable)
         return gettables
 
-    def get_qua_code(self, simulate = False) -> qua.program:
+    def get_qua_code(self, simulate = False) -> QuaProgram:
         """
         Compiles all qua code from its sub-sequences and writes their loops
         
@@ -524,7 +526,7 @@ class Measurement(SequenceBase):
         with qua.stream_processing():
             self.qua_stream()
 
-    def compile_qua_and_run(self, save_path: str = None) -> None:
+    def compile_qua_and_run(self, save_path: str | None = None) -> QuaProgram:
         """Compiles the QUA code and runs it"""
         self.reset_registered_gettables()
         self.register_gettables(*list(self.gettables.values()))
@@ -556,12 +558,30 @@ class Measurement(SequenceBase):
         print('QUA program compiled and is running')
         return self.qua_program
 
+    def initialize_tuning_interface(
+            self,
+            parameter_dicts: dict[str, dict],
+            cost_strategy: CostStrategy,
+            verbose: bool = False
+            ) -> GenericTuningInterface:
+        """
+        Initializes a GenericTuningInterface based on the current measurement
+        """
+        self.tuning_interface = GenericTuningInterface(
+            measurement = self,
+            parameter_dicts = parameter_dicts,
+            cost_strategy = cost_strategy,
+            verbose = verbose
+        )
+        return self.tuning_interface
+
     def _add_streams_to_gettables(self):
         for _, gettable in self.gettables.items():
             gettable.qm_job = self.driver.qm_job
             gettable.set_qm_buffer(self.driver.qm_job)
 
-    def insert_single_value_input_streams(self, value_dict: dict) -> None:
+    def insert_single_value_input_streams(
+            self, value_dict: dict[SequenceParameter, float]) -> None:
         """
         Compresses all input streams to single array stream
 
@@ -576,11 +596,11 @@ class Measurement(SequenceBase):
         """
         if Counter(value_dict.keys()) != Counter(self.input_stream_parameters):
             raise KeyError(
-                "Given value dict must contain all input stream parameters"
-                f"given are: {[p.name for p in value_dict.keys()]}."
-                "\n Required are: "
-                f"{[p.name for p in self.input_stream_parameters]}"
-                f"{len(value_dict)}/{len(self.input_stream_parameters)}"
+                "Given value dict must contain all input stream parameters "
+                f"given are: {[p.name for p in value_dict.keys()]}. "
+                "Required are "
+                f"{len(value_dict)}/{len(self.input_stream_parameters)} :"
+                f"{[p.name for p in self.input_stream_parameters]} "
                 )
         int_vals, bool_vals, fixed_vals = [], [], []
         for param in self.input_stream_parameters:
@@ -624,6 +644,11 @@ class Measurement(SequenceBase):
         Configures all gettables to be measured. Sets batch_size, can_resume,
         setpoints and vals
         """
+        if not len(self._setpoints_for_gettables):
+            raise ValueError(
+                "No setpoints are available to configure the gettables. "
+                "You probably did not register any sweeps beforehand!"
+            )
         for _, gettable in self.gettables.items():
             gettable.configure_from_measurement(self._setpoints_for_gettables)
 

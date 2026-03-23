@@ -47,18 +47,18 @@ def test_sub_seq_param_init(empty_sub_seq_1, empty_sub_seq_2) -> None:
     assert len(empty_sub_seq_2.arbok_params) == 4
     assert empty_sub_seq_1.par1.get() == 1
 
-def test_parent_child_sequence_behaviour(dummy_measurement) -> None:
+def test_parent_child_sequence_behaviour(mock_measurement) -> None:
     """Tests the behaviour of nested sub sequences"""
-    dummy_measurement.add_subsequences_from_dict(nested_measurement_config)
-    assert len(dummy_measurement.sub_sequences) == 3
-    assert len(dummy_measurement.submodules) == 3
-    assert len(dummy_measurement.top_level_seq2.sub_sequences) == 1
+    mock_measurement.add_subsequences_from_dict(nested_measurement_config)
+    assert len(mock_measurement.sub_sequences) == 3
+    assert len(mock_measurement.submodules) == 3
+    assert len(mock_measurement.top_level_seq2.sub_sequences) == 1
     assert len(
-        dummy_measurement.top_level_seq2.second_level_seq.sub_sequences) == 2
-    second_level_seq = dummy_measurement.top_level_seq2.second_level_seq
+        mock_measurement.top_level_seq2.second_level_seq.sub_sequences) == 2
+    second_level_seq = mock_measurement.top_level_seq2.second_level_seq
     assert second_level_seq.third_level_square1.element.get() == "P1"
     assert len(second_level_seq.parameters) == 0
-    assert second_level_seq.third_level_square1.measurement == dummy_measurement
+    assert second_level_seq.third_level_square1.measurement == mock_measurement
 
 def test_add_qc_params_from_config(empty_sub_seq_1) -> None:
     """Test adding qc params by config"""
@@ -74,9 +74,9 @@ def test_add_qc_params_from_config(empty_sub_seq_1) -> None:
             'par69': {'type': Time, 'toast': int(8)},
             })
 
-def test_find_measurement(dummy_measurement) -> None:
-    dummy_measurement.add_subsequences_from_dict(nested_measurement_config)
-    second_level_seq = dummy_measurement.top_level_seq2.second_level_seq
-    assert second_level_seq.measurement == dummy_measurement
-    assert second_level_seq.third_level_square2.measurement == dummy_measurement
+def test_find_measurement(mock_measurement) -> None:
+    mock_measurement.add_subsequences_from_dict(nested_measurement_config)
+    second_level_seq = mock_measurement.top_level_seq2.second_level_seq
+    assert second_level_seq.measurement == mock_measurement
+    assert second_level_seq.third_level_square2.measurement == mock_measurement
     assert second_level_seq.third_level_square2.parent == second_level_seq

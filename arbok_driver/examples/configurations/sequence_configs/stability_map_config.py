@@ -8,6 +8,10 @@ from arbok_driver.examples.sub_sequences import StabilityMap
 stability_map_config = {
     'sequence': StabilityMap,
     'parameters': {
+        'iteration': {
+            'type': Int,
+            'value': 0
+            },
         'gate_elements': {
             'type': List,
             'value': [

@@ -1,10 +1,10 @@
 """Module containing GenericTuningInterface class."""
 from __future__ import annotations
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 import copy
 import random
 import time
-from typing import TYPE_CHECKING
+from typing import Sequence, TYPE_CHECKING
 
 from scipy.stats import qmc
 import matplotlib.pyplot as plt
@@ -14,36 +14,127 @@ from rich.progress import Progress
 from rich import print
 from IPython import display
 
-from .parameters.gettable_parameter import GettableParameter
-
 if TYPE_CHECKING:
-    from qm.qua._scope_management._core_scopes import _ProgramScope
-
     from .arbok_driver import ArbokDriver
-    from .device import Device
     from .measurement import Measurement
     from .parameters import SequenceParameter, GettableParameterBase
 
+class CostStrategy(ABC):
+    """
+    Abstract base class for cost evaluation strategies.
+
+    A ``CostStrategy`` encapsulates the logic required to compute a scalar
+    cost value from one or more measurement outputs ("gettables").
+    Different implementations allow flexible optimization objectives
+    without modifying the tuning interface.
+
+    Args:
+        gettables (list[GettableParameterBase]):
+            List of measurement parameters that provide the data required
+            to compute the cost.
+    """
+
+    def __init__(
+        self,
+        gettables: list[GettableParameterBase],
+        sweeps: list[dict[SequenceParameter, Sequence]]
+    ):
+        """
+        Initialize the cost strategy.
+
+        Args:
+            gettables (list[GettableParameterBase]):
+                Measurement parameters used as inputs for the cost computation.
+            sweeps (list[dict[SequenceParameter, Sequence]]):
+                List of sweep configurations defining remaining parameters are
+                being varied
+        """
+        self.gettables = gettables
+        self.sweeps = sweeps
+
+    @abstractmethod
+    def get_cost(self, results: dict[GettableParameterBase, np.ndarray]) -> float:
+        """
+        Compute and return the current cost value.
+
+        This method must be implemented by subclasses. It should read
+        the relevant data from ``self.gettables`` and return a single
+        scalar value representing the cost.
+
+        Returns:
+            float: The computed cost value.
+        """
+        ...
+
+
 class GenericTuningInterface:
-    """Generic streaming interface for ML tuning."""
-    device: Device
-    parameter_dict: dict[str, dict]
-    bounds: dict[str, tuple]
-    input_stream_params: list[SequenceParameter]
-    driver: ArbokDriver
-    measurement: Measurement
-    gettables: GettableParameterBase
-    qua_program: _ProgramScope
+    """
+    Generic streaming interface for machine learning–based parameter tuning.
 
-    @abstractmethod
-    def _initialize_sequences(self) -> None:
-        """Initializes sequences for the tuning interface."""
+    This class coordinates measurement execution, parameter management,
+    and cost evaluation via a pluggable ``CostStrategy``.
 
-    @abstractmethod
-    def get_cost(self, obserbables: dict) -> float:
-        """Takes all measured gettables and returns the cost"""
+    Attributes:
+        measurement (Measurement):
+            Measurement object providing access to the experiment.
+        driver (ArbokDriver):
+            Driver associated with the measurement.
+        cost_strategy (CostStrategy):
+            Strategy object used to compute the optimization cost.
+        parameter_dict (dict[str, dict]):
+            Dictionary describing tunable parameters and their configurations.
+        bounds (dict[str, tuple]):
+            Parameter bounds used during optimization.
+        input_stream_params (list[SequenceParameter]):
+            Parameters streamed into the QUA program.
+        gettables (dict[str, GettableParameterBase]):
+            Mapping of measurement outputs used for cost evaluation.
+        qua_program (_ProgramScope):
+            Compiled QUA program used for execution.
+    """
 
-    def add_parameters(self, parameter_dicts: dict, verbose: bool = False):
+    def __init__(
+        self,
+        measurement: Measurement,
+        parameter_dicts: dict[str, dict],
+        cost_strategy: CostStrategy,
+        verbose: bool = False
+    ) -> None:
+        """
+        Initialize the tuning interface.
+
+        Args:
+            measurement (Measurement):
+                Measurement object that provides access to the experiment
+                and its associated driver.
+            parameter_dicts (dict[str, dict[SequenceParameter, float]]):
+                Dictionary defining parameter groups and their bounds.
+                Keys represent trivial parameter names or groups, and values
+                map ``SequenceParameter`` objects to their bounds and factors.
+            cost_strategy (CostStrategy):
+                Instance of a ``CostStrategy`` subclass used to compute the cost.
+            verbose (bool, optional):
+                If ``True``, enables verbose logging during initialization and
+                parameter setup. Defaults to ``False``.
+
+        Raises:
+            TypeError:
+                If ``cost_strategy`` is not an instance of ``CostStrategy``.
+        """
+        self.measurement: Measurement = measurement
+        self.driver: ArbokDriver = self.measurement.driver
+        self._add_parameters(parameter_dicts, verbose=verbose)
+
+        if not isinstance(cost_strategy, CostStrategy):
+            raise TypeError(
+                "cost_strategy must be an instance of CostStrategy"
+            )
+        self.cost_strategy = cost_strategy
+        self.gettables: list[GettableParameterBase] = self.cost_strategy.gettables
+        self.measurement.set_sweeps(*self.cost_strategy.sweeps)
+        self.measurement.register_gettables(*self.cost_strategy.gettables)
+
+    def _add_parameters(self, parameter_dicts: dict, verbose: bool = False) -> None:
         """
         Adds parameters to be streamed to the QUA program.
         Parameters that depend on each other are added in the folowing way;
@@ -66,11 +157,7 @@ class GenericTuningInterface:
                         print(f"Adding input stream for {parameter.name} ({name})")
                 else:
                     master_param = self.input_stream_params[-1]
-                    def call(
-                            x = None,
-                            par = self.input_stream_params[-1],
-                            factor = factor
-                            ):
+                    def call(x = None, par = master_param, factor = factor):
                         if factor == 1:
                             return par(x)
                         else:
@@ -81,47 +168,20 @@ class GenericTuningInterface:
                             f"\tAdding {parameter.name} to {master_param.name}"
                             f"  input stream (factor: {factor}) ({name})")
             self.bounds[name] = param_conf['bounds']
-
         self.measurement.input_stream_parameters = self.input_stream_params
 
-    def add_gettables_and_sweeps(
-            self, nr_shots: int = 500, **tags_and_gettables):
-        """
-        Adds gettables to the interface and sets the number of shots.
-        
-        Args:
-            nr_shots (int): Number of shots to run for each parameter set.
-            tags_and_gettables (dict): Dictionary containing the tags and
-                gettables to be added to the interface.
-        """
-        self.gettables = {}
-        for tag, gettable in tags_and_gettables.items():
-            if isinstance(gettable, gettable):
-                new_obs = gettable.gettable
-            elif isinstance(gettable, GettableParameter):
-                new_obs = gettable
-            else:
-                raise ValueError(
-                    "gettable must be either a GettableParameter or "
-                    f"gettable. Is {type(gettable)}")
-            self.gettables[tag] = new_obs
-
-        if nr_shots is not None and nr_shots > 1:
-            self.measurement.set_sweeps(
-                {self.measurement.iteration: np.arange(nr_shots)})
-            
     def compile_connect_and_run(self, host_ip: str):
         """
         Compiles, connects and runs the parity readout sequences on device with
         given host ip.
         """
-        self.driver.connect_opx(host_ip = host_ip)
-        self.qua_program = self.measurement.get_qua_program()
-        self.driver.run(self.qua_program)
+        if not self.driver.is_mock:
+            self.driver.connect_opx(host_ip = host_ip)
+            self.measurement.compile_qua_and_run()
 
     def run_parameter_set(
-        self, input_params: list, progress_bar = None
-        ) -> (float, dict, dict):
+        self, input_param_dict: dict[SequenceParameter, float], progress_bar = None
+        ) -> tuple[float, dict, dict]:
         """
         Runs the given parameter set an returns the current values for
         singlet and triplet init
@@ -135,34 +195,31 @@ class GenericTuningInterface:
             dict: All measured gettables for the parameter set
             dict: All parameters of the parameter set
         """
-        input_param_dict = {}
-        if isinstance(input_params, list) or isinstance(input_params, np.ndarray):
-            for param, value in zip(self.input_stream_params, input_params):
-                input_param_dict[param] = value
-        elif isinstance(input_params, dict):
-            input_param_dict = input_params
-        else:
+        if not isinstance(input_param_dict, dict):
             raise ValueError(
-                f"Input params must be list or dict. Are {type(input_params)}")
+                "Input params must be a dict of SequenceParameters and float" 
+                f" key value pairs. Are {type(input_param_dict)}")
         self.measurement.insert_single_value_input_streams(input_param_dict)
         self.driver.qm_job.resume()
 
         gettable_results = {}
-        for i, (tag, obs) in enumerate(self.gettables.items()):
-            if i > 0:
-                progress_bar = None
-            gettable_results[tag] = obs.get_raw(progress_bar = progress_bar)
-        cost = self.get_cost(gettable_results)
+        self.measurement.wait_until_result_buffer_full(
+            progress_bar
+            )
+        results = self.measurement.fetch_all_results()
+        for i, obs in enumerate(self.cost_strategy.gettables):
+            gettable_results[obs] = results[obs]
+        cost = self.cost_strategy.get_cost(gettable_results)
         saved_params = {}
         for param_name, value in zip(self.parameter_dict.keys(), input_param_dict.values()):
             saved_params[param_name] = value
         return float(cost), gettable_results, saved_params
 
-    def run_cross_entropy_devicer(
+    def run_cross_entropy_sampler(
             self, populations: list,
             select_frac: float = 0.3,
             plot_histograms: bool = False,
-            sampling_params_to_plot: list = None
+            sampling_params_to_plot: list | None = None
             ) -> xr.Dataset:
         """
         Runs the cross entropy method for the given populations.
@@ -179,7 +236,7 @@ class GenericTuningInterface:
                 rewards
         """
         all_rewards = []
-        all_obs = {name: [] for name in self.gettables.keys()}
+        all_obs = {g.name: [] for g in self.cost_strategy.gettables}
         all_params = {name: [] for name in self.parameter_dict.keys()}
         all_bounds = {name: [] for name in self.bounds.keys()}
         current_bounds = copy.deepcopy(self.bounds)
@@ -190,19 +247,20 @@ class GenericTuningInterface:
             print('Current bounds:\n', current_bounds)
             for param_name, bounds in current_bounds.items():
                 all_bounds[param_name].append(bounds)
-            sobol_devices = sobol_sampling(population, current_bounds)
+            sobol_samples = sobol_sampling(population, current_bounds)
             t0 = time.time()
             with Progress() as progress:
                 task = progress.add_task(
                     "Sampling parameter sets", total=population)
                 batch_task = progress.add_task(
                     "Sampling batch", total=self.measurement.sweep_size)
-                total_nr = len(sobol_devices)
+                total_nr = len(sobol_samples)
                 ### Looping over all deviced parameter sets
                 if plot_histograms:
                     fig, axs = plt.subplots(1, 2, figsize = (9,5))
-                for i, x in enumerate(sobol_devices):
+                for i, x in enumerate(sobol_samples):
                     ### Running the parameter set
+                    x = dict(zip(self.input_stream_params, x))
                     r, obs, par_dict = self.run_parameter_set(
                         x, progress_bar = (batch_task, progress))
                     ### Saving the results
@@ -367,12 +425,12 @@ class GenericTuningInterface:
             )
         return dataset
 
-def sobol_sampling(num_devices: int, bound_dict: dict):
+def sobol_sampling(num_samples: int, bound_dict: dict) -> np.ndarray:
     """
     Generate Sobol sequence devices for the given parameters.
     
     Args:
-        num_devices (int): Number of devices to generate.
+        num_samples (int): Number of devices to generate.
         parameter_dict (dict): Dictionary containing the parameters to device.
             Must have bounds as a key for each parameter.
         
@@ -381,12 +439,12 @@ def sobol_sampling(num_devices: int, bound_dict: dict):
     """
     # Generate Sobol sequence devices and truncate devices to the desired number
     sobol_engine = qmc.Sobol(d=len(bound_dict), scramble=True)
-    sobol_devices = sobol_engine.random_base2(m=int(np.ceil(np.log2(num_devices))))
-    sobol_devices = np.array(random.device(sobol_devices.tolist(), num_devices))
+    sobol_samples = sobol_engine.random_base2(m=int(np.ceil(np.log2(num_samples))))
+    sobol_samples = np.array(random.sample(sobol_samples.tolist(), num_samples))
 
     # Scale devices to the desired domain
     for i, (_, config) in enumerate(bound_dict.items()):
         l_bound = config[0]
         u_bound = config[1]
-        sobol_devices[:,i] = l_bound + (u_bound - l_bound) * sobol_devices[:,i]
-    return sobol_devices
+        sobol_samples[:,i] = l_bound + (u_bound - l_bound) * sobol_samples[:,i]
+    return sobol_samples

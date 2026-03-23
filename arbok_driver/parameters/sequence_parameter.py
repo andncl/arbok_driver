@@ -65,7 +65,7 @@ class SequenceParameter(Parameter, Generic[T_co]):
         if self.qua_var is not None:
             return self.qua_var
         else:
-            return_value = self.get_raw()
+            return_value = self.call_method()
             return return_value
 
     def convert_to_real_units(self, value):
@@ -101,7 +101,11 @@ class SequenceParameter(Parameter, Generic[T_co]):
             float|int|np.ndarray: Parameter value if no input value is given
         """
         if value is None:
-            return self.qua
+            if self.qua_var is not None:
+                return self.qua_var
+            else:
+                return_value = self.get_raw()
+                return return_value
         else:
             if self.qua_var is not None:
                 raise ValueError(

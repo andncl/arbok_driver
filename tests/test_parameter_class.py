@@ -13,7 +13,7 @@ def test_missing_parameter_class() -> None:
     assert not hasattr(SubSequenceNoParameterClass, 'arbok_params')
     assert SubSequenceNoParameterClass.PARAMETER_CLASS == EmptyParameterClass
 
-def test_missing_parameter(dummy_measurement) -> None:
+def test_missing_parameter(mock_measurement) -> None:
     config_1 = {
         'par2': {'type': Int, 'value': int(10)},
         'par3': {'type': Voltage, 'value': 1.1},
@@ -21,7 +21,7 @@ def test_missing_parameter(dummy_measurement) -> None:
     }
     with pytest.raises(TypeError):
         _ = UserSubSequence(
-            dummy_measurement, 'sub_seq1', config_1)
+            mock_measurement, 'sub_seq1', config_1)
 
 def test_parameter_mapping_on_sub_sequence(empty_sub_seq_1) -> None:
     arbok_params = empty_sub_seq_1.arbok_params
