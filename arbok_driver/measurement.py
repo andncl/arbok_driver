@@ -644,6 +644,11 @@ class Measurement(SequenceBase):
         Configures all gettables to be measured. Sets batch_size, can_resume,
         setpoints and vals
         """
+        if not len(self._setpoints_for_gettables):
+            raise ValueError(
+                "No setpoints are available to configure the gettables. "
+                "You probably did not register any sweeps beforehand!"
+            )
         for _, gettable in self.gettables.items():
             gettable.configure_from_measurement(self._setpoints_for_gettables)
 
