@@ -327,6 +327,7 @@ class GenericTuningInterface:
         """
         nr_indices = len(all_rewards)
         dataset = xr.Dataset()
+        
         ### Saving rewards
         dataset['rewards'] = xr.DataArray(
             np.array(all_rewards),
