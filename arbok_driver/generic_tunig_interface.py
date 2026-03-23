@@ -208,7 +208,7 @@ class GenericTuningInterface:
             )
         results = self.measurement.fetch_all_results()
         for i, obs in enumerate(self.cost_strategy.gettables):
-            gettable_results[obs.name] = results[obs.name]
+            gettable_results[obs] = results[obs]
         cost = self.cost_strategy.get_cost(gettable_results)
         saved_params = {}
         for param_name, value in zip(self.parameter_dict.keys(), input_param_dict.values()):
@@ -260,9 +260,7 @@ class GenericTuningInterface:
                     fig, axs = plt.subplots(1, 2, figsize = (9,5))
                 for i, x in enumerate(sobol_samples):
                     ### Running the parameter set
-                    print(x)
                     x = dict(zip(self.input_stream_params, x))
-                    print(x)
                     r, obs, par_dict = self.run_parameter_set(
                         x, progress_bar = (batch_task, progress))
                     ### Saving the results
