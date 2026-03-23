@@ -181,7 +181,7 @@ class GenericTuningInterface:
             self.driver.run(self.qua_program)
 
     def run_parameter_set(
-        self, input_params: list, progress_bar = None
+        self, input_params: dict[SequenceParameter, float], progress_bar = None
         ) -> tuple[float, dict, dict]:
         """
         Runs the given parameter set an returns the current values for
@@ -197,14 +197,10 @@ class GenericTuningInterface:
             dict: All parameters of the parameter set
         """
         input_param_dict = {}
-        if isinstance(input_params, list) or isinstance(input_params, np.ndarray):
-            for param, value in zip(self.input_stream_params, input_params):
-                input_param_dict[param] = value
-        elif isinstance(input_params, dict):
-            input_param_dict = input_params
-        else:
+        if not isinstance(input_params, dict):
             raise ValueError(
-                f"Input params must be list or dict. Are {type(input_params)}")
+                "Input params must be a dict of SequenceParameters and float" 
+                f" key value pairs. Are {type(input_params)}")
         self.measurement.insert_single_value_input_streams(input_param_dict)
         self.driver.qm_job.resume()
 
@@ -251,19 +247,22 @@ class GenericTuningInterface:
             print('Current bounds:\n', current_bounds)
             for param_name, bounds in current_bounds.items():
                 all_bounds[param_name].append(bounds)
-            sobol_devices = sobol_sampling(population, current_bounds)
+            sobol_samples = sobol_sampling(population, current_bounds)
             t0 = time.time()
             with Progress() as progress:
                 task = progress.add_task(
                     "Sampling parameter sets", total=population)
                 batch_task = progress.add_task(
                     "Sampling batch", total=self.measurement.sweep_size)
-                total_nr = len(sobol_devices)
+                total_nr = len(sobol_samples)
                 ### Looping over all deviced parameter sets
                 if plot_histograms:
                     fig, axs = plt.subplots(1, 2, figsize = (9,5))
-                for i, x in enumerate(sobol_devices):
+                for i, x in enumerate(sobol_samples):
                     ### Running the parameter set
+                    print(x)
+                    x = dict(zip(self.input_stream_params, x))
+                    print(x)
                     r, obs, par_dict = self.run_parameter_set(
                         x, progress_bar = (batch_task, progress))
                     ### Saving the results
@@ -428,12 +427,12 @@ class GenericTuningInterface:
             )
         return dataset
 
-def sobol_sampling(num_devices: int, bound_dict: dict):
+def sobol_sampling(num_samples: int, bound_dict: dict) -> np.ndarray:
     """
     Generate Sobol sequence devices for the given parameters.
     
     Args:
-        num_devices (int): Number of devices to generate.
+        num_samples (int): Number of devices to generate.
         parameter_dict (dict): Dictionary containing the parameters to device.
             Must have bounds as a key for each parameter.
         
@@ -442,12 +441,12 @@ def sobol_sampling(num_devices: int, bound_dict: dict):
     """
     # Generate Sobol sequence devices and truncate devices to the desired number
     sobol_engine = qmc.Sobol(d=len(bound_dict), scramble=True)
-    sobol_devices = sobol_engine.random_base2(m=int(np.ceil(np.log2(num_devices))))
-    sobol_devices = np.array(random.device(sobol_devices.tolist(), num_devices))
+    sobol_samples = sobol_engine.random_base2(m=int(np.ceil(np.log2(num_samples))))
+    sobol_samples = np.array(random.sample(sobol_samples.tolist(), num_samples))
 
     # Scale devices to the desired domain
     for i, (_, config) in enumerate(bound_dict.items()):
         l_bound = config[0]
         u_bound = config[1]
-        sobol_devices[:,i] = l_bound + (u_bound - l_bound) * sobol_devices[:,i]
-    return sobol_devices
+        sobol_samples[:,i] = l_bound + (u_bound - l_bound) * sobol_samples[:,i]
+    return sobol_samples
