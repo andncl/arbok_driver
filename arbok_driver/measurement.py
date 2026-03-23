@@ -614,9 +614,7 @@ class Measurement(SequenceBase):
                 raise ValueError(
                     f"Parameter {param.name} has invalid type {param.var_type}"
                     )
-        if self.driver.is_mock:
-            print("Skipping insertion of input streams because driver is mock.")
-        else:
+        if not self.driver.is_mock:
             if int_vals:
                 self.driver.qm_job.insert_input_stream(
                     name = f"{self.short_name}_int_input_stream",
@@ -632,6 +630,8 @@ class Measurement(SequenceBase):
                     name = f"{self.short_name}_fixed_input_stream",
                     data = fixed_vals
                 )
+        else:
+            logging.info("Skipping input stream insert because driver is mock")
 
     def add_available_gettables(self, gettables: list) -> None:
         """
