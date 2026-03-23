@@ -596,11 +596,11 @@ class Measurement(SequenceBase):
         """
         if Counter(value_dict.keys()) != Counter(self.input_stream_parameters):
             raise KeyError(
-                "Given value dict must contain all input stream parameters"
-                f"given are: {[p.name for p in value_dict.keys()]}."
-                "\n Required are: "
-                f"{[p.name for p in self.input_stream_parameters]}"
-                f"{len(value_dict)}/{len(self.input_stream_parameters)}"
+                "Given value dict must contain all input stream parameters "
+                f"given are: {[p.name for p in value_dict.keys()]}. "
+                "Required are "
+                f"{len(value_dict)}/{len(self.input_stream_parameters)} :"
+                f"{[p.name for p in self.input_stream_parameters]} "
                 )
         int_vals, bool_vals, fixed_vals = [], [], []
         for param in self.input_stream_parameters:

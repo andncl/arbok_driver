@@ -131,8 +131,8 @@ class GenericTuningInterface:
             )
         self.cost_strategy = cost_strategy
         self.gettables: list[GettableParameterBase] = self.cost_strategy.gettables
-        self.measurement.register_gettables(*self.cost_strategy.gettables)
         self.measurement.set_sweeps(*self.cost_strategy.sweeps)
+        self.measurement.register_gettables(*self.cost_strategy.gettables)
 
     def _add_parameters(self, parameter_dicts: dict, verbose: bool = False) -> None:
         """
@@ -181,7 +181,7 @@ class GenericTuningInterface:
             self.driver.run(self.qua_program)
 
     def run_parameter_set(
-        self, input_params: dict[SequenceParameter, float], progress_bar = None
+        self, input_param_dict: dict[SequenceParameter, float], progress_bar = None
         ) -> tuple[float, dict, dict]:
         """
         Runs the given parameter set an returns the current values for
@@ -196,19 +196,20 @@ class GenericTuningInterface:
             dict: All measured gettables for the parameter set
             dict: All parameters of the parameter set
         """
-        input_param_dict = {}
-        if not isinstance(input_params, dict):
+        if not isinstance(input_param_dict, dict):
             raise ValueError(
                 "Input params must be a dict of SequenceParameters and float" 
-                f" key value pairs. Are {type(input_params)}")
+                f" key value pairs. Are {type(input_param_dict)}")
         self.measurement.insert_single_value_input_streams(input_param_dict)
         self.driver.qm_job.resume()
 
         gettable_results = {}
+        self.measurement.wait_until_result_buffer_full(
+            progress_bar
+            )
+        results = self.measurement.fetch_all_results()
         for i, obs in enumerate(self.cost_strategy.gettables):
-            if i > 0:
-                progress_bar = None
-            gettable_results[obs.name] = obs.get_raw(progress_bar = progress_bar)
+            gettable_results[obs.name] = results[obs.name]
         cost = self.cost_strategy.get_cost(gettable_results)
         saved_params = {}
         for param_name, value in zip(self.parameter_dict.keys(), input_param_dict.values()):
