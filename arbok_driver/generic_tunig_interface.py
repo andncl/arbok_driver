@@ -200,8 +200,8 @@ class GenericTuningInterface:
                 "Input params must be a dict of SequenceParameters and float" 
                 f" key value pairs. Are {type(input_param_dict)}")
         self.measurement.insert_single_value_input_streams(input_param_dict)
-        self.driver.qm_job.resume()
-
+        if not self.driver.is_mock:
+            self.driver.qm_job.resume()
         gettable_results = {}
         self.measurement.wait_until_result_buffer_full(
             progress_bar
@@ -236,8 +236,8 @@ class GenericTuningInterface:
                 rewards
         """
         all_rewards = []
-        all_obs = {g.name: [] for g in self.cost_strategy.gettables}
-        all_params = {name: [] for name in self.parameter_dict.keys()}
+        all_obs = {g: [] for g in self.cost_strategy.gettables}
+        all_params = {param: [] for param in self.parameter_dict.keys()}
         all_bounds = {name: [] for name in self.bounds.keys()}
         current_bounds = copy.deepcopy(self.bounds)
         last_reward_threshold = None
@@ -266,8 +266,8 @@ class GenericTuningInterface:
                     ### Saving the results
                     for param, value in par_dict.items():
                         all_params[param].append(value)
-                    for name, value in obs.items():
-                        all_obs[name].append(value)
+                    for gettable, value in obs.items():
+                        all_obs[gettable].append(value)
                     all_rewards.append(r)
                     ### Updating the progress bar
                     progress.advance(task)
@@ -284,12 +284,12 @@ class GenericTuningInterface:
                         axs[0].cla()
                         axs[0].set_title('Best histogram ')
                         if len(all_rewards) == 0 or r > np.max(all_rewards):
-                            for name, data in obs.items():
-                                _ = axs[0].hist(data, label = name, alpha = 0.6)
+                            for gettable, data in obs.items():
+                                _ = axs[0].hist(data, label = gettable.name, alpha = 0.6)
                         axs[1].cla()
                         axs[1].set_title(f'Last histogram({i}/{total_nr})')
-                        for name, data in obs.items():
-                            _ = axs[1].hist(data, label = name, alpha = 0.6)
+                        for gettable, data in obs.items():
+                            _ = axs[1].hist(data, label = gettable.name, alpha = 0.6)
 
                         display.clear_output(wait=True)
                         display.display(plt.gcf())
@@ -308,7 +308,12 @@ class GenericTuningInterface:
         dataset = dataset.assign_attrs(bounds = bounds)
         return dataset
 
-    def _merge_cem_data_into_xarray(self, all_rewards, all_obs, all_params):
+    def _merge_cem_data_into_xarray(
+            self,
+            all_rewards: list,
+            all_obs: dict[GettableParameterBase, np.ndarray],
+            all_params: dict[str, float]
+            ):
         """
         Merges the data into an xarray dataset.
         
@@ -330,15 +335,15 @@ class GenericTuningInterface:
             )
         dataset['rewards'] = dataset.rewards.assign_attrs(type = 'reward')
         ### Saving gettables
-        for obs_name, data in all_obs.items():
+        for name, (_, data) in zip(all_params.keys(), all_obs.items()):
             data = np.array(data)
-            dataset[obs_name] = xr.DataArray(
+            dataset[name] = xr.DataArray(
                 data,
                 coords = {'index':np.arange(nr_indices),
                         'shot_nr': np.arange(np.shape(data)[1])},
                 dims = ('index', 'shot_nr')
                 )
-            dataset[obs_name] = dataset[obs_name].assign_attrs(type = 'gettable')
+            dataset[name] = dataset[name].assign_attrs(type = 'gettable')
         ### Saving parameters
         for par_name, data in all_params.items():
             data = np.array(data)
@@ -350,7 +355,7 @@ class GenericTuningInterface:
             dataset[par_name] = dataset[par_name].assign_attrs(type = 'parameter')
         ### Adding metadata
         dataset = dataset.assign_attrs(parameters = list(all_params.keys()))
-        dataset = dataset.assign_attrs(gettables = list(all_obs.keys()))
+        # dataset = dataset.assign_attrs(gettables = list(all_obs.keys()))
         return dataset
 
     def _update_sobol_bounds(
