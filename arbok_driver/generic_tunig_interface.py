@@ -335,12 +335,15 @@ class GenericTuningInterface:
             )
         dataset['rewards'] = dataset.rewards.assign_attrs(type = 'reward')
         ### Saving gettables
-        for name, (_, data) in zip(all_params.keys(), all_obs.items()):
+        for _, (gettable, data) in zip(all_params.keys(), all_obs.items()):
             data = np.array(data)
+            name = gettable.register_name
             dataset[name] = xr.DataArray(
                 data,
-                coords = {'index':np.arange(nr_indices),
-                        'shot_nr': np.arange(np.shape(data)[1])},
+                coords = {
+                    'index':np.arange(nr_indices),
+                    'shot_nr': np.arange(np.shape(data)[1])
+                    },
                 dims = ('index', 'shot_nr')
                 )
             dataset[name] = dataset[name].assign_attrs(type = 'gettable')
@@ -384,7 +387,8 @@ class GenericTuningInterface:
         if sampling_params_to_plot is not None:
             nr_plots = len(sampling_params_to_plot)
             fig, axs = plt.subplots(1, nr_plots, figsize=(nr_plots*4, 5))
-
+            if not isinstance(axs, list):
+                axs = [axs]
             for i, (par1_name, par2_name) in enumerate(sampling_params_to_plot):
                 param_bounds1 = new_bounds[par1_name]
                 param_bounds2 = new_bounds[par2_name]
