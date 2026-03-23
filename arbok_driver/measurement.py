@@ -567,13 +567,13 @@ class Measurement(SequenceBase):
         """
         Initializes a GenericTuningInterface based on the current measurement
         """
-        interface = GenericTuningInterface(
+        self.tuning_interface = GenericTuningInterface(
             measurement = self,
             parameter_dicts = parameter_dicts,
             cost_strategy = cost_strategy,
             verbose = verbose
         )
-        return interface
+        return self.tuning_interface
 
     def _add_streams_to_gettables(self):
         for _, gettable in self.gettables.items():
