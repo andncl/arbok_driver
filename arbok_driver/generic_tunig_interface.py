@@ -336,7 +336,7 @@ class GenericTuningInterface:
             )
         dataset['rewards'] = dataset.rewards.assign_attrs(type = 'reward')
         ### Saving gettables
-        for _, (gettable, data) in zip(all_params.keys(), all_obs.items()):
+        for gettable, data in all_obs.items():
             data = np.array(data)
             name = gettable.register_name
             dataset[name] = xr.DataArray(
