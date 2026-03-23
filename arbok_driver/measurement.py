@@ -47,6 +47,8 @@ class Measurement(SequenceBase):
     """Class describing a Measurement in an OPX driver"""
     shot_tracker_qua_var: QuaVariable
     shot_tracker_qua_stream: ResultStreamSource
+    mock_steps: int = 10
+    mock_delay: float = 0.5
 
     def __init__(
             self,
@@ -1026,7 +1028,7 @@ class Measurement(SequenceBase):
             bar_title (str): Title for the progress bar
         """
         step_chunk = self.sweep_size // 10
-        for i in range(10+1):
+        for i in range(self.mock_steps):
             if progress_tracker is not None:
                 progress_tracker[1].update(
                     progress_tracker[0],
@@ -1034,4 +1036,4 @@ class Measurement(SequenceBase):
                     description = f"{bar_title}{i*step_chunk}/{self.sweep_size}"
                 )
                 progress_tracker[1].refresh()
-            time.sleep(0.05)
+            time.sleep(self.mock_delay/self.mock_steps)
