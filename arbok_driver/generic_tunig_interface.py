@@ -208,7 +208,6 @@ class GenericTuningInterface:
         all_params = {param: [] for param in self.parameter_dict.keys()}
         all_bounds = {name: [] for name in self.bounds.keys()}
         current_bounds = copy.deepcopy(self.bounds)
-        last_reward_threshold = None
         data_index = 0
         for population in populations:
             ### Sampling parameter sets and saving bounds
@@ -268,8 +267,9 @@ class GenericTuningInterface:
             dataset = self._merge_cem_data_into_xarray(
                 all_rewards, all_obs, all_params)
             current_bounds = self._update_sobol_bounds(
-                dataset, select_frac, population,
-                last_reward_threshold,
+                dataset,
+                select_frac,
+                population,
                 sampling_params_to_plot,
                 )
         ### Compressing data into xarray dataset and adding metadata
@@ -328,13 +328,16 @@ class GenericTuningInterface:
             dataset[par_name] = dataset[par_name].assign_attrs(type = 'parameter')
         ### Adding metadata
         dataset = dataset.assign_attrs(parameters = list(all_params.keys()))
-        # dataset = dataset.assign_attrs(gettables = list(all_obs.keys()))
+        gettable_names = [g.register_name for g in all_obs.keys()]
+        dataset = dataset.assign_attrs(gettables = gettable_names)
         return dataset
 
     def _update_sobol_bounds(
-            self, dataset, select_frac, population,
-            last_reward_threshold: float,
-            sampling_params_to_plot: list = None,):
+            self,
+            dataset: xr.Dataset,
+            select_frac: float,
+            population_size: int,
+            sampling_params_to_plot: list | None = None,):
         """
         Updates the bounds for the Sobol devicer.
         
@@ -342,8 +345,8 @@ class GenericTuningInterface:
             rewards (list): List of rewards for the current iteration
             params (dict): Dict of par names and values for the last population
         """
-        dataset = dataset.sel(index = dataset.index[-population:])
-        nr_devices = int(np.ceil(select_frac*population))
+        dataset = dataset.sel(index = dataset.index[-population_size:])
+        nr_devices = int(np.ceil(select_frac*population_size))
         sorted_dataset = dataset.sortby(dataset.rewards)
         best_indices = sorted_dataset.index[-nr_devices:]
 
@@ -373,14 +376,26 @@ class GenericTuningInterface:
                     color = 'red',
                     )
                 axs[i].plot(
-                    [param_bounds1[0], param_bounds1[1], param_bounds1[1], param_bounds1[0], param_bounds1[0]],
-                    [param_bounds2[0], param_bounds2[0], param_bounds2[1], param_bounds2[1], param_bounds2[0]],
+                    [
+                        param_bounds1[0],
+                        param_bounds1[1],
+                        param_bounds1[1],
+                        param_bounds1[0],
+                        param_bounds1[0]
+                    ],
+                    [
+                        param_bounds2[0],
+                        param_bounds2[0],
+                        param_bounds2[1],
+                        param_bounds2[1],
+                        param_bounds2[0]
+                    ],
                     '-k')
                 axs[i].set_xlabel(par1_name)
                 axs[i].set_ylabel(par2_name)
             fig.tight_layout()
             plt.show()
-        return new_bounds#, reward_threshold
+        return new_bounds
 
     def _merge_data_into_xarray(self, index, all_rewards, all_obs, all_params):
         """Merges the data into an xarray dataset."""
