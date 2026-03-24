@@ -1,10 +1,10 @@
 """Module containing GenericTuningInterface class."""
 from __future__ import annotations
-from abc import ABC, abstractmethod
+from collections.abc import Callable
 import copy
 import random
 import time
-from typing import Sequence, TYPE_CHECKING
+from typing import Protocol, TYPE_CHECKING
 
 from scipy.stats import qmc
 import matplotlib.pyplot as plt
@@ -19,51 +19,11 @@ if TYPE_CHECKING:
     from .measurement import Measurement
     from .parameters import SequenceParameter, GettableParameterBase
 
-class CostStrategy(ABC):
-    """
-    Abstract base class for cost evaluation strategies.
-
-    A ``CostStrategy`` encapsulates the logic required to compute a scalar
-    cost value from one or more measurement outputs ("gettables").
-    Different implementations allow flexible optimization objectives
-    without modifying the tuning interface.
-
-    Args:
-        gettables (list[GettableParameterBase]):
-            List of measurement parameters that provide the data required
-            to compute the cost.
-    """
-
-    def __init__(
+class CostFunction(Protocol):
+    def __call__(
         self,
-        gettables: list[GettableParameterBase],
-        sweeps: list[dict[SequenceParameter, Sequence]]
-    ):
-        """
-        Initialize the cost strategy.
-
-        Args:
-            gettables (list[GettableParameterBase]):
-                Measurement parameters used as inputs for the cost computation.
-            sweeps (list[dict[SequenceParameter, Sequence]]):
-                List of sweep configurations defining remaining parameters are
-                being varied
-        """
-        self.gettables = gettables
-        self.sweeps = sweeps
-
-    @abstractmethod
-    def get_cost(self, results: dict[GettableParameterBase, np.ndarray]) -> float:
-        """
-        Compute and return the current cost value.
-
-        This method must be implemented by subclasses. It should read
-        the relevant data from ``self.gettables`` and return a single
-        scalar value representing the cost.
-
-        Returns:
-            float: The computed cost value.
-        """
+        results: dict[GettableParameterBase, np.ndarray]
+    ) -> float:
         ...
 
 
@@ -79,25 +39,19 @@ class GenericTuningInterface:
             Measurement object providing access to the experiment.
         driver (ArbokDriver):
             Driver associated with the measurement.
-        cost_strategy (CostStrategy):
-            Strategy object used to compute the optimization cost.
         parameter_dict (dict[str, dict]):
             Dictionary describing tunable parameters and their configurations.
-        bounds (dict[str, tuple]):
-            Parameter bounds used during optimization.
-        input_stream_params (list[SequenceParameter]):
-            Parameters streamed into the QUA program.
-        gettables (dict[str, GettableParameterBase]):
-            Mapping of measurement outputs used for cost evaluation.
-        qua_program (_ProgramScope):
-            Compiled QUA program used for execution.
+        sweeps (list[dict[SequenceParameter, Sequence]]):
+            List of sweep configurations defining remaining parameters are
+            being varied
+        gettables (dict[str, GettableParameterBase]): Gettables to be saved
+        verbose (bool): Whether all optional printouts are shown
     """
 
     def __init__(
         self,
         measurement: Measurement,
         parameter_dicts: dict[str, dict],
-        cost_strategy: CostStrategy,
         verbose: bool = False
     ) -> None:
         """
@@ -111,8 +65,6 @@ class GenericTuningInterface:
                 Dictionary defining parameter groups and their bounds.
                 Keys represent trivial parameter names or groups, and values
                 map ``SequenceParameter`` objects to their bounds and factors.
-            cost_strategy (CostStrategy):
-                Instance of a ``CostStrategy`` subclass used to compute the cost.
             verbose (bool, optional):
                 If ``True``, enables verbose logging during initialization and
                 parameter setup. Defaults to ``False``.
@@ -125,14 +77,17 @@ class GenericTuningInterface:
         self.driver: ArbokDriver = self.measurement.driver
         self._add_parameters(parameter_dicts, verbose=verbose)
 
-        if not isinstance(cost_strategy, CostStrategy):
-            raise TypeError(
-                "cost_strategy must be an instance of CostStrategy"
+        if not self.measurement.sweeps:
+            raise ValueError(
+                "No sweeps registered! Make sure to run measurement.set_sweeps(...)"
             )
-        self.cost_strategy = cost_strategy
-        self.gettables: list[GettableParameterBase] = self.cost_strategy.gettables
-        self.measurement.set_sweeps(*self.cost_strategy.sweeps)
-        self.measurement.register_gettables(*self.cost_strategy.gettables)
+        if not self.measurement.gettables:
+            raise ValueError(
+                "No gettables registered!"
+                "Make sure to run measurement.register_gettables(...)"
+            )
+        self.gettables = self.measurement.gettables
+        self.sweeps = self.measurement.sweeps
 
     def _add_parameters(self, parameter_dicts: dict, verbose: bool = False) -> None:
         """
@@ -180,18 +135,20 @@ class GenericTuningInterface:
             self.measurement.compile_qua_and_run()
 
     def run_parameter_set(
-        self, input_param_dict: dict[SequenceParameter, float], progress_bar = None
-        ) -> tuple[float, dict, dict]:
+        self,
+        input_param_dict: dict[SequenceParameter, float],
+        progress_bar = None
+        ) -> tuple[dict, dict]:
         """
         Runs the given parameter set an returns the current values for
         singlet and triplet init
 
         Args:
-            input_params (list): List of parameters to run
+            input_param_dict (dict[SequenceParameter, float]): List of
+                parameters to run
             progress_bar (Optional): Progress bar to update
 
         Returns:
-            float: Reward/cost of the parameter set
             dict: All measured gettables for the parameter set
             dict: All parameters of the parameter set
         """
@@ -200,23 +157,24 @@ class GenericTuningInterface:
                 "Input params must be a dict of SequenceParameters and float" 
                 f" key value pairs. Are {type(input_param_dict)}")
         self.measurement.insert_single_value_input_streams(input_param_dict)
-        self.driver.qm_job.resume()
-
+        if not self.driver.is_mock:
+            self.driver.qm_job.resume()
         gettable_results = {}
         self.measurement.wait_until_result_buffer_full(
             progress_bar
             )
         results = self.measurement.fetch_all_results()
-        for i, obs in enumerate(self.cost_strategy.gettables):
-            gettable_results[obs] = results[obs]
-        cost = self.cost_strategy.get_cost(gettable_results)
+        for _, gettable in self.gettables.items():
+            gettable_results[gettable] = results[gettable]
         saved_params = {}
         for param_name, value in zip(self.parameter_dict.keys(), input_param_dict.values()):
             saved_params[param_name] = value
-        return float(cost), gettable_results, saved_params
+        return gettable_results, saved_params
 
     def run_cross_entropy_sampler(
-            self, populations: list,
+            self,
+            populations: list,
+            cost_strategy: CostFunction,
             select_frac: float = 0.3,
             plot_histograms: bool = False,
             sampling_params_to_plot: list | None = None
@@ -225,22 +183,31 @@ class GenericTuningInterface:
         Runs the cross entropy method for the given populations.
 
         Args:
-            populations (list): List of population sizes for each iteration
-            select_frac (float): Fraction of best parameters to select for
-                generation of new bounds
-            sampling_params_to_plot (list): List of tuples containing parameter
-                names to plot during the sampling process
+            populations (list[int]):
+                List of population sizes for each iteration.
+
+            cost_strategy (CostFunction):
+                A callable that takes a dictionary mapping gettables to
+                numpy arrays of measurement results and returns a scalar cost.
+
+            select_frac (float):
+                Fraction of best parameters to select for generating new bounds.
+
+            plot_histograms (bool):
+                If True, plot parameter distributions during sampling.
+
+            sampling_params_to_plot (list[tuple[str, str]] | None):
+                Parameter pairs to visualize during the sampling process.
 
         Returns:
             xr.Dataset: Dataset containing all gettables, parameters and
                 rewards
         """
         all_rewards = []
-        all_obs = {g.name: [] for g in self.cost_strategy.gettables}
-        all_params = {name: [] for name in self.parameter_dict.keys()}
+        all_obs = {g: [] for g in self.gettables.values()}
+        all_params = {param: [] for param in self.parameter_dict.keys()}
         all_bounds = {name: [] for name in self.bounds.keys()}
         current_bounds = copy.deepcopy(self.bounds)
-        last_reward_threshold = None
         data_index = 0
         for population in populations:
             ### Sampling parameter sets and saving bounds
@@ -261,13 +228,14 @@ class GenericTuningInterface:
                 for i, x in enumerate(sobol_samples):
                     ### Running the parameter set
                     x = dict(zip(self.input_stream_params, x))
-                    r, obs, par_dict = self.run_parameter_set(
+                    obs, par_dict = self.run_parameter_set(
                         x, progress_bar = (batch_task, progress))
+                    r = cost_strategy(obs)
                     ### Saving the results
                     for param, value in par_dict.items():
                         all_params[param].append(value)
-                    for name, value in obs.items():
-                        all_obs[name].append(value)
+                    for gettable, value in obs.items():
+                        all_obs[gettable].append(value)
                     all_rewards.append(r)
                     ### Updating the progress bar
                     progress.advance(task)
@@ -284,12 +252,12 @@ class GenericTuningInterface:
                         axs[0].cla()
                         axs[0].set_title('Best histogram ')
                         if len(all_rewards) == 0 or r > np.max(all_rewards):
-                            for name, data in obs.items():
-                                _ = axs[0].hist(data, label = name, alpha = 0.6)
+                            for gettable, data in obs.items():
+                                _ = axs[0].hist(data, label = gettable.name, alpha = 0.6)
                         axs[1].cla()
                         axs[1].set_title(f'Last histogram({i}/{total_nr})')
-                        for name, data in obs.items():
-                            _ = axs[1].hist(data, label = name, alpha = 0.6)
+                        for gettable, data in obs.items():
+                            _ = axs[1].hist(data, label = gettable.name, alpha = 0.6)
 
                         display.clear_output(wait=True)
                         display.display(plt.gcf())
@@ -299,8 +267,9 @@ class GenericTuningInterface:
             dataset = self._merge_cem_data_into_xarray(
                 all_rewards, all_obs, all_params)
             current_bounds = self._update_sobol_bounds(
-                dataset, select_frac, population,
-                last_reward_threshold,
+                dataset,
+                select_frac,
+                population,
                 sampling_params_to_plot,
                 )
         ### Compressing data into xarray dataset and adding metadata
@@ -308,7 +277,12 @@ class GenericTuningInterface:
         dataset = dataset.assign_attrs(bounds = bounds)
         return dataset
 
-    def _merge_cem_data_into_xarray(self, all_rewards, all_obs, all_params):
+    def _merge_cem_data_into_xarray(
+            self,
+            all_rewards: list,
+            all_obs: dict[GettableParameterBase, np.ndarray],
+            all_params: dict[str, float]
+            ):
         """
         Merges the data into an xarray dataset.
         
@@ -322,6 +296,7 @@ class GenericTuningInterface:
         """
         nr_indices = len(all_rewards)
         dataset = xr.Dataset()
+        
         ### Saving rewards
         dataset['rewards'] = xr.DataArray(
             np.array(all_rewards),
@@ -330,15 +305,18 @@ class GenericTuningInterface:
             )
         dataset['rewards'] = dataset.rewards.assign_attrs(type = 'reward')
         ### Saving gettables
-        for obs_name, data in all_obs.items():
+        for gettable, data in all_obs.items():
             data = np.array(data)
-            dataset[obs_name] = xr.DataArray(
+            name = gettable.register_name
+            dataset[name] = xr.DataArray(
                 data,
-                coords = {'index':np.arange(nr_indices),
-                        'shot_nr': np.arange(np.shape(data)[1])},
+                coords = {
+                    'index':np.arange(nr_indices),
+                    'shot_nr': np.arange(np.shape(data)[1])
+                    },
                 dims = ('index', 'shot_nr')
                 )
-            dataset[obs_name] = dataset[obs_name].assign_attrs(type = 'gettable')
+            dataset[name] = dataset[name].assign_attrs(type = 'gettable')
         ### Saving parameters
         for par_name, data in all_params.items():
             data = np.array(data)
@@ -350,13 +328,16 @@ class GenericTuningInterface:
             dataset[par_name] = dataset[par_name].assign_attrs(type = 'parameter')
         ### Adding metadata
         dataset = dataset.assign_attrs(parameters = list(all_params.keys()))
-        dataset = dataset.assign_attrs(gettables = list(all_obs.keys()))
+        gettable_names = [g.register_name for g in all_obs.keys()]
+        dataset = dataset.assign_attrs(gettables = gettable_names)
         return dataset
 
     def _update_sobol_bounds(
-            self, dataset, select_frac, population,
-            last_reward_threshold: float,
-            sampling_params_to_plot: list = None,):
+            self,
+            dataset: xr.Dataset,
+            select_frac: float,
+            population_size: int,
+            sampling_params_to_plot: list | None = None,):
         """
         Updates the bounds for the Sobol devicer.
         
@@ -364,8 +345,8 @@ class GenericTuningInterface:
             rewards (list): List of rewards for the current iteration
             params (dict): Dict of par names and values for the last population
         """
-        dataset = dataset.sel(index = dataset.index[-population:])
-        nr_devices = int(np.ceil(select_frac*population))
+        dataset = dataset.sel(index = dataset.index[-population_size:])
+        nr_devices = int(np.ceil(select_frac*population_size))
         sorted_dataset = dataset.sortby(dataset.rewards)
         best_indices = sorted_dataset.index[-nr_devices:]
 
@@ -379,7 +360,8 @@ class GenericTuningInterface:
         if sampling_params_to_plot is not None:
             nr_plots = len(sampling_params_to_plot)
             fig, axs = plt.subplots(1, nr_plots, figsize=(nr_plots*4, 5))
-
+            if not isinstance(axs, list):
+                axs = [axs]
             for i, (par1_name, par2_name) in enumerate(sampling_params_to_plot):
                 param_bounds1 = new_bounds[par1_name]
                 param_bounds2 = new_bounds[par2_name]
@@ -394,14 +376,26 @@ class GenericTuningInterface:
                     color = 'red',
                     )
                 axs[i].plot(
-                    [param_bounds1[0], param_bounds1[1], param_bounds1[1], param_bounds1[0], param_bounds1[0]],
-                    [param_bounds2[0], param_bounds2[0], param_bounds2[1], param_bounds2[1], param_bounds2[0]],
+                    [
+                        param_bounds1[0],
+                        param_bounds1[1],
+                        param_bounds1[1],
+                        param_bounds1[0],
+                        param_bounds1[0]
+                    ],
+                    [
+                        param_bounds2[0],
+                        param_bounds2[0],
+                        param_bounds2[1],
+                        param_bounds2[1],
+                        param_bounds2[0]
+                    ],
                     '-k')
                 axs[i].set_xlabel(par1_name)
                 axs[i].set_ylabel(par2_name)
             fig.tight_layout()
             plt.show()
-        return new_bounds#, reward_threshold
+        return new_bounds
 
     def _merge_data_into_xarray(self, index, all_rewards, all_obs, all_params):
         """Merges the data into an xarray dataset."""

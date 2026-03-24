@@ -1,7 +1,7 @@
 """Module containing the Measurement class"""
 from __future__ import annotations
 from collections.abc import Sequence
-from typing import Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING
 import math
 import time
 import copy
@@ -24,7 +24,7 @@ from .parameters import (
     GettableParameterBase,
     SequenceParameter
 )
-from .generic_tunig_interface import CostStrategy, GenericTuningInterface
+from .generic_tunig_interface import GenericTuningInterface
 from .parameter_class import ParameterClass
 from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
@@ -47,6 +47,8 @@ class Measurement(SequenceBase):
     """Class describing a Measurement in an OPX driver"""
     shot_tracker_qua_var: QuaVariable
     shot_tracker_qua_stream: ResultStreamSource
+    mock_steps: int = 10
+    mock_delay: float = 0.5
 
     def __init__(
             self,
@@ -361,7 +363,7 @@ class Measurement(SequenceBase):
     def register_gettables(
             self,
             *args,
-            keywords: str | list | tuple = None,
+            keywords: str | list | tuple | None = None,
             verbose: bool = False
     ) -> None:
         """
@@ -374,6 +376,8 @@ class Measurement(SequenceBase):
             keywords (str | list): Keywords to find gettables by name
         """
         gettables = list(args)
+        if len(gettables) == 0:
+            gettables = self.available_gettables
         if keywords is not None:
             if isinstance(keywords, str) or isinstance(keywords, tuple):
                 keywords = [keywords]
@@ -561,7 +565,6 @@ class Measurement(SequenceBase):
     def initialize_tuning_interface(
             self,
             parameter_dicts: dict[str, dict],
-            cost_strategy: CostStrategy,
             verbose: bool = False
             ) -> GenericTuningInterface:
         """
@@ -570,7 +573,6 @@ class Measurement(SequenceBase):
         self.tuning_interface = GenericTuningInterface(
             measurement = self,
             parameter_dicts = parameter_dicts,
-            cost_strategy = cost_strategy,
             verbose = verbose
         )
         return self.tuning_interface
@@ -614,21 +616,24 @@ class Measurement(SequenceBase):
                 raise ValueError(
                     f"Parameter {param.name} has invalid type {param.var_type}"
                     )
-        if int_vals:
-            self.driver.qm_job.insert_input_stream(
-                name = f"{self.short_name}_int_input_stream",
-                data = int_vals
-            )
-        if bool_vals:
-            self.driver.qm_job.insert_input_stream(
-                name = f"{self.short_name}_bool_input_stream",
-                data = bool_vals
-            )
-        if fixed_vals:
-            self.driver.qm_job.insert_input_stream(
-                name = f"{self.short_name}_fixed_input_stream",
-                data = fixed_vals
-            )
+        if not self.driver.is_mock:
+            if int_vals:
+                self.driver.qm_job.insert_input_stream(
+                    name = f"{self.short_name}_int_input_stream",
+                    data = int_vals
+                )
+            if bool_vals:
+                self.driver.qm_job.insert_input_stream(
+                    name = f"{self.short_name}_bool_input_stream",
+                    data = bool_vals
+                )
+            if fixed_vals:
+                self.driver.qm_job.insert_input_stream(
+                    name = f"{self.short_name}_fixed_input_stream",
+                    data = fixed_vals
+                )
+        else:
+            logging.info("Skipping input stream insert because driver is mock")
 
     def add_available_gettables(self, gettables: list) -> None:
         """
@@ -1023,11 +1028,12 @@ class Measurement(SequenceBase):
             bar_title (str): Title for the progress bar
         """
         step_chunk = self.sweep_size // 10
-        for i in range(10+1):
-            progress_tracker[1].update(
-                progress_tracker[0],
-                completed = (i+1)*step_chunk,
-                description = f"{bar_title}{i*step_chunk}/{self.sweep_size}"
-            )
-            progress_tracker[1].refresh()
-            time.sleep(0.1)
+        for i in range(self.mock_steps):
+            if progress_tracker is not None:
+                progress_tracker[1].update(
+                    progress_tracker[0],
+                    completed = (i+1)*step_chunk,
+                    description = f"{bar_title}{i*step_chunk}/{self.sweep_size}"
+                )
+                progress_tracker[1].refresh()
+            time.sleep(self.mock_delay/self.mock_steps)
