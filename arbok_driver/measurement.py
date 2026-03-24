@@ -1,7 +1,7 @@
 """Module containing the Measurement class"""
 from __future__ import annotations
 from collections.abc import Sequence
-from typing import Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING
 import math
 import time
 import copy
@@ -24,7 +24,7 @@ from .parameters import (
     GettableParameterBase,
     SequenceParameter
 )
-from .generic_tunig_interface import CostStrategy, GenericTuningInterface
+from .generic_tunig_interface import GenericTuningInterface
 from .parameter_class import ParameterClass
 from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
@@ -363,7 +363,7 @@ class Measurement(SequenceBase):
     def register_gettables(
             self,
             *args,
-            keywords: str | list | tuple = None,
+            keywords: str | list | tuple | None = None,
             verbose: bool = False
     ) -> None:
         """
@@ -376,6 +376,8 @@ class Measurement(SequenceBase):
             keywords (str | list): Keywords to find gettables by name
         """
         gettables = list(args)
+        if len(gettables) == 0:
+            gettables = self.available_gettables
         if keywords is not None:
             if isinstance(keywords, str) or isinstance(keywords, tuple):
                 keywords = [keywords]
@@ -563,7 +565,6 @@ class Measurement(SequenceBase):
     def initialize_tuning_interface(
             self,
             parameter_dicts: dict[str, dict],
-            cost_strategy: CostStrategy,
             verbose: bool = False
             ) -> GenericTuningInterface:
         """
@@ -572,7 +573,6 @@ class Measurement(SequenceBase):
         self.tuning_interface = GenericTuningInterface(
             measurement = self,
             parameter_dicts = parameter_dicts,
-            cost_strategy = cost_strategy,
             verbose = verbose
         )
         return self.tuning_interface
