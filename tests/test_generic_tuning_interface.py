@@ -8,6 +8,39 @@ from arbok_driver.examples.configurations import (
     parity_init_conf, parity_read_conf
 )
 
+def test_tuning_interface_requires_sweeps_and_gettables(mock_measurement) -> None:
+    mock_measurement.driver.is_mock = True
+    mock_measurement.mock_steps = 0
+    mock_measurement.add_subsequences_from_dict({
+        'paraity_init_even': {'config': parity_init_conf},
+        'parity_read_even': {'config': parity_read_conf},
+        'parity_init_odd': {'config': parity_init_conf},
+        'parity_read_odd': {'config': parity_read_conf}
+    })
+
+    parameter_dicts = {
+        't_ramp_init': {
+            'qua_vars': {
+                mock_measurement.parity_init_odd.arbok_params.t_ramp_over_crossing: 1
+            },
+            'bounds': (25, 1e4)
+        }
+    }
+
+    with pytest.raises(ValueError):
+        mock_measurement.initialize_tuning_interface(
+            parameter_dicts=parameter_dicts,
+            verbose=True
+        )
+
+    mock_measurement.set_sweeps({mock_measurement.iteration: np.arange(10)})
+
+    with pytest.raises(ValueError):
+        mock_measurement.initialize_tuning_interface(
+            parameter_dicts=parameter_dicts,
+            verbose=True
+        )
+
 def test_generic_tuning_interface_init(mock_measurement) -> None:
     mock_measurement.driver.is_mock = True
     mock_measurement.mock_steps = 0
