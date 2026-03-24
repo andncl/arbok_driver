@@ -1,10 +1,10 @@
 """Module containing GenericTuningInterface class."""
 from __future__ import annotations
-from abc import ABC, abstractmethod
+from collections.abc import Callable
 import copy
 import random
 import time
-from typing import Sequence, TYPE_CHECKING
+from typing import Protocol, TYPE_CHECKING
 
 from scipy.stats import qmc
 import matplotlib.pyplot as plt
@@ -19,47 +19,11 @@ if TYPE_CHECKING:
     from .measurement import Measurement
     from .parameters import SequenceParameter, GettableParameterBase
 
-class CostStrategy(ABC):
-    """
-    Abstract base class for cost evaluation strategies.
-
-    A ``CostStrategy`` encapsulates the logic required to compute a scalar
-    cost value from one or more measurement outputs ("gettables").
-    Different implementations allow flexible optimization objectives
-    without modifying the tuning interface.
-
-    Args:
-        gettables (list[GettableParameterBase]):
-            List of measurement parameters that provide the data required
-            to compute the cost.
-    """
-
-    def __init__(
+class CostFunction(Protocol):
+    def __call__(
         self,
-        gettables: list[GettableParameterBase]
-    ):
-        """
-        Initialize the cost strategy.
-
-        Args:
-            gettables (list[GettableParameterBase]):
-                Measurement parameters used as inputs for the cost computation.
-
-        """
-        self.gettables = gettables
-
-    @abstractmethod
-    def get_cost(self, results: dict[GettableParameterBase, np.ndarray]) -> float:
-        """
-        Compute and return the current cost value.
-
-        This method must be implemented by subclasses. It should read
-        the relevant data from ``self.gettables`` and return a single
-        scalar value representing the cost.
-
-        Returns:
-            float: The computed cost value.
-        """
+        results: dict[GettableParameterBase, np.ndarray]
+    ) -> float:
         ...
 
 
@@ -75,13 +39,12 @@ class GenericTuningInterface:
             Measurement object providing access to the experiment.
         driver (ArbokDriver):
             Driver associated with the measurement.
-        cost_strategy (CostStrategy):
-            Strategy object used to compute the optimization cost.
         parameter_dict (dict[str, dict]):
             Dictionary describing tunable parameters and their configurations.
         sweeps (list[dict[SequenceParameter, Sequence]]):
             List of sweep configurations defining remaining parameters are
             being varied
+        gettables (dict[str, GettableParameterBase]): Gettables to be saved
         verbose (bool): Whether all optional printouts are shown
     """
 
@@ -89,8 +52,6 @@ class GenericTuningInterface:
         self,
         measurement: Measurement,
         parameter_dicts: dict[str, dict],
-        cost_strategy: CostStrategy,
-        sweeps: list[dict[SequenceParameter, Sequence]],
         verbose: bool = False
     ) -> None:
         """
@@ -104,8 +65,6 @@ class GenericTuningInterface:
                 Dictionary defining parameter groups and their bounds.
                 Keys represent trivial parameter names or groups, and values
                 map ``SequenceParameter`` objects to their bounds and factors.
-            cost_strategy (CostStrategy):
-                Instance of a ``CostStrategy`` subclass used to compute the cost.
             verbose (bool, optional):
                 If ``True``, enables verbose logging during initialization and
                 parameter setup. Defaults to ``False``.
@@ -118,15 +77,17 @@ class GenericTuningInterface:
         self.driver: ArbokDriver = self.measurement.driver
         self._add_parameters(parameter_dicts, verbose=verbose)
 
-        if not isinstance(cost_strategy, CostStrategy):
-            raise TypeError(
-                "cost_strategy must be an instance of CostStrategy"
+        if not self.measurement.sweeps:
+            raise ValueError(
+                "No sweeps registered! Make sure to run measurement.set_sweeps(...)"
             )
-        self.cost_strategy = cost_strategy
-        self.sweeps = sweeps
-        self.gettables: list[GettableParameterBase] = self.cost_strategy.gettables
-        self.measurement.set_sweeps(*self.sweeps)
-        self.measurement.register_gettables(*self.cost_strategy.gettables)
+        if not self.measurement.gettables:
+            raise ValueError(
+                "No gettables registered!"
+                "Make sure to run measurement.register_gettables(...)"
+            )
+        self.gettables = self.measurement.gettables
+        self.sweeps = self.measurement.sweeps
 
     def _add_parameters(self, parameter_dicts: dict, verbose: bool = False) -> None:
         """
@@ -174,18 +135,20 @@ class GenericTuningInterface:
             self.measurement.compile_qua_and_run()
 
     def run_parameter_set(
-        self, input_param_dict: dict[SequenceParameter, float], progress_bar = None
-        ) -> tuple[float, dict, dict]:
+        self,
+        input_param_dict: dict[SequenceParameter, float],
+        progress_bar = None
+        ) -> tuple[dict, dict]:
         """
         Runs the given parameter set an returns the current values for
         singlet and triplet init
 
         Args:
-            input_params (list): List of parameters to run
+            input_param_dict (dict[SequenceParameter, float]): List of
+                parameters to run
             progress_bar (Optional): Progress bar to update
 
         Returns:
-            float: Reward/cost of the parameter set
             dict: All measured gettables for the parameter set
             dict: All parameters of the parameter set
         """
@@ -201,16 +164,17 @@ class GenericTuningInterface:
             progress_bar
             )
         results = self.measurement.fetch_all_results()
-        for i, obs in enumerate(self.cost_strategy.gettables):
-            gettable_results[obs] = results[obs]
-        cost = self.cost_strategy.get_cost(gettable_results)
+        for _, gettable in self.gettables.items():
+            gettable_results[gettable] = results[gettable]
         saved_params = {}
         for param_name, value in zip(self.parameter_dict.keys(), input_param_dict.values()):
             saved_params[param_name] = value
-        return float(cost), gettable_results, saved_params
+        return gettable_results, saved_params
 
     def run_cross_entropy_sampler(
-            self, populations: list,
+            self,
+            populations: list,
+            cost_strategy: CostFunction,
             select_frac: float = 0.3,
             plot_histograms: bool = False,
             sampling_params_to_plot: list | None = None
@@ -219,18 +183,28 @@ class GenericTuningInterface:
         Runs the cross entropy method for the given populations.
 
         Args:
-            populations (list): List of population sizes for each iteration
-            select_frac (float): Fraction of best parameters to select for
-                generation of new bounds
-            sampling_params_to_plot (list): List of tuples containing parameter
-                names to plot during the sampling process
+            populations (list[int]):
+                List of population sizes for each iteration.
+
+            cost_strategy (CostFunction):
+                A callable that takes a dictionary mapping gettables to
+                numpy arrays of measurement results and returns a scalar cost.
+
+            select_frac (float):
+                Fraction of best parameters to select for generating new bounds.
+
+            plot_histograms (bool):
+                If True, plot parameter distributions during sampling.
+
+            sampling_params_to_plot (list[tuple[str, str]] | None):
+                Parameter pairs to visualize during the sampling process.
 
         Returns:
             xr.Dataset: Dataset containing all gettables, parameters and
                 rewards
         """
         all_rewards = []
-        all_obs = {g: [] for g in self.cost_strategy.gettables}
+        all_obs = {g: [] for g in self.gettables.values()}
         all_params = {param: [] for param in self.parameter_dict.keys()}
         all_bounds = {name: [] for name in self.bounds.keys()}
         current_bounds = copy.deepcopy(self.bounds)
@@ -255,8 +229,9 @@ class GenericTuningInterface:
                 for i, x in enumerate(sobol_samples):
                     ### Running the parameter set
                     x = dict(zip(self.input_stream_params, x))
-                    r, obs, par_dict = self.run_parameter_set(
+                    obs, par_dict = self.run_parameter_set(
                         x, progress_bar = (batch_task, progress))
+                    r = cost_strategy(obs)
                     ### Saving the results
                     for param, value in par_dict.items():
                         all_params[param].append(value)
