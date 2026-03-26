@@ -13,7 +13,6 @@ from qcodes.instrument import Instrument
 from qcodes.dataset import load_or_create_experiment
 from sqlalchemy.orm import Session
 
-from . import utils
 from .device import Device
 from .measurement import Measurement
 from .sqlalchemy_classes import SqlRun
