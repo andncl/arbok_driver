@@ -46,17 +46,18 @@ class Ekans:
         module_names.sort(key=lambda name: name.count("."), reverse=True)
 
         for name in module_names:
-            module = sys.modules.get(name)
+            try:
+                if name in sys.modules:
+                    module = sys.modules[name]
+                    if getattr(module, "__spec__", None) is not None:
+                        importlib.reload(module)
+                else:
+                    importlib.import_module(name)  # ← THIS is what you're missing
 
-            if not isinstance(module, ModuleType):
-                continue
+            except Exception as e:
+                print(f"Error importing {name}: {e}")
+                raise
 
-            # Only reload real modules (with spec)
-            if getattr(module, "__spec__", None) is not None:
-                importlib.reload(module)
-            else:
-                # fallback: skip reload (test modules)
-                continue
         self._build_attribute_tree(module_names)
 
     def _collect_module_names(self) -> List[str]:
