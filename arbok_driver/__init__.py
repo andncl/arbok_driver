@@ -3,6 +3,7 @@ from . import utils
 from .abstract_readout import AbstractReadout
 from .arbok_driver import ArbokDriver
 from .device import Device
+from .ekans import Ekans
 from .experiment import Experiment
 from .generic_tunig_interface import GenericTuningInterface
 from .parameters.gettable_parameter import GettableParameter
