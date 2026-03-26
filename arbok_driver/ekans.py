@@ -45,20 +45,13 @@ class Ekans:
         module_names: List[str] = self._collect_module_names()
         module_names.sort(key=lambda name: name.count("."), reverse=True)
 
-        # for name in module_names:
-        #     if name in sys.modules:
-        #         module = sys.modules[name]
-        #         if isinstance(module, ModuleType):
-        #             importlib.reload(module)
-        #     else:
-        #         importlib.import_module(name)
         for name in module_names:
             module = sys.modules.get(name)
 
             if not isinstance(module, ModuleType):
                 continue
 
-            # ✅ Only reload real modules (with spec)
+            # Only reload real modules (with spec)
             if getattr(module, "__spec__", None) is not None:
                 importlib.reload(module)
             else:
@@ -121,11 +114,6 @@ class Ekans:
     def _attach_module_attributes(
         self, node: _NamespaceNode, module: ModuleType
     ) -> None:
-        """
-        Attach attributes of a module to a node.
-
-        Uses __all__ if defined, otherwise falls back to public attributes.
-        """
         public_names = getattr(module, "__all__", None)
 
         if public_names is None:
@@ -134,9 +122,40 @@ class Ekans:
                 if not name.startswith("_")
             ]
 
+        # Attach module's own attributes
         for attr_name in public_names:
             try:
-                value: Any = getattr(module, attr_name)
+                value = getattr(module, attr_name)
             except AttributeError:
                 continue
             setattr(node, attr_name, value)
+
+        # also pull from direct submodules if this is a package
+        if hasattr(module, "__path__"):
+            for submodule in self._get_submodules(module):
+                sub_public = getattr(submodule, "__all__", None)
+
+                if sub_public is None:
+                    sub_public = [
+                        name for name in dir(submodule)
+                        if not name.startswith("_")
+                    ]
+
+                for attr_name in sub_public:
+                    try:
+                        value = getattr(submodule, attr_name)
+                    except AttributeError:
+                        continue
+
+                    # avoid overwriting existing names
+                    if not hasattr(node, attr_name):
+                        setattr(node, attr_name, value)
+
+    def _get_submodules(self, module: ModuleType) -> List[ModuleType]:
+        prefix = module.__name__ + "."
+        return [
+            m for name, m in sys.modules.items()
+            if name.startswith(prefix)
+            and isinstance(m, ModuleType)
+            and name.count(".") == prefix.count(".")  # direct children only
+        ]
