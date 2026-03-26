@@ -14,11 +14,11 @@ from qcodes.dataset import load_or_create_experiment
 from sqlalchemy.orm import Session
 
 from . import utils
+from .device import Device
 from .measurement import Measurement
 from .sqlalchemy_classes import SqlRun
 
 if TYPE_CHECKING:
-    from .device import Device
     from .experiment import Experiment
     from .sqlalchemy_classes import SqlRun
     from qm.jobs.running_qm_job import RunningQmJob
@@ -51,6 +51,8 @@ class ArbokDriver(Instrument):
             **kwargs: Arbitrary keyword arguments for qcodes Instrument class
         """
         super().__init__(name, **kwargs)
+        if not isinstance(device, Device):
+            raise TypeError(f"device must be type Device, is {type(Device)}")
         self.device: Device = device
         self.is_mock: bool = False
         self._measurements: list[Measurement] = []
