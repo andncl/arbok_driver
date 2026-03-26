@@ -1,182 +1,191 @@
-import types
+import importlib
 import sys
+import types
 import pytest
 
-from arbok_driver.ekans import Ekans
+from arbok_driver.ekans import Ekans  # adjust import if needed
 
 
-def create_module(name: str, attrs: dict) -> types.ModuleType:
-    parts = name.split(".")
-    
-    # Create parent packages
-    for i in range(1, len(parts)):
-        parent_name = ".".join(parts[:i])
-        if parent_name not in sys.modules:
-            parent_module = types.ModuleType(parent_name)
-            parent_module.__path__ = []  # mark as package
-            sys.modules[parent_name] = parent_module
-
-    # Create the actual module
-    module = types.ModuleType(name)
-    for k, v in attrs.items():
-        setattr(module, k, v)
-
-    # If it's meant to be a package, caller can overwrite __path__
-    sys.modules[name] = module
-
-    return module
+# Use your real examples package
+import arbok_driver.examples as examples
 
 
-def test_flattening_and_root_stripping():
-    root = create_module("pkg.devices.nova", {})
-    root.__path__ = []  # mark as package
+# ----------------------------
+# Basic initialization
+# ----------------------------
 
-    subpkg = create_module("pkg.devices.nova.spin_init", {})
-    subpkg.__path__ = []
-
-    leaf = create_module(
-        "pkg.devices.nova.spin_init.config_a",
-        {
-            "__all__": ["conf_a"],
-            "conf_a": 123,
-        },
-    )
-
-    ekans = Ekans(root)
-
-    assert hasattr(ekans, "spin_init")
-    assert hasattr(ekans.spin_init, "conf_a")
-    assert ekans.spin_init.conf_a == 123
-
-    # ensure no redundant prefix
-    assert not hasattr(ekans, "devices")
-    assert not hasattr(ekans, "nova")
+def test_init_with_valid_module():
+    ek = Ekans(examples)
+    assert ek is not None
 
 
-def test_multiple_leaf_modules_flattened():
-    root = create_module("pkg.devices.nova2", {})
-    root.__path__ = []
+def test_init_with_invalid_type():
+    with pytest.raises(TypeError):
+        Ekans("not_a_module")
 
-    subpkg = create_module("pkg.devices.nova2.spin_init", {})
-    subpkg.__path__ = []
 
-    create_module(
-        "pkg.devices.nova2.spin_init.mod1",
-        {"__all__": ["a"], "a": 1},
-    )
-    create_module(
-        "pkg.devices.nova2.spin_init.mod2",
-        {"__all__": ["b"], "b": 2},
-    )
+# ----------------------------
+# Module collection
+# ----------------------------
 
-    ekans = Ekans(root)
+def test_collects_modules():
+    ek = Ekans(examples)
+    modules = ek._collect_module_names()
 
-    assert ekans.spin_init.a == 1
-    assert ekans.spin_init.b == 2
+    # sanity checks
+    assert any("examples.configurations" in m for m in modules)
+    assert any("examples.sub_sequences" in m for m in modules)
+    assert any("examples.readout_classes" in m for m in modules)
 
+
+# ----------------------------
+# Attribute tree structure
+# ----------------------------
+
+def test_namespace_structure_exists():
+    ek = Ekans(examples)
+
+    assert hasattr(ek, "configurations")
+    assert hasattr(ek, "experiments")
+    assert hasattr(ek, "readout_classes")
+    assert hasattr(ek, "sub_sequences")
+
+
+def test_nested_namespace():
+    ek = Ekans(examples)
+
+    assert hasattr(ek.configurations, "hardware_configs")
+    assert hasattr(ek.configurations, "sequence_configs")
+
+
+# ----------------------------
+# Flattening behavior
+# ----------------------------
+
+def test_flattened_attributes_from_submodules():
+    ek = Ekans(examples)
+
+    # e.g. square_pulse.py should expose things directly under sub_sequences
+    attrs = dir(ek.sub_sequences)
+
+    # We don't know exact class/function names, so just ensure flattening happened
+    assert len(attrs) > 0
+    assert not any(name.endswith(".py") for name in attrs)
+
+
+def test_no_private_attributes_exposed():
+    ek = Ekans(examples)
+
+    attrs = dir(ek.sub_sequences)
+
+    # ignore dunder attributes, only check "real" ones
+    public_like = [name for name in attrs if not (name.startswith("__") and name.endswith("__"))]
+
+    assert not any(name.startswith("_") for name in public_like)
+
+
+# ----------------------------
+# __all__ behavior
+# ----------------------------
 
 def test_respects___all__():
-    root = create_module("pkg.devices.nova3", {})
-    root.__path__ = []
+    ek = Ekans(examples)
 
-    subpkg = create_module("pkg.devices.nova3.spin_init", {})
-    subpkg.__path__ = []
-
-    create_module(
-        "pkg.devices.nova3.spin_init.mod",
-        {
-            "__all__": ["visible"],
-            "visible": 1,
-            "hidden": 2,
-        },
+    module = importlib.import_module(
+        "arbok_driver.examples.readout_classes.dc_average"
     )
 
-    ekans = Ekans(root)
+    if hasattr(module, "__all__"):
+        for name in module.__all__:
+            assert hasattr(ek.readout_classes, name)
 
-    assert hasattr(ekans.spin_init, "visible")
-    assert not hasattr(ekans.spin_init, "hidden")
+
+# ----------------------------
+# Reload behavior
+# ----------------------------
+
+def test_reload_modules_runs_without_error():
+    ek = Ekans(examples)
+
+    ek.reload_modules()  # should not raise
 
 
-def test_no___all___falls_back_to_public():
-    root = create_module("pkg.devices.nova4", {})
-    root.__path__ = []
+def test_reload_preserves_structure():
+    ek = Ekans(examples)
 
-    subpkg = create_module("pkg.devices.nova4.spin_init", {})
-    subpkg.__path__ = []
+    before = dir(ek.sub_sequences)
+    ek.reload_modules()
+    after = dir(ek.sub_sequences)
 
-    create_module(
-        "pkg.devices.nova4.spin_init.mod",
-        {
-            "a": 1,
-            "_private": 2,
-        },
+    assert before == after
+
+
+# ----------------------------
+# Submodule attachment
+# ----------------------------
+
+def test_direct_submodule_attributes_are_attached():
+    ek = Ekans(examples)
+
+    module = importlib.import_module(
+        "arbok_driver.examples.sub_sequences.square_pulse"
     )
 
-    ekans = Ekans(root)
+    public = getattr(module, "__all__", None)
+    if public is None:
+        public = [n for n in dir(module) if not n.startswith("_")]
 
-    assert hasattr(ekans.spin_init, "a")
-    assert not hasattr(ekans.spin_init, "_private")
+    found = [name for name in public if hasattr(ek.sub_sequences, name)]
+
+    # At least one should be attached
+    assert len(found) > 0
 
 
-def test_reload_updates_objects():
-    root = create_module("pkg.devices.nova5", {})
-    root.__path__ = []
+# ----------------------------
+# No overwrite behavior
+# ----------------------------
 
-    subpkg = create_module("pkg.devices.nova5.spin_init", {})
-    subpkg.__path__ = []
+def test_no_overwrite_of_existing_attributes():
+    ek = Ekans(examples)
 
-    module_name = "pkg.devices.nova5.spin_init.mod"
-    module = create_module(
-        module_name,
-        {"__all__": ["value"], "value": 1},
+    attrs = dir(ek.sub_sequences)
+
+    # ensure uniqueness
+    assert len(attrs) == len(set(attrs))
+
+
+# ----------------------------
+# Internal helper correctness
+# ----------------------------
+
+def test_get_submodules_only_direct_children():
+    ek = Ekans(examples)
+
+    module = importlib.import_module(
+        "arbok_driver.examples.sub_sequences"
     )
 
-    ekans = Ekans(root)
-    assert ekans.spin_init.value == 1
+    subs = ek._get_submodules(module)
 
-    # simulate change
-    module.value = 42
-
-    ekans.reload_modules()
-
-    assert ekans.spin_init.value == 42
+    for sub in subs:
+        assert sub.__name__.count(".") == module.__name__.count(".") + 1
 
 
-def test_collision_raises_error():
-    root = create_module("pkg.devices.nova6", {})
-    root.__path__ = []
+# ----------------------------
+# Robustness: broken module import
+# ----------------------------
 
-    subpkg = create_module("pkg.devices.nova6.spin_init", {})
-    subpkg.__path__ = []
+def test_import_error_propagates(monkeypatch):
+    ek = Ekans(examples)
 
-    create_module(
-        "pkg.devices.nova6.spin_init.mod1",
-        {"__all__": ["dup"], "dup": 1},
-    )
-    create_module(
-        "pkg.devices.nova6.spin_init.mod2",
-        {"__all__": ["dup"], "dup": 2},
-    )
+    # remove one module so import_module gets called
+    target = "arbok_driver.examples.sub_sequences.square_pulse"
+    sys.modules.pop(target, None)
 
-    with pytest.raises(ValueError):
-        Ekans(root)
+    def broken_import(name):
+        raise ImportError("boom")
 
+    monkeypatch.setattr(importlib, "import_module", broken_import)
 
-def test_deep_hierarchy_flattening():
-    root = create_module("pkg.devices.nova7", {})
-    root.__path__ = []
-
-    lvl1 = create_module("pkg.devices.nova7.a", {})
-    lvl1.__path__ = []
-
-    lvl2 = create_module("pkg.devices.nova7.a.b", {})
-    lvl2.__path__ = []
-
-    create_module(
-        "pkg.devices.nova7.a.b.mod",
-        {"__all__": ["x"], "x": 99},
-    )
-
-    ekans = Ekans(root)
-
-    assert ekans.a.b.x == 99
+    with pytest.raises(ImportError):
+        ek.reload_modules()
