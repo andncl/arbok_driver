@@ -114,7 +114,6 @@ class Measurement(SequenceBase):
         if sequence_config is not None:
             s_c.update(sequence_config)
         # refresh the master config and overwrite the device config with it
-        device.reload_master_config()
         if device.master_config is not None:
             s_c.update(device.master_config)
         return s_c
