@@ -7,12 +7,16 @@
 
 A dynamically generated [QCoDeS](https://github.com/microsoft/Qcodes) instrument for your FPGA based measurements using the Quantum Machines [OPX+](https://www.quantum-machines.co/products/opx/)/[OPX1000](https://www.quantum-machines.co/products/opx1000/).
 
+---
+
 ## Installation 📲
 [From pypi](https://pypi.org/project/arbok-driver/) install using pip in your environment:
 ```bash
 pip install arbok-inspector
 ```
 Even better if you are using uv, a uv.lock file is included!
+
+---
 
 ## Features 🛠️
 - <u>**Abstraction:**</u> In contrast to traditional static QCoDeS instruments with a fixed set of parameters determined at driver design time, arbok is dynamically generated for the FPGA program itself each time a measurement is run. FPGA progam parameters such as wait times, voltages, and frequencies etc. are automatically exposed through the QCoDeS instrument, without the user needing to interact with or even see the underlying FPGA code.
@@ -27,18 +31,34 @@ Even better if you are using uv, a uv.lock file is included!
 
 - <u>**Asynchronicity:**</u> Support for asynchronously running sequences like qubit state heralding or live qubit feedback (e.g Larmor, Rabi)
 
+---
+
 ## Tutorials 🎓
 
-Running measurements from existing sub-modules and readouts is very easy and is covered in the first 2 tutorials.
-Tutorial 3 covers the manual writing of an experiment to easily run a certain type of measurement over and over again.
-Manual writing of a `ReadoutSequence` and an `AbstractReadout` will be the subject of tutorial 5.
-Finally we cover the `GenericTuningInterface` to implement a simple auto-tuning routine.
+The tutorial series introduces the core concepts of the *arbok* framework, guiding you from running basic measurements to building modular, scalable, and automated experiments.
 
-[Tutorial 0: Getting started](docs/0_Measurement_example.ipynb)
+- [Tutorial 0: **Getting started**](docs/0_Measurement_example.ipynb)   
+>Set up your environment, initialise your device, and run a first measurement using existing sequences.
 
-[Tutorial 1:](docs/1_parameterizing_sequences.ipynb)
+- [Tutorial 1: **Parameterising sequences**](docs/1_parameterizing_sequences.ipynb)  
+>Learn how FPGA program parameters (e.g. voltages, timings, frequencies) are exposed through the QCoDeS interface and how to configure them dynamically.
 
-[Tutorial 2:](docs/2_Readout_sequences.ipynb)
+- [Tutorial 2: **Readout sequences**](docs/2_Readout_sequences.ipynb)  
+>Understand how to use and compose `ReadSequence`s to extract measurement results in a structured and reusable way.
+
+- [Tutorial 3: **Experiments**](docs/3_Experiments.ipynb)   
+>Build higher-level experiment abstractions to repeatedly run and organise complex measurement routines.
+
+- [Tutorial 4: **Tuning interface**](docs/4_Tuning_interface.ipynb)
+>Implement automated tuning and calibration routines using the `GenericTuningInterface`, enabling adaptive and scalable workflows without recompilation of FPGA instructions
+
+Together, these tutorials demonstrate how *arbok* enables:
+- Modular composition of measurements from reusable building blocks  
+- Full parameter control without modifying FPGA/qua code  
+- Seamless scaling from small devices to larger quantum systems  
+- Fast iteration through dynamic reloading with `Ekans`  
+
+---
 
 ## Stripping jupyter notebooks 📒
 

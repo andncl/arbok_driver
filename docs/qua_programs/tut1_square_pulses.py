@@ -1,5 +1,5 @@
 
-# Single QUA script generated at 2026-03-19 06:08:17.314374
+# Single QUA script generated at 2026-03-28 03:07:58.818536
 # QUA library version: 1.2.5
 
 
@@ -21,7 +21,7 @@ with program() as prog:
         save(v1, r0)
         align()
     with stream_processing():
-        r0.buffer(1).save("qm_driver_dummy_squence_shots")
+        r0.buffer(1).save("qm_driver_mock_measurement_shots")
 
 config = None
 
