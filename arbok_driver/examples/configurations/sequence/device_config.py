@@ -4,7 +4,7 @@ from qcodes import validators
 from arbok_driver.parameter_types import (
     Time, Voltage, Frequency, List, Int
 )
-from arbok_driver.examples.configurations import (
+from arbok_driver.examples.configurations.sequence import (
     square_pulse_conf,
     square_pulse_scalable_conf
 )

@@ -1,6 +1,6 @@
 
 from arbok_driver.examples.sub_sequences import StabilityMap
-from arbok_driver.examples.configurations import (
+from arbok_driver.examples.configurations.sequence import (
     stability_map_config
 )
 def test_stability_map(mock_measurement):

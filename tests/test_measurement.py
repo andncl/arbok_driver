@@ -7,13 +7,13 @@ import pytest
 from qm import generate_qua_script
 
 from arbok_driver import Measurement, SubSequence, ParameterClass
-from arbok_driver.examples.configurations import (
+from arbok_driver.examples.configurations.hardware import (
     divider_config
 )
 from arbok_driver.examples.sub_sequences import (
     SquarePulseScalable, ParityInit, ParityRead
     )
-from arbok_driver.examples.configurations import (
+from arbok_driver.examples.configurations.sequence import (
     parity_init_conf, parity_read_conf
 )
 from arbok_driver.parameter_types import (

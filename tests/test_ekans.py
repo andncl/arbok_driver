@@ -54,8 +54,8 @@ def test_namespace_structure_exists():
 def test_nested_namespace():
     ek = Ekans(examples)
 
-    assert hasattr(ek.configurations, "hardware_configs")
-    assert hasattr(ek.configurations, "sequence_configs")
+    assert hasattr(ek.configurations, "hardware")
+    assert hasattr(ek.configurations, "sequence")
 
 
 # ----------------------------

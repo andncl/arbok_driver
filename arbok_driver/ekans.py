@@ -44,20 +44,8 @@ class Ekans:
         """Reload all modules and rebuild the attribute tree."""
         module_names: List[str] = self._collect_module_names()
         module_names.sort(key=lambda name: name.count("."), reverse=True)
-
-        for name in module_names:
-            try:
-                if name in sys.modules:
-                    module = sys.modules[name]
-                    if getattr(module, "__spec__", None) is not None:
-                        importlib.reload(module)
-                else:
-                    importlib.import_module(name)  # ← THIS is what you're missing
-
-            except Exception as e:
-                print(f"Error importing {name}: {e}")
-                raise
-
+        # Module name order is reversed to reload leaf modules first, root last
+        self._import_or_reload_modules(module_names)
         self._build_attribute_tree(module_names)
 
     def _collect_module_names(self) -> List[str]:
@@ -69,10 +57,31 @@ class Ekans:
                 root.__path__, prefix=root.__name__ + "."
             ):
                 module_names.append(module_info.name)
-
         return module_names
 
+    def _import_or_reload_modules(self, module_names: List[str]) -> None:
+        """Walks through module names and imports/ reloads all"""
+        for name in module_names:
+            try:
+                if name in sys.modules:
+                    module = sys.modules[name]
+                    if getattr(module, "__spec__", None) is not None:
+                        importlib.reload(module)
+                else:
+                    importlib.import_module(name)
+
+            except Exception as e:
+                print(f"Error importing {name}: {e}")
+                raise e
+
     def _build_attribute_tree(self, module_names: List[str]) -> None:
+        """
+        Build namespace in two phases:
+        1. Create full tree (packages + modules)
+        2. Attach __all__ exports
+        """
+
+        # --- 1. Clear existing public attributes ---
         for key in list(self.__dict__.keys()):
             if not key.startswith("_"):
                 delattr(self, key)
@@ -80,12 +89,15 @@ class Ekans:
         root_name = self._root_module.__name__
         root_prefix = root_name + "."
 
+        # Keep track of nodes for second pass
+        node_map: Dict[str, Any] = {}
+
+        # --- 2. First pass: build structure only ---
         for full_name in module_names:
             module = sys.modules.get(full_name)
             if not isinstance(module, ModuleType):
                 continue
 
-            # Strip root prefix
             if full_name == root_name:
                 parts: List[str] = []
             else:
@@ -100,30 +112,46 @@ class Ekans:
 
             if not parts:
                 node = self
+                node_map[full_name] = node
+                continue
+
+            name = parts[-1]
+
+            if hasattr(module, "__path__"):
+                if not hasattr(parent, name):
+                    setattr(parent, name, _NamespaceNode())
+                node = getattr(parent, name)
             else:
-                name = parts[-1]
+                # attach leaf module
+                setattr(parent, name, module)
+                node = module  # not used for exports
 
-                if hasattr(module, "__path__"):
-                    if not hasattr(parent, name):
-                        setattr(parent, name, _NamespaceNode())
-                    node = getattr(parent, name)
-                else:
-                    node = parent
+            node_map[full_name] = node
 
-            self._attach_module_attributes(node, module)
+        # --- 3. Second pass: attach __all__ exports ---
+        for full_name, node in node_map.items():
+            module = sys.modules.get(full_name)
+            if not isinstance(module, ModuleType):
+                continue
 
-    def _attach_module_attributes(
-        self, node: _NamespaceNode, module: ModuleType
-    ) -> None:
-        public_names = getattr(module, "__all__", None)
+            # Only attach to namespace nodes (i.e. packages)
+            if not hasattr(module, "__path__") and full_name != root_name:
+                continue
 
-        if public_names is None:
-            public_names = [
-                name for name in dir(module)
-                if not name.startswith("_")
-            ]
+            public_names = getattr(module, "__all__", [])
 
-        # Attach module's own attributes
+            for attr_name in public_names:
+                try:
+                    value = getattr(module, attr_name)
+                except AttributeError:
+                    continue
+
+                setattr(node, attr_name, value)
+
+    def _attach_module_attributes(self, node, module):
+        # Only respect explicit API
+        public_names = getattr(module, "__all__", [])
+
         for attr_name in public_names:
             try:
                 value = getattr(module, attr_name)
@@ -131,28 +159,8 @@ class Ekans:
                 continue
             setattr(node, attr_name, value)
 
-        # also pull from direct submodules if this is a package
-        if hasattr(module, "__path__"):
-            for submodule in self._get_submodules(module):
-                sub_public = getattr(submodule, "__all__", None)
-
-                if sub_public is None:
-                    sub_public = [
-                        name for name in dir(submodule)
-                        if not name.startswith("_")
-                    ]
-
-                for attr_name in sub_public:
-                    try:
-                        value = getattr(submodule, attr_name)
-                    except AttributeError:
-                        continue
-
-                    # avoid overwriting existing names
-                    if not hasattr(node, attr_name):
-                        setattr(node, attr_name, value)
-
     def _get_submodules(self, module: ModuleType) -> List[ModuleType]:
+        """Gets submodules"""
         prefix = module.__name__ + "."
         return [
             m for name, m in sys.modules.items()

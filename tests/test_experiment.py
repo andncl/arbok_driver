@@ -4,7 +4,7 @@ from arbok_driver.examples.experiments import (
     SquarePulseExperiment,
     SquarePulseExperimentWithDefaults
 )
-from arbok_driver.examples.configurations import square_pulse_conf
+from arbok_driver.examples.configurations.sequence import square_pulse_conf
 
 def test_measurement_creation_from_experiment(arbok_driver, dummy_device):
 

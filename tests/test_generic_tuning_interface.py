@@ -4,7 +4,7 @@ import pytest
 import re
 import numpy as np
 
-from arbok_driver.examples.configurations import (
+from arbok_driver.examples.configurations.sequence import (
     parity_init_conf, parity_read_conf
 )
 
