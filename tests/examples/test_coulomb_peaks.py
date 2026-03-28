@@ -1,6 +1,6 @@
 
 from arbok_driver.examples.sub_sequences import CoulombPeaks
-from arbok_driver.examples.configurations import (
+from arbok_driver.examples.configurations.sequence import (
     coulomb_peaks_set1_set2_conf
 )
 def test_coulomb_peaks(mock_measurement):

@@ -3,7 +3,7 @@ Module containing a simple child class of Experiment containing a single
 sub-sequence of type SquarePulse
 """
 from arbok_driver import Device, Experiment
-from arbok_driver.examples.configurations import square_pulse_conf
+from arbok_driver.examples.configurations.sequence import square_pulse_conf
 
 class SquarePulseExperiment(Experiment):
     """Experiment containing only a single sub-sequence of type SquarePulse"""

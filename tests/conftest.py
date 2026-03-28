@@ -11,12 +11,14 @@ from arbok_driver import (
     SequenceParameter,
     SubSequence,
 )
-from arbok_driver.examples.configurations import (
+from arbok_driver.examples.configurations.hardware import (
+    opx1000_config,
+    divider_config,
+)
+from arbok_driver.examples.configurations.sequence import (
     device_config,
     square_pulse_conf,
     square_pulse_scalable_conf,
-    opx1000_config,
-    divider_config,
     stability_map_config
 )
 from arbok_driver.examples.sub_sequences import (
