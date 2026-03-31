@@ -1012,8 +1012,8 @@ class Measurement(SequenceBase):
         """
         results_dict = {}
         result_handles = self.driver.qm_job.result_handles
-        for stream_name, _ in self.gettables.items():
-            results_dict[stream_name] = result_handles[stream_name].fetch_all()
+        for stream_name, gettable in self.gettables.items():
+            results_dict[gettable] = result_handles[stream_name].fetch_all()
         return results_dict
 
     def _mock_wait_until_result_buffer_full(
