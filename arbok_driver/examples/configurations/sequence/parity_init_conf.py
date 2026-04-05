@@ -5,7 +5,7 @@ from arbok_driver.parameter_types import (
     Time, Voltage, List
 )
 
-from arbok_driver.examples.sub_sequences.parity_initialization import ParityInit
+from arbok_driver.examples.sequences.parity_initialization import ParityInit
 
 parity_init_conf = {
     'sequence': ParityInit,

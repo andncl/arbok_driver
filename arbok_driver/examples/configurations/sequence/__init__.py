@@ -6,7 +6,8 @@ from .square_pulse_confs import (
     square_pulse_conf,
     square_pulse_scalable_conf,
 )
-from .stability_map_config import stability_map_config
+from .stability_8q_config import stability_8q_conf
+from .stability_2q_config import stability_2q_conf
 from .device_config import device_config
 
 __all__ = [
@@ -15,6 +16,7 @@ __all__ = [
     "parity_read_conf",
     "square_pulse_conf",
     "square_pulse_scalable_conf",
-    "stability_map_config",
+    "stability_8q_conf",
+    "stability_2q_conf",
     "device_config",
 ]

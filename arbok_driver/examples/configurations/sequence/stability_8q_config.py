@@ -5,7 +5,7 @@ from arbok_driver.examples.readout_classes import (
 )
 from arbok_driver.examples.sequences import StabilityMap
 
-stability_map_config = {
+stability_8q_conf = {
     'sequence': StabilityMap,
     'parameters': {
         'iteration': {

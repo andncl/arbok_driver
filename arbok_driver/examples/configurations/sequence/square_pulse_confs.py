@@ -3,7 +3,7 @@ from arbok_driver.parameter_types import (
     Amplitude, List, String, Time, Voltage
 )
 
-from arbok_driver.examples.sub_sequences import SquarePulse, SquarePulseScalable
+from arbok_driver.examples.sequences import SquarePulse, SquarePulseScalable
 
 square_pulse_conf = {
     "sequence": SquarePulse,

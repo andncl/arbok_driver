@@ -7,7 +7,7 @@ from arbok_driver.examples.readout_classes import (
     DcAverage,
     DcChoppedReadout,
 )
-from arbok_driver.examples.sub_sequences import CoulombPeaks
+from arbok_driver.examples.sequences import CoulombPeaks
 
 coulomb_peaks_set1_set2_conf = {
     'sequence': CoulombPeaks,
