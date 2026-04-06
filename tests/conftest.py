@@ -19,9 +19,9 @@ from arbok_driver.examples.configurations.sequence import (
     device_config,
     square_pulse_conf,
     square_pulse_scalable_conf,
-    stability_map_config
+    stability_8q_conf
 )
-from arbok_driver.examples.sub_sequences import (
+from arbok_driver.examples.sequences import (
     SquarePulse,
     SquarePulseScalable,
     StabilityMap
@@ -127,7 +127,7 @@ def read_sequence_no_readouts(mock_measurement, dummy_device):
 def stability_map(mock_measurement, dummy_device):
     """Returns dummy subsequence with a few parameters"""
     stability_map = StabilityMap(
-        mock_measurement, 'stability_map', stability_map_config)
+        mock_measurement, 'stability_map', stability_8q_conf)
     yield stability_map
 
 @pytest.fixture

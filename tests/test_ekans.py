@@ -34,7 +34,7 @@ def test_collects_modules():
 
     # sanity checks
     assert any("examples.configurations" in m for m in modules)
-    assert any("examples.sub_sequences" in m for m in modules)
+    assert any("examples.sequences" in m for m in modules)
     assert any("examples.readout_classes" in m for m in modules)
 
 
@@ -48,7 +48,7 @@ def test_namespace_structure_exists():
     assert hasattr(ek, "configurations")
     assert hasattr(ek, "experiments")
     assert hasattr(ek, "readout_classes")
-    assert hasattr(ek, "sub_sequences")
+    assert hasattr(ek, "sequences")
 
 
 def test_nested_namespace():
@@ -65,8 +65,8 @@ def test_nested_namespace():
 def test_flattened_attributes_from_submodules():
     ek = Ekans(examples)
 
-    # e.g. square_pulse.py should expose things directly under sub_sequences
-    attrs = dir(ek.sub_sequences)
+    # e.g. square_pulse.py should expose things directly under sequences
+    attrs = dir(ek.sequences)
 
     # We don't know exact class/function names, so just ensure flattening happened
     assert len(attrs) > 0
@@ -76,7 +76,7 @@ def test_flattened_attributes_from_submodules():
 def test_no_private_attributes_exposed():
     ek = Ekans(examples)
 
-    attrs = dir(ek.sub_sequences)
+    attrs = dir(ek.sequences)
 
     # ignore dunder attributes, only check "real" ones
     public_like = [name for name in attrs if not (name.startswith("__") and name.endswith("__"))]
@@ -113,9 +113,9 @@ def test_reload_modules_runs_without_error():
 def test_reload_preserves_structure():
     ek = Ekans(examples)
 
-    before = dir(ek.sub_sequences)
+    before = dir(ek.sequences)
     ek.reload_modules()
-    after = dir(ek.sub_sequences)
+    after = dir(ek.sequences)
 
     assert before == after
 
@@ -128,14 +128,14 @@ def test_direct_submodule_attributes_are_attached():
     ek = Ekans(examples)
 
     module = importlib.import_module(
-        "arbok_driver.examples.sub_sequences.square_pulse"
+        "arbok_driver.examples.sequences.square_pulse"
     )
 
     public = getattr(module, "__all__", None)
     if public is None:
         public = [n for n in dir(module) if not n.startswith("_")]
 
-    found = [name for name in public if hasattr(ek.sub_sequences, name)]
+    found = [name for name in public if hasattr(ek.sequences, name)]
 
     # At least one should be attached
     assert len(found) > 0
@@ -148,7 +148,7 @@ def test_direct_submodule_attributes_are_attached():
 def test_no_overwrite_of_existing_attributes():
     ek = Ekans(examples)
 
-    attrs = dir(ek.sub_sequences)
+    attrs = dir(ek.sequences)
 
     # ensure uniqueness
     assert len(attrs) == len(set(attrs))
@@ -162,7 +162,7 @@ def test_get_submodules_only_direct_children():
     ek = Ekans(examples)
 
     module = importlib.import_module(
-        "arbok_driver.examples.sub_sequences"
+        "arbok_driver.examples.sequences"
     )
 
     subs = ek._get_submodules(module)
@@ -179,7 +179,7 @@ def test_import_error_propagates(monkeypatch):
     ek = Ekans(examples)
 
     # remove one module so import_module gets called
-    target = "arbok_driver.examples.sub_sequences.square_pulse"
+    target = "arbok_driver.examples.sequences.square_pulse"
     sys.modules.pop(target, None)
 
     def broken_import(name):

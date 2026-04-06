@@ -5,7 +5,7 @@ from .arbok_driver import ArbokDriver
 from .device import Device
 from .ekans import Ekans
 from .experiment import Experiment
-from .generic_tunig_interface import GenericTuningInterface
+from .generic_tuning_interface import GenericTuningInterface
 from .parameters.gettable_parameter import GettableParameter
 from .parameter_class import EmptyParameterClass, ParameterClass
 from .measurement import Measurement

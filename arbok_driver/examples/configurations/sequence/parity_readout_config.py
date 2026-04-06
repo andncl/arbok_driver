@@ -9,7 +9,7 @@ from arbok_driver.examples.readout_classes import (
     Threshold,
 ) 
 
-from arbok_driver.examples.sub_sequences.parity_readout import ParityRead
+from arbok_driver.examples.sequences.parity_readout import ParityRead
 
 parity_read_conf = {
     'sequence': ParityRead,

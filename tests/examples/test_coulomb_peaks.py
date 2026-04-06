@@ -1,5 +1,5 @@
 
-from arbok_driver.examples.sub_sequences import CoulombPeaks
+from arbok_driver.examples.sequences import CoulombPeaks
 from arbok_driver.examples.configurations.sequence import (
     coulomb_peaks_set1_set2_conf
 )

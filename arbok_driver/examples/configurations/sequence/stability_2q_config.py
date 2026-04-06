@@ -5,7 +5,7 @@ from arbok_driver.examples.readout_classes import (
 )
 from arbok_driver.examples.sequences import StabilityMap
 
-stability_map_config = {
+stability_2q_conf = {
     'sequence': StabilityMap,
     'parameters': {
         'iteration': {
@@ -16,13 +16,7 @@ stability_map_config = {
             'type': List,
             'value': [
                 'P1', 'J1',
-                'P2', 'J2',
-                'P3', 'J3',
-                'P4', 'J4',
-                'P5', 'J5',
-                'P6', 'J6',
-                'P7', 'J7',
-                'P8'
+                'P2'
                 ]
             },
         't_pre_chop': {
@@ -33,26 +27,14 @@ stability_map_config = {
             'type': Voltage,
             'elements': {
                 'P1': 0.3, 'J1': -0.7,
-                'P2': 0.6, 'J2': -0.2,
-                'P3': 0.4, 'J3': -0.8,
-                'P4': 0.7, 'J4': -0.1,
-                'P5': 0.2, 'J5': -0.6,
-                'P6': 0.8, 'J6': -0.3,
-                'P7': 0.5, 'J7': -0.5,
-                'P8': 0.9,
+                'P2': 0.6,
                 }
             },
         'v_home': {
             'type': Voltage,
             'elements': {
                 'P1': 0, 'J1': 0,
-                'P2': 0, 'J2': 0,
-                'P3': 0, 'J3': 0,
-                'P4': 0, 'J4': 0,
-                'P5': 0, 'J5': 0,
-                'P6': 0, 'J6': 0,
-                'P7': 0, 'J7': 0,
-                'P8': 0,
+                'P2': 0,
                 }
             },
         },
@@ -65,9 +47,6 @@ stability_map_config = {
                 'kwargs': {
                     'readout_qua_elements': {
                         'p1p2': 'SET1',
-                        'p3p4': 'SET2',
-                        'p5p6': 'SET3',
-                        'p7p8': 'SET4',
                     }
                 },
                 'parameters': {
@@ -76,12 +55,6 @@ stability_map_config = {
                         'elements': {
                             'P1': 0.01,
                             'P2': -0.01,
-                            'P3': 0.01,
-                            'P4': -0.01,
-                            'P5': 0.01,
-                            'P6': -0.01,
-                            'P7': 0.01,
-                            'P8': -0.01,
                         }
                     },
                     'n_chops': {
@@ -97,4 +70,3 @@ stability_map_config = {
         },
     }
 }
-

@@ -92,7 +92,7 @@ device_config = {
                 'P5': -0.017, 'J5': -0.19,
                 'P6': 0.017, 'J6': 0,
                 'P7': 0, 'J7': -0.63,
-                'P8': 0, #'LCB': 0
+                'P8': 0,
             }
         },
         'v_exchange': {
@@ -109,6 +109,21 @@ device_config = {
                 'P8': 0,
             }
         },
+        't_ramp_to_control': {
+            'type': Time,
+            'label': 'ramp time to control point',
+            'value': int(100/4)
+        },
+        't_wait_pre_control': {
+            'type': Time,
+            'label': 'wait time at home point before ramping to control',
+            'value': int(100/4)
+        },
+        't_wait_post_control': {
+            'type': Time,
+            'label': 'wait time at control point qubit control',
+            'value': int(100/4)
+        }
     },
     'default_sequence_configs': {
         'square_pulse': {
