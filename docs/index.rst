@@ -3,10 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Documentation for the `arbok_driver` package
-=============================================
-
-A wonderful placeholder for a wonderful package
+.. include:: ../README.md
+   :parser: myst_parser.sphinx_
 
 .. toctree::
    :maxdepth: 2

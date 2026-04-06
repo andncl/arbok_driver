@@ -36,18 +36,10 @@ arbok\_driver.experiment module
    :show-inheritance:
    :undoc-members:
 
-arbok\_driver.generic\_tunig\_interface module
+arbok\_driver.generic\_tuning\_interface module
 ----------------------------------------------
 
-.. automodule:: arbok_driver.generic_tunig_interface
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-arbok\_driver.gettable\_parameter module
-----------------------------------------
-
-.. automodule:: arbok_driver.gettable_parameter
+.. automodule:: arbok_driver.generic_tuning_interface
    :members:
    :show-inheritance:
    :undoc-members:
@@ -60,18 +52,10 @@ arbok\_driver.measurement module
    :show-inheritance:
    :undoc-members:
 
-arbok\_driver.measurement\_runner module
-----------------------------------------
+arbok\_driver.parameter\_class module
+-------------------------------------
 
-.. automodule:: arbok_driver.measurement_runner
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-arbok\_driver.observable module
--------------------------------
-
-.. automodule:: arbok_driver.observable
+.. automodule:: arbok_driver.parameter_class
    :members:
    :show-inheritance:
    :undoc-members:
@@ -84,10 +68,10 @@ arbok\_driver.parameter\_types module
    :show-inheritance:
    :undoc-members:
 
-arbok\_driver.qua\_helpers module
----------------------------------
+arbok\_driver.path\_finders module
+----------------------------------
 
-.. automodule:: arbok_driver.qua_helpers
+.. automodule:: arbok_driver.path_finders
    :members:
    :show-inheritance:
    :undoc-members:
@@ -100,14 +84,6 @@ arbok\_driver.read\_sequence module
    :show-inheritance:
    :undoc-members:
 
-arbok\_driver.readout\_point module
------------------------------------
-
-.. automodule:: arbok_driver.readout_point
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 arbok\_driver.sequence\_base module
 -----------------------------------
 
@@ -116,18 +92,18 @@ arbok\_driver.sequence\_base module
    :show-inheritance:
    :undoc-members:
 
-arbok\_driver.sequence\_parameter module
-----------------------------------------
-
-.. automodule:: arbok_driver.sequence_parameter
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 arbok\_driver.signal module
 ---------------------------
 
 .. automodule:: arbok_driver.signal
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+arbok\_driver.sqlalchemy\_classes module
+----------------------------------------
+
+.. automodule:: arbok_driver.sqlalchemy_classes
    :members:
    :show-inheritance:
    :undoc-members:
@@ -152,6 +128,38 @@ arbok\_driver.utils module
 --------------------------
 
 .. automodule:: arbok_driver.utils
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+arbok\_driver.parameters.gettable\_parameter\_base module
+---------------------------------------------------------
+
+.. automodule:: arbok_driver.parameters.gettable_parameter_base
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+arbok\_driver.parameters.gettable\_parameter module
+---------------------------------------------------
+
+.. automodule:: arbok_driver.parameters.gettable_parameter
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+arbok\_driver.parameters.gettable\_parameter\_multi module
+----------------------------------------------------------
+
+.. automodule:: arbok_driver.parameters.gettable_parameter_multi
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+arbok\_driver.parameters.sequence\_parameter module
+---------------------------------------------------
+
+.. automodule:: arbok_driver.parameters.sequence_parameter
    :members:
    :show-inheritance:
    :undoc-members:

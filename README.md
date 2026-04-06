@@ -37,25 +37,28 @@ Even better if you are using uv, a uv.lock file is included!
 
 The tutorial series introduces the core concepts of the *arbok* framework, guiding you from running basic measurements to building modular, scalable, and automated experiments.
 
-- [Tutorial 0: **Getting started**](docs/0_Measurement_example.ipynb)   
+- [Tutorial 0: **Getting started**](https://arbok-driver.readthedocs.io/en/latest/0_Measurement_example.html)
 >Set up your environment, initialise your device, and run a first measurement using existing sequences.
 
-- [Tutorial 1: **Parameterising sequences**](docs/1_parameterizing_sequences.ipynb)  
+- [Tutorial 1: **Parameterising sequences**](https://arbok-driver.readthedocs.io/en/latest/1_parameterizing_sequences.html)
 >Learn how FPGA program parameters (e.g. voltages, timings, frequencies) are exposed through the QCoDeS interface and how to configure them dynamically.
 
-- [Tutorial 2: **Readout sequences**](docs/2_Readout_sequences.ipynb)  
+- [Tutorial 2: **Readout sequences**](https://arbok-driver.readthedocs.io/en/latest/2_Readout_sequences.html)
 >Understand how to use and compose `ReadSequence`s to extract measurement results in a structured and reusable way.
 
-- [Tutorial 3: **Experiments**](docs/3_Experiments.ipynb)   
+- [Tutorial 3: **Experiments**](https://arbok-driver.readthedocs.io/en/latest/3_Experiments.html)
 >Build higher-level experiment abstractions to repeatedly run and organise complex measurement routines.
 
-- [Tutorial 4: **Tuning interface**](docs/4_Tuning_interface.ipynb)
+- [Tutorial 4: **Tuning interface**](https://arbok-driver.readthedocs.io/en/latest/4_Tuning_interface.html)
 >Implement automated tuning and calibration routines using the `GenericTuningInterface`, enabling adaptive and scalable workflows without recompilation of FPGA instructions
 
+- [Tutorial 5: **Ekans**](https://arbok-driver.readthedocs.io/en/latest/5_Ekans.html)
+>Learn about dynamic FPGA program reloading and real-time parameter updates for fast iteration and adaptive measurements
+
 Together, these tutorials demonstrate how *arbok* enables:
-- Modular composition of measurements from reusable building blocks  
-- Full parameter control without modifying FPGA/qua code  
-- Seamless scaling from small devices to larger quantum systems  
+- Modular composition of measurements from reusable building blocks
+- Full parameter control without modifying FPGA/qua code
+- Seamless scaling from small devices to larger quantum systems
 - Fast iteration through dynamic reloading with `Ekans`  
 
 ---
