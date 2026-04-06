@@ -1,5 +1,5 @@
 from arbok_driver.parameter_types import Voltage, Time, String
-from arbok_driver.examples.sub_sequences import SquarePulse
+from arbok_driver.examples.sequences import SquarePulse
 
 square_pulse_config = {
     'sequence': SquarePulse,

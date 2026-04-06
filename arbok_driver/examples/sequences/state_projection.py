@@ -11,7 +11,6 @@ from .y_strict import Ystrict
 class StateProjParameters(ParameterClass):
     gate_elements: List
     qubit_elements: List
-    target_qubit: List
     projection: Int
 
 class StateProjection(SubSequence):

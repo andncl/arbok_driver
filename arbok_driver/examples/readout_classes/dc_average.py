@@ -52,7 +52,7 @@ class DcAverage(AbstractReadout):
         outputs = [
             qua.integration.full('x_const', self.current_gettable.qua_result_var),
             ]
-        qua.measure('measure', self.qua_element, None, *outputs)
+        qua.measure('measure', self.qua_element, *outputs)
 
     def _create_gettables(self):
         self.current_gettable: GettableParameter = self.create_gettable(

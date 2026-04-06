@@ -3,7 +3,6 @@ import pytest
 
 from arbok_driver import SequenceParameter
 from arbok_driver.parameter_types import Time, Voltage
-from .helpers import set_sweeps_args
 from .conftest import (
     SquarePulse, UserSubSequence, UserSubSequenceAlt,
     square_pulse_conf, square_pulse_scalable_conf

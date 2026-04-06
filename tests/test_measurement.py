@@ -10,7 +10,7 @@ from arbok_driver import Measurement, SubSequence, ParameterClass
 from arbok_driver.examples.configurations.hardware import (
     divider_config
 )
-from arbok_driver.examples.sub_sequences import (
+from arbok_driver.examples.sequences import (
     SquarePulseScalable, ParityInit, ParityRead
     )
 from arbok_driver.examples.configurations.sequence import (

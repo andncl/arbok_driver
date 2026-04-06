@@ -1,6 +1,6 @@
 
 import pytest
-from arbok_driver.examples.sub_sequences import (
+from arbok_driver.examples.sequences import (
     SquarePulse, SquarePulseLegacy
 )
 from arbok_driver.parameter_types import Amplitude, String, Time

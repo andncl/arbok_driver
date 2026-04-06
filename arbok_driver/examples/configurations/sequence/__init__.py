@@ -1,7 +1,7 @@
 """Module containing sequence configs"""
 from .coulomb_peaks_config import coulomb_peaks_set1_set2_conf
-from .parity_init_conf import parity_init_conf
-from .parity_readout_conf import parity_read_conf
+from .parity_init_config import parity_init_conf
+from .parity_readout_config import parity_read_conf
 from .square_pulse_confs import (
     square_pulse_conf,
     square_pulse_scalable_conf,
