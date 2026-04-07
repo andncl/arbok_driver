@@ -3,7 +3,6 @@ from .from_control_point import FromControlPoint
 from .parity_initialization import ParityInit
 from .parity_readout import ParityRead
 from .square_pulse import SquarePulse
-from .square_pulse_legacy import SquarePulseLegacy
 from .square_pulse_scalable import SquarePulseScalable
 from .stability_map import StabilityMap
 from .to_control_point import ToControlPoint
@@ -21,7 +20,6 @@ __all__ = [
     "ParityInit",
     "ParityRead",
     "SquarePulse",
-    "SquarePulseLegacy",
     "SquarePulseScalable",
     "StabilityMap",
     "StateProjection",

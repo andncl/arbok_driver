@@ -1,7 +1,7 @@
 
 import pytest
 from arbok_driver.examples.sequences import (
-    SquarePulse, SquarePulseLegacy
+    SquarePulse
 )
 from arbok_driver.parameter_types import Amplitude, String, Time
 
