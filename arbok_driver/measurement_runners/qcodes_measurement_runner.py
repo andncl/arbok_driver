@@ -1,12 +1,9 @@
 """Module containing the MeasurementRunner class."""
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from datetime import datetime
 import logging
-import os
 from pathlib import Path
 
-import qcodes
 from qm import generate_qua_script
 import numpy as np
 from qcodes.dataset.sqlite.database import get_DB_location
@@ -15,15 +12,18 @@ from .measurement_runner_base import MeasurementRunnerBase
 
 if TYPE_CHECKING:
     from arbok_driver.measurement import Measurement
-    from arbok_driver.measurement_runners.parameters.sequence_parameter import SequenceParameter
-    from qm.program import Program
-    from qcodes.dataset.data_set import DataSet as QcDataSet
-    from qcodes.dataset.measurements import Measurement as QcMeasurement
+    from arbok_driver.parameters.sequence_parameter import SequenceParameter
+    from qm import Program
+    from qcodes.dataset import DataSetProtocol
+    from qcodes.dataset.measurements import DataSaver
+    from xarray import Dataset
 
 class QCodesMeasurementRunner(MeasurementRunnerBase):
     """
     Helper class constructing QCoDeS measurement loops
     """
+    datasaver: DataSaver
+    qc_dataset: DataSetProtocol
 
     def __init__(
         self,
@@ -37,8 +37,6 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
             register_all=register_all
         )
         self.qc_measurement  = measurement.get_qc_measurement()
-        self.datasaver: QcMeasurement | None = None
-        self.qc_dataset: QcDataSet | None = None
 
     def _prepare_measurement(self) -> None:
         """
@@ -66,7 +64,7 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
             self.measurement.driver.device.config
             )
 
-    def _run_measurement(self) -> QcMeasurement:
+    def _run_measurement(self) -> None:
         """
         Builds the QCoDeS measurement object for the measurement.
         """
@@ -76,9 +74,8 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
             self._auto_save_qua_program()
             self._create_recursive_measurement_loop(self.ext_sweep_list)
             print("Measurement finished!")
-        return datasaver
 
-    def _save_results(self, results_xr: xr.Dataset) -> None:
+    def _save_results(self, results_xr: Dataset) -> None:
         """
         Saves the results of the measurement to the datasaver.
         
