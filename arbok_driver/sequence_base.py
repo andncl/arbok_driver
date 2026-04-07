@@ -19,8 +19,7 @@ from .parameter_types import ParameterMap
 from . import utils
 
 if TYPE_CHECKING:
-    from qm.grpc.qua import QuaProgram
-
+    from qm import Program
     from .device import Device
     from .sub_sequence import SubSequence
 
@@ -197,7 +196,7 @@ class SequenceBase(InstrumentModule, ABC):
             self.get_qua_program()
         return self._qua_program_as_str
 
-    def get_qua_program(self, simulate = False, config = None) -> QuaProgram:
+    def get_qua_program(self, simulate = False, config = None) -> Program:
         """
         Composes the entire sequence by searching recursively through init, 
         sequence and stream methods of all subsequences and their subsequences.
@@ -215,7 +214,7 @@ class SequenceBase(InstrumentModule, ABC):
         self._qua_program_as_str = generate_qua_script(prog, config)
         return prog
 
-    def get_qua_code(self, simulate = False):
+    def get_qua_code(self, simulate = False) -> None:
         """
         Composes the entire qua sequence in qua code. Only execurte with
         qm.qua.program() environment

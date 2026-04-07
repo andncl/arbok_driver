@@ -35,12 +35,12 @@ if TYPE_CHECKING:
     from arbok_driver.measurement_runners.measurement_runner_base import (
         MeasurementRunnerBase,
     )
-    from numpy import ndarray
+    from numpy.typing import NDArray
     from qcodes.dataset import Measurement as QcMeasurement
     from qcodes.dataset.experiment_container import Experiment as QcExperiment
+    from qm import Program
     from qm.qua._expressions import QuaVariable
     from qm.qua._dsl.stream_processing.stream_processing import ResultStreamSource
-    from qm.grpc.qua import QuaProgram
     from xarray import Dataset as XrDataset
 
 class Measurement(SequenceBase):
@@ -49,6 +49,7 @@ class Measurement(SequenceBase):
     shot_tracker_qua_stream: ResultStreamSource
     mock_steps: int = 10
     mock_delay: float = 0.5
+    qua_program: Program
 
     def __init__(
             self,
@@ -330,7 +331,7 @@ class Measurement(SequenceBase):
         for sub_sequence in self.sub_sequences:
             sub_sequence.qua_stream()
 
-    def set_sweeps(self, *args: dict[SequenceParameter, Sequence]
+    def set_sweeps(self, *args: dict[SequenceParameter, Sequence | NDArray]
                    ) -> None:
         """
         Sets the given sweeps from its dict type arguments. Each argument
@@ -492,7 +493,7 @@ class Measurement(SequenceBase):
                 gettables.append(gettable)
         return gettables
 
-    def get_qua_code(self, simulate = False) -> QuaProgram:
+    def get_qua_code(self, simulate = False) -> None:
         """
         Compiles all qua code from its sub-sequences and writes their loops
         
@@ -529,7 +530,7 @@ class Measurement(SequenceBase):
         with qua.stream_processing():
             self.qua_stream()
 
-    def compile_qua_and_run(self, save_path: str | None = None) -> QuaProgram:
+    def compile_qua_and_run(self, save_path: str | None = None) -> Program:
         """Compiles the QUA code and runs it"""
         self.reset_registered_gettables()
         self.register_gettables(*list(self.gettables.values()))
