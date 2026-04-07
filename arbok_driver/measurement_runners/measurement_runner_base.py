@@ -31,7 +31,10 @@ class MeasurementRunnerBase(ABC):
         ):
         self.measurement = measurement
         self.arbok_driver = measurement.driver
-        self.ext_sweep_list = ext_sweep_list
+        if ext_sweep_list is None:
+            self.ext_sweep_list = []
+        else:
+            self.ext_sweep_list = ext_sweep_list
         self.external_param_values = self._get_external_params(
             self.ext_sweep_list, register_all)
 
@@ -113,7 +116,7 @@ class MeasurementRunnerBase(ABC):
 
     def _run_measurement(self):
         """
-        Builds a native measurement object for the measurement.
+        Creates the measurement loop of external instruments
         """
         self._create_recursive_measurement_loop(self.ext_sweep_list)
         print("Measurement finished!")
@@ -237,10 +240,6 @@ class MeasurementRunnerBase(ABC):
         Returns:
             ext_params (list): List of external sweep parameters.
         """
-        if ext_sweep_list is None:
-            self.ext_sweep_list = []
-        else:
-            self.ext_sweep_list = ext_sweep_list
         ext_param_values = {}
         for i, sweep_dict in enumerate(self.ext_sweep_list):
             for j, param in enumerate(sweep_dict.keys()):
