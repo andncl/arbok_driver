@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from qcodes.dataset import Measurement as QcMeasurement
     from qcodes.dataset.experiment_container import Experiment as QcExperiment
     from qm import Program
+    from qm.jobs.running_qm_job import RunningQmJob
     from qm.qua._expressions import QuaVariable
     from qm.qua._dsl.stream_processing.stream_processing import ResultStreamSource
     from xarray import Dataset as XrDataset
@@ -49,6 +50,7 @@ class Measurement(SequenceBase):
     shot_tracker_qua_stream: ResultStreamSource
     mock_steps: int = 10
     mock_delay: float = 0.5
+    qm_job = RunningQmJob
     qua_program: Program
 
     def __init__(
