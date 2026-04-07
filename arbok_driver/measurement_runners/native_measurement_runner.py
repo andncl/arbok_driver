@@ -6,19 +6,17 @@ import time
 import uuid
 import io
 import json
-import copy
 
 import numpy as np
 import xarray as xr
 from sqlalchemy.orm import Session
 from qm import generate_qua_script
 
-from arbok_driver.sweep import Sweep
 from arbok_driver.sqlalchemy_classes import SqlRun
 from .measurement_runner_base import MeasurementRunnerBase
 if TYPE_CHECKING:
     from arbok_driver.measurement import Measurement
-    from qcodes.parameters.parameter import ParameterBase
+    from xarray import Dataset
 
 TIME_DIMENSION = "batch_timestamp"
 
@@ -69,32 +67,14 @@ class NativeMeasurementRunner(MeasurementRunnerBase):
         self.measurement._set_dataset(
             self.measurement.driver.get_data_from_id(self.run_id))
 
-    def _save_results(self):
+    def _save_results(self, results_xr: Dataset):
         """
         Saves the results of the measurement to the datasaver.
         
         Args:
             datasaver (DataSaver): The QCoDeS DataSaver object to save results to.
         """
-        ### Coordinate register to correcltly index incoming opx batches
-        ### OPX coords are always the same for each batch
-        ### External coords change with each batch
-        batch_coords = {}
-        for param, value in self.external_param_values.items():
-            dim = self.ext_coords[param.register_name][0]
-            batch_coords[param.register_name] = (dim, np.array([value]))
-        batch_coords.update(self.opx_coords)
-
-        dataset = xr.Dataset(coords = batch_coords)
-        for _, gettable in self.measurement.gettables.items():
-            result_np = gettable.fetch_results()
-            result_xr = xr.DataArray(
-                data = self._bring_result_to_shape(result_np),
-                dims = self.dims, 
-                coords = batch_coords
-                )
-            dataset[gettable.register_name] = result_xr
-        self._save_dataset_to_store(dataset)
+        self._save_dataset_to_store(results_xr)
         self._update_run_row_in_database()
         logging.debug("Results saved")
 
