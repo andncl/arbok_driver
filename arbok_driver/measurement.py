@@ -1001,13 +1001,14 @@ class Measurement(SequenceBase):
         }
         return results_dict
 
-    def _fetch_all_results_from_opx_plus(self) -> dict[ndarray]:
+    def _fetch_all_results_from_opx_plus(
+            self) -> dict[GettableParameterBase, npt.NDArray[np.float64]]:
         """
         Fetches all results registered in gettables and returns dict with results
         This is OPX+ specific
 
         Returns:
-            dict: Dict containing measurement data as values and stream names as
+            dict: Dict containing measurement data as values and gettables as
                 keys
         """
         results_dict = {}
