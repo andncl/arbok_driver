@@ -50,7 +50,7 @@ class Measurement(SequenceBase):
     shot_tracker_qua_stream: ResultStreamSource
     mock_steps: int = 10
     mock_delay: float = 0.5
-    qm_job = RunningQmJob
+    qm_job: RunningQmJob
     qua_program: Program
 
     def __init__(
