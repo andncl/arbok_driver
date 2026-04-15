@@ -35,12 +35,13 @@ if TYPE_CHECKING:
     from arbok_driver.measurement_runners.measurement_runner_base import (
         MeasurementRunnerBase,
     )
-    from numpy import ndarray
+    from numpy.typing import NDArray
     from qcodes.dataset import Measurement as QcMeasurement
     from qcodes.dataset.experiment_container import Experiment as QcExperiment
+    from qm import Program
+    from qm.jobs.running_qm_job import RunningQmJob
     from qm.qua._expressions import QuaVariable
     from qm.qua._dsl.stream_processing.stream_processing import ResultStreamSource
-    from qm.grpc.qua import QuaProgram
     from xarray import Dataset as XrDataset
 
 class Measurement(SequenceBase):
@@ -49,6 +50,8 @@ class Measurement(SequenceBase):
     shot_tracker_qua_stream: ResultStreamSource
     mock_steps: int = 10
     mock_delay: float = 0.5
+    qm_job: RunningQmJob
+    qua_program: Program
 
     def __init__(
             self,
@@ -330,7 +333,7 @@ class Measurement(SequenceBase):
         for sub_sequence in self.sub_sequences:
             sub_sequence.qua_stream()
 
-    def set_sweeps(self, *args: dict[SequenceParameter, Sequence]
+    def set_sweeps(self, *args: dict[SequenceParameter, Sequence | NDArray]
                    ) -> None:
         """
         Sets the given sweeps from its dict type arguments. Each argument
@@ -492,7 +495,7 @@ class Measurement(SequenceBase):
                 gettables.append(gettable)
         return gettables
 
-    def get_qua_code(self, simulate = False) -> QuaProgram:
+    def get_qua_code(self, simulate = False) -> None:
         """
         Compiles all qua code from its sub-sequences and writes their loops
         
@@ -529,7 +532,7 @@ class Measurement(SequenceBase):
         with qua.stream_processing():
             self.qua_stream()
 
-    def compile_qua_and_run(self, save_path: str | None = None) -> QuaProgram:
+    def compile_qua_and_run(self, save_path: str | None = None) -> Program:
         """Compiles the QUA code and runs it"""
         self.reset_registered_gettables()
         self.register_gettables(*list(self.gettables.values()))
@@ -946,8 +949,8 @@ class Measurement(SequenceBase):
                         description = bar_title+count+shot_timing+total_results
                     )
                     progress_tracker[1].refresh()
-        except KeyboardInterrupt as exc:
-            raise KeyboardInterrupt('Measurement interrupted by user') from exc
+        except KeyboardInterrupt:
+            print("MEASUREMENT INTERRUPTED BY USER")
         if progress_tracker is not None:
             progress_tracker[1].update(progress_tracker[0], completed = batch_count)
         self.nr_registered_results += self.sweep_size
@@ -1001,13 +1004,14 @@ class Measurement(SequenceBase):
         }
         return results_dict
 
-    def _fetch_all_results_from_opx_plus(self) -> dict[ndarray]:
+    def _fetch_all_results_from_opx_plus(
+            self) -> dict[GettableParameterBase, npt.NDArray[np.float64]]:
         """
         Fetches all results registered in gettables and returns dict with results
         This is OPX+ specific
 
         Returns:
-            dict: Dict containing measurement data as values and stream names as
+            dict: Dict containing measurement data as values and gettables as
                 keys
         """
         results_dict = {}

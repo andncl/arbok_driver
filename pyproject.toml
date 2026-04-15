@@ -38,16 +38,14 @@ version_scheme = "post-release"
 local_scheme = "no-local-version"
 
 [project.optional-dependencies]
-docs = [
+dev = [
   "myst-nb",
   "sphinx",
   "sphinx-rtd-theme",
-  "sphinx-autodoc-typehints"
-]
-
-dev = [
+  "sphinx-autodoc-typehints",
   "pytest~=9.0",
-  "pytest-cov~=7.0"
+  "pytest-cov~=7.0",
+  "jupyterlab>=4.5.6"
 ]
 
 [tool.pytest.ini_options]
