@@ -949,8 +949,8 @@ class Measurement(SequenceBase):
                         description = bar_title+count+shot_timing+total_results
                     )
                     progress_tracker[1].refresh()
-        except KeyboardInterrupt as exc:
-            raise KeyboardInterrupt('Measurement interrupted by user') from exc
+        except KeyboardInterrupt:
+            print("MEASUREMENT INTERRUPTED BY USER")
         if progress_tracker is not None:
             progress_tracker[1].update(progress_tracker[0], completed = batch_count)
         self.nr_registered_results += self.sweep_size
