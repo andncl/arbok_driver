@@ -11,4 +11,5 @@
    :caption: Contents:
 
    tutorials
+   developer_guides
    modules
