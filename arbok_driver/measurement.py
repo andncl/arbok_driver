@@ -839,8 +839,8 @@ class Measurement(SequenceBase):
             self,
             ext_sweep_list: list[dict] | None = None,
             inner_func = None,
-            qua_program_save_path: str = None,
-            opx_address: str = None,
+            qua_program_save_path: str | None = None,
+            opx_address: str | None = None,
             measurement_backend: str = 'qcodes',
             ) -> XrDataset:
         """
@@ -907,7 +907,7 @@ class Measurement(SequenceBase):
                 )
         return self.measurement_runner
 
-    def wait_until_result_buffer_full(self, progress_tracker: tuple = None):
+    def wait_until_result_buffer_full(self, progress_tracker: tuple | None = None):
         """
         Waits until the result buffer is full and updates the progress bar if given
 
