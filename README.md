@@ -33,7 +33,7 @@ Even better if you are using uv, a uv.lock file is included!
 
 ---
 
-## Tutorials 🎓
+## Tutorials🎓
 
 The tutorial series introduces the core concepts of the *arbok* framework, guiding you from running basic measurements to building modular, scalable, and automated experiments.
 
@@ -62,6 +62,14 @@ Together, these tutorials demonstrate how *arbok* enables:
 - Fast iteration through dynamic reloading with `Ekans`  
 
 ---
+
+## Developer guides
+
+- [Developer Guide 1: **Writing a SubSequence**](https://arbok-driver.readthedocs.io/en/latest/DG1_writing_subsequences.html)
+>Learn how to write your own `SubSequence` from scratch: defining a `ParameterClass`, writing `qua_sequence`, scaling to multiple gates with `ParameterMap`, using lifecycle hooks, and composing sequences by nesting.
+
+- [Developer Guide 2: **Writing readout classes and ReadSequences**](https://arbok-driver.readthedocs.io/en/latest/DG2_readout_sequences.html)
+>Learn how to write `AbstractReadout` subclasses and compose them into a `ReadSequence`: producing and consuming gettables, adding settable parameters, declaring temporary QUA variables, and writing the configuration.
 
 ## Stripping jupyter notebooks 📒
 
