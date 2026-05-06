@@ -1,12 +1,14 @@
 """ Module containing SequenceParameter class """
 from __future__ import annotations
-from typing import TypeVar, Generic, Optional
+from typing import Any, TypeVar, Generic, Optional
 import logging
 
 from numpy import ndarray
 import numpy as np
 from qcodes.parameters import Parameter
+from qcodes.validators import Arrays, Validator
 from qm import qua
+from qm.qua._expressions import QuaVariable, QuaArrayVariable
 
 T_co = TypeVar("T_co", covariant=True)
 
@@ -16,19 +18,16 @@ class SequenceParameter(Parameter, Generic[T_co]):
 
     TODO: Write get_raw abstract method without crashing sequence compilation
     """
+    validator: Validator
+    sweep_validator: Arrays
 
-    validator = None
-    sweep_validator = None
-    unit = ''
+    qua_sweep_arr: QuaArrayVariable
+
     qua_type = int
     var_type = None
     input_stream = None
     qua_sweeped = False
-    qua_sweep_arr = None
-    qua_var = None
     value = None
-    can_be_parameterized = False
-    scale = 1
 
     def __init__(self, *args, var_type = None, element = None, **kwargs):
         """
@@ -39,12 +38,12 @@ class SequenceParameter(Parameter, Generic[T_co]):
             config_name (str): Name of the parameter in the sequence config dict
                 essentially name without the element
         """
-        try:
-            super().__init__(*args, **kwargs)
-        except Exception as e:
-            raise ValueError(
-                f"Error initializing SequenceParameter: {kwargs['name']}: {e}"
-                ) from e
+
+        super().__init__(*args, **kwargs)
+        self.qua_var: QuaVariable[Any] | None = None
+        self.can_be_parameterized = False
+        # self.scale = 1
+        self.has_input_stream: bool = False
         self.element = element
         if var_type is not None:
             self.var_type = var_type
@@ -143,17 +142,22 @@ class SequenceParameter(Parameter, Generic[T_co]):
         self.qua_sweeped = True
 
         self.qua_var = qua.declare(self.var_type)
-        if self.can_be_parameterized:
-            pass
-        elif self.input_stream is None:
-            self.qua_sweep_arr = qua.declare(
-                self.var_type, value = setpoints*self.scale)
-        else:
+        print(f"delaring {self.register_name}")
+        if self.has_input_stream is True:
             self.input_stream = qua.declare_input_stream(
                 t = self.var_type,
                 name = self.sequence_path,
-                size = int(setpoints)
+                size = int(len(setpoints))
             )
+            print(f"declaring input stream for {self.register_name}")
+        elif self.can_be_parameterized:
+            pass
+        elif self.has_input_stream is False:
+            self.qua_sweep_arr = qua.declare(
+                self.var_type, value = setpoints*self.scale)
+        else:
+            raise ValueError(
+                f"The parameter {self.register_name} has reached an unexpected state")
 
     def add_stream_param_to_sequence(self):
         """Adds input stream to sequence"""
