@@ -12,7 +12,7 @@ A dynamically generated [QCoDeS](https://github.com/microsoft/Qcodes) instrument
 ## Installation 📲
 [From pypi](https://pypi.org/project/arbok-driver/) install using pip in your environment:
 ```bash
-pip install arbok-inspector
+pip install arbok-driver
 ```
 Even better if you are using uv, a uv.lock file is included!
 
