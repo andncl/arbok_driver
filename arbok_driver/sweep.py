@@ -21,7 +21,6 @@ class Sweep:
     """ Class characterizing a parameter sweep along one axis in the OPX """
 
     _length: int
-    _inputs_are_streamed: bool
     _input_streams: list[QuaVariableInputStream]
     _can_be_parameterized: bool
     snake_scan: bool
@@ -46,6 +45,7 @@ class Sweep:
         self.measurement: Measurement = measurement
         self.register_all: bool = register_all
         self._config: dict[SequenceParameter, ndarray] = param_dict
+        self._inputs_are_streamed: bool = False
         self.snake_scan: bool = False
     
         self._parameters: list[SequenceParameter] = []
@@ -84,6 +84,16 @@ class Sweep:
     def inputs_are_streamed(self) -> bool:
         """Whether sweep is fed by input stream"""
         return self._inputs_are_streamed
+    
+    @inputs_are_streamed.setter
+    def inputs_are_streamed(self, value: bool) -> None:
+        if isinstance(value, bool):
+            for param in self.parameters:
+                param.has_input_stream = value
+                print(f"Enabling input stream on {param.register_name}")
+            self._inputs_are_streamed = value
+        else:
+            raise ValueError("Must be True or False.")
 
     @property
     def can_be_parameterized(self):
@@ -146,10 +156,6 @@ class Sweep:
                 self.inferred_parameters.append(parameter)
                 parameter.is_controlled_by.add(self.dim_parameter)
                 self.dim_parameter.has_control_of.add(parameter)
-        if all(param.input_stream is not None for param in self.parameters):
-            self._inputs_are_streamed = True
-        else:
-            self._inputs_are_streamed = False
 
     def check_input_dict(self) -> None:
         """
