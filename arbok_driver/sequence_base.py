@@ -285,6 +285,8 @@ class SequenceBase(InstrumentModule, ABC):
                     raise TypeError(
                         f"Parameter {param} is not of type SequenceParameter"
                     )
+            if sweep.snake_scan:
+                sweep.declare_snake_variable()
 
     def recursive_sweep_generation(self, sweeps):
         """
