@@ -265,6 +265,55 @@ class MeasurementRunnerBase(ABC):
         """
         return np.reshape(result, (1,)*len(self.ext_dims) + result.shape)
 
+    def unsnake_result(self, data: np.ndarray) -> np.ndarray:
+        """
+        Reverses the effect of hardware snake scanning on a multi-dimensional
+        result array. For each snaked sweep axis, every other slice along the
+        preceding (outer) axis is flipped, restoring monotonic ordering.
+
+        Works for arbitrary numbers of dimensions and any combination of
+        snaked/non-snaked sweeps. The sweep list is ordered outer-to-inner
+        (axis 0 is outermost).
+
+        Args:
+            data: Result array with shape matching the OPX sweep dimensions.
+
+        Returns:
+            A copy of the array with snaked axes corrected.
+        """
+        result = data.copy()
+        sweeps = self.measurement.sweeps
+        for axis_idx, sweep in enumerate(sweeps):
+            if not sweep.snake_scan:
+                continue
+            # Flip every other slice along axis_idx, indexed by axis_idx - 1
+            # (the outer axis that drives the alternation).
+            # If this is the outermost snaked axis (axis 0), there is no outer
+            # axis to alternate over — snaking at axis 0 means the entire
+            # experiment alternates direction across batches, which is handled
+            # externally. Skip it.
+            if axis_idx == 0:
+                continue
+            outer_axis = axis_idx - 1
+            result = _flip_alternating_slices(result, outer_axis, axis_idx)
+        return result
+
+def _flip_alternating_slices(
+        data: np.ndarray, outer_axis: int, flip_axis: int
+        ) -> np.ndarray:
+    """
+    Flips every other slice along flip_axis, where 'every other' is
+    determined by odd indices along outer_axis. Operates without Python
+    loops using numpy advanced slicing.
+    """
+    result = data.copy()
+    odd_selector = [slice(None)] * data.ndim
+    odd_selector[outer_axis] = slice(1, None, 2)
+    odd_slice = tuple(odd_selector)
+    result[odd_slice] = np.flip(result[odd_slice], axis=flip_axis)
+    return result
+
+
 def generate_dims_and_coords(
         sweeps: list[dict[SequenceParameter, np.ndarray]] | list[Sweep]
     ) -> tuple[
