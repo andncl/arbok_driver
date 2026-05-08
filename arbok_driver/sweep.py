@@ -266,15 +266,11 @@ class Sweep:
             1) From input stream
             2) From parametrized array (start, stop, step)
             3) From an explicitly defined qua array
-        If necessary, we need to reset the snake var for the inner loop before
-        entering the snaking loop.
+        If the next (inner) sweep uses snaking, its direction variable is reset
+        before entering that sweep so it starts in the correct direction.
         """
-
-        # Reset the snake var if necessary
-        if next_sweep is not None:
-            ns_sv = next_sweep.get_snake_var()
-            if ns_sv is not None:
-                qua.assign(next_sweep.get_snake_var(), True)
+        if next_sweep is not None and next_sweep.snake_scan:
+            qua.assign(next_sweep._snake_forward, False)
 
         if self.inputs_are_streamed:
             self._qua_input_stream_loop(next_action)
@@ -283,53 +279,78 @@ class Sweep:
         else:
             self._qua_explicit_array_loop(next_action)
 
-    def get_snake_var(self):
+    def declare_snake_variable(self) -> None:
         """
-        Declare a snake_var if we are snaking and return that var if snaking.
+        Declares the QUA boolean variable that tracks sweep direction.
+        Initialized to False; toggled at the start of each sweep execution,
+        so the first pass runs forward (True).
+        """
+        self._snake_forward = qua.declare(bool, False)
 
-        Returns:
-            qua bool var : The snaking indicator if snaking, None otherwise
+    def _qua_toggle_and_branch(
+            self, sweep_idx_var, forward_body: Callable, reverse_body: Callable
+            ) -> None:
         """
-        if self.snake_scan:
-            if not hasattr(self, 'sweep_snake_var'):
-                self.sweep_snake_var = qua.declare(bool, True)
-            return self.sweep_snake_var
-        return None
+        Reusable snake-scan branching. Toggles direction, then executes
+        either forward_body or reverse_body depending on sweep direction.
+        Both callables receive the raw sweep_idx_var; the caller is
+        responsible for computing the effective index inside.
+
+        When snake_scan is False, simply calls forward_body directly.
+        """
+        if not self.snake_scan:
+            forward_body(sweep_idx_var)
+            return
+
+        with qua.if_(self._snake_forward):
+            forward_body(sweep_idx_var)
+        with qua.else_():
+            reverse_body(sweep_idx_var)
+
+    def _reverse_idx(self, sweep_idx_var):
+        """Returns the QUA expression for the reversed index."""
+        return self.length - 1 - sweep_idx_var
 
     def _qua_input_stream_loop(self, next_action: Callable) -> None:
         """Runs a qua for loop for an array that is imported from a stream"""
         warnings.warn("Input streaming is not fully supported")
         for param in self.parameters:
-            qua.wait(int(1e6)) # TODO: Check if this is still necessay!
+            qua.wait(int(1e6)) # TODO: Check if this is still necessary!
             qua.advance_input_stream(param.input_stream)
             logging.debug(
                 "Assigning %s with length %s (input stream)",
                 param.name, self.length)
 
         sweep_idx_var = qua.declare(int)
+        if self.snake_scan:
+            qua.assign(self._snake_forward, ~self._snake_forward)
+
         qua.assign(sweep_idx_var, 0)
         with qua.while_(sweep_idx_var < self.length):
-            for param in self.parameters:
-                qua.assign(
-                    param.qua_var, param.input_stream[sweep_idx_var])
+            def assign_forward(idx):
+                for param in self.parameters:
+                    qua.assign(param.qua_var, param.input_stream[idx])
+
+            def assign_reverse(idx):
+                rev = self._reverse_idx(idx)
+                for param in self.parameters:
+                    qua.assign(param.qua_var, param.input_stream[rev])
+
+            self._qua_toggle_and_branch(
+                sweep_idx_var, assign_forward, assign_reverse)
             next_action()
             self._advance_step_counter(sweep_idx_var)
 
     def _qua_parmetrized_loop(self, next_action: Callable) -> None:
         """
         Runs a qua for loop from parametrized qua_arange. Start, stop and step
-        are calculated from the input array
-
-        Args:
-            next_action (Callable): Next action to be executed after the loop
+        are calculated from the input array.
         """
-        ### Define start, stop and step for all params that can be parameterized
         parameters_sss = self._parameterize_sweep()
 
-        ### Declaring sweep index variable and respective loop for sweep
         sweep_idx_var = qua.declare(int)
         if self.snake_scan:
-            qua.assign(self.get_snake_var(), ~self.get_snake_var())
+            qua.assign(self._snake_forward, ~self._snake_forward)
 
         qua.assign(sweep_idx_var, 0)
         with qua.while_(sweep_idx_var < self.length):
@@ -337,42 +358,29 @@ class Sweep:
                 if not param.can_be_parameterized:
                     qua.assign(
                         param.qua_var, param.qua_sweep_arr[sweep_idx_var])
-            if not self.snake_scan:
+
+            def assign_forward(idx):
                 for param, sss in parameters_sss.items():
-                    self._qua_calc_param_step(param, sss, sweep_idx_var, False)
-            else:
-                with qua.if_(self.get_snake_var()):
-                    for param, sss in parameters_sss.items():
-                        self._qua_calc_param_step(param, sss, sweep_idx_var, True)
-                with qua.else_():
-                    for param, sss in parameters_sss.items():
-                        self._qua_calc_param_step(param, sss, sweep_idx_var, False)
+                    self._qua_calc_param_value(param, sss, idx, reverse=False)
+
+            def assign_reverse(idx):
+                for param, sss in parameters_sss.items():
+                    self._qua_calc_param_value(param, sss, idx, reverse=True)
+
+            self._qua_toggle_and_branch(
+                sweep_idx_var, assign_forward, assign_reverse)
 
             qua.align()
-
-            ### This is where either the whole sequence or the next sweep is run
             next_action()
             self._advance_step_counter(sweep_idx_var)
 
-    def _qua_calc_param_step(self, param, sss, sweep_idx_var, reverse):
+    def _qua_calc_param_value(self, param, sss, sweep_idx_var, reverse: bool):
         """
-        Calculates the step within a parameter sweep.
-        
-        Args:
-            param (SequenceParameter): Parameter to be swept
-            sss (dict): Dict with start, stop and step (parameterizing sweep)
-            sweep_idx_var (qua variable): Index variable for sweep
-            reverse (bool): Whether the sweep is reversed (from stop to start)
+        Assigns the parameter's QUA variable to the correct value for the
+        current sweep index. When reversed, counts backwards from stop.
 
-        Raises:
-            TypeError: If var_type is not int or fixed
-
-        Returns:
-            None
+        Written explicitly to avoid multiplications by -1 on the FPGA.
         """
-        ### Note this implementation is written in a very explicit way avoiding
-        ### multiplications to save lines of code. This is done to avoid
-        ### multiplications in the FPGA code (e.g (-1)*x)
         if param.var_type == int:
             if not reverse:
                 qua.assign(
@@ -385,18 +393,15 @@ class Sweep:
                 qua.assign(
                     param.qua_var,
                     sss['start'] + Cast.mul_fixed_by_int(
-                        sss['step'], sweep_idx_var)
-                    )
+                        sss['step'], sweep_idx_var))
             else:
                 qua.assign(
                     param.qua_var,
                     sss['stop'] - Cast.mul_fixed_by_int(
-                        sss['step'],sweep_idx_var)
-                    )
+                        sss['step'], sweep_idx_var))
         else:
             raise TypeError(
-                "Only int and fixed qua types are supported for param sweeps"
-                )
+                "Only int and fixed qua types are supported for param sweeps")
 
     def _qua_explicit_array_loop(self, next_action):
         """Runs a qua for loop from explicitly defined qua arrays"""
@@ -406,11 +411,22 @@ class Sweep:
                     param.name, param.qua_sweep_arr)
 
         sweep_idx_var = qua.declare(int)
+        if self.snake_scan:
+            qua.assign(self._snake_forward, ~self._snake_forward)
+
         qua.assign(sweep_idx_var, 0)
         with qua.while_(sweep_idx_var < self.length):
-            for param in self.parameters:
-                qua.assign(
-                    param.qua_var, param.qua_sweep_arr[sweep_idx_var])
+            def assign_forward(idx):
+                for param in self.parameters:
+                    qua.assign(param.qua_var, param.qua_sweep_arr[idx])
+
+            def assign_reverse(idx):
+                rev = self._reverse_idx(idx)
+                for param in self.parameters:
+                    qua.assign(param.qua_var, param.qua_sweep_arr[rev])
+
+            self._qua_toggle_and_branch(
+                sweep_idx_var, assign_forward, assign_reverse)
             next_action()
             self._advance_step_counter(sweep_idx_var)
 
