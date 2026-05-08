@@ -5,6 +5,8 @@ import logging
 from pathlib import Path
 
 from qm import generate_qua_script
+from qm.type_hinting import FullQuaConfig
+
 import numpy as np
 from qcodes.dataset.sqlite.database import get_DB_location
 
@@ -61,7 +63,7 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
         self.measurement._set_run_id(self.run_id)
         self._save_qua_program_as_metadata(
             self.measurement.qua_program,
-            self.measurement.driver.device.config
+            self.measurement.opx_config
             )
 
     def _run_measurement(self) -> None:
@@ -122,7 +124,7 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
         save_path.write_text(
             generate_qua_script(
                 self.measurement.qua_program,
-                self.measurement.driver.device.config
+                self.measurement.opx_config
                 ),
             encoding="utf-8"
         )
@@ -130,7 +132,8 @@ class QCodesMeasurementRunner(MeasurementRunnerBase):
     def _save_qua_program_as_metadata(
             self,
             qua_program: Program,
-            opx_config: dict) -> None:
+            opx_config: FullQuaConfig
+            ) -> None:
         """
         Saves the QUA program as metadata in the dataset.
         """
