@@ -13,7 +13,8 @@ def ramp(
         duration: Time | None = None,
         reference: Optional[ParameterMap | None] = None,
         do_align: bool = True,
-        no_play_tolerance: float = 1e-6
+        no_play_tolerance: float = 1e-6,
+        always_ramp: bool = False
     ):
     """ 
     Helper function that `play`s a qua operation on the respective elements 
@@ -52,6 +53,8 @@ def ramp(
             element, reference, target, amplitude
             )
         if not isinstance(amplitude, (float, int)):
+            qua.play(**kwargs)
+        elif always_ramp:
             qua.play(**kwargs)
         elif math.isclose(amplitude, 0, abs_tol= no_play_tolerance):
             logging.debug(
