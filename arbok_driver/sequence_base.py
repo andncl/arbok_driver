@@ -1,7 +1,7 @@
 """ Module containing BaseSequence class """
 from __future__ import annotations
 from abc import ABC
-from typing import TYPE_CHECKING, Optional
+from typing import cast, TYPE_CHECKING, Optional
 import copy
 import types
 import warnings
@@ -12,6 +12,7 @@ from qcodes.instrument import InstrumentModule
 
 from qm import SimulationConfig, generate_qua_script, qua, QuantumMachinesManager
 from qm.simulate.credentials import create_credentials
+from qm.type_hinting import FullQuaConfig
 
 from .parameters.sequence_parameter import SequenceParameter
 from .parameter_class import ParameterClass, EmptyParameterClass
@@ -61,6 +62,7 @@ class SequenceBase(InstrumentModule, ABC):
         self._parameter_maps: dict = {}
         self._qua_program_as_str = None
         self.add_qc_params_from_config(self.sequence_config)
+        self._opx_config: FullQuaConfig = cast(FullQuaConfig, {})
 
     def __init_subclass__(cls, **kwargs) -> None:
         """Enforces child classes to define PARAMETER_CLASS class attribute"""
@@ -71,7 +73,7 @@ class SequenceBase(InstrumentModule, ABC):
         cls._enforce_parameter_class = True
 
     @classmethod
-    def config_template(cls)  -> None:
+    def config_template(cls)  -> dict | None:
         """
         The user can get an example config template.
         This feature is useful if building from scratch or for UI 
@@ -81,6 +83,15 @@ class SequenceBase(InstrumentModule, ABC):
             A dictionary with an example config template. 
         """
         return {}
+
+    @property
+    def opx_config(self) -> FullQuaConfig:
+        """
+        OPX configuration used to compile the QUA program. Some operations in
+        arbok automatically introduce new pulses and waveforms. Therefore the
+        config you set on the device can be extended
+        """
+        return self._opx_config
 
     def qua_declare(self) -> None:
         """Contains raw QUA code to initialize the qua variables"""
@@ -209,6 +220,7 @@ class SequenceBase(InstrumentModule, ABC):
         Returns:
             program: Program compiled into QUA language
         """
+        self._opx_config = copy.deepcopy(self.measurement.device.config)
         with qua.program() as prog:
             self.get_qua_code(simulate)
         self._qua_program_as_str = generate_qua_script(prog, config)
@@ -471,7 +483,7 @@ class SequenceBase(InstrumentModule, ABC):
             credentials=create_credentials()
         )
         simulated_job = qmm.simulate(
-            self.device.config,
+            self.opx_config,
             self.get_qua_program(simulate = True),
             SimulationConfig(duration=duration)
             )
