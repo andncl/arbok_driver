@@ -157,7 +157,8 @@ class MeasurementRunnerBase(ABC):
                 dims, coords = gettable.get_full_dims_and_coords(
                     self.ext_dims, batch_coords)
                 result_xr = xr.DataArray(
-                    data = self._bring_result_to_shape(values),
+                    data = self._bring_result_to_shape(
+                        self.unsnake_result(values)),
                     dims = dims,
                     coords = coords
                     )
@@ -283,7 +284,10 @@ class MeasurementRunnerBase(ABC):
         """
         result = data.copy()
         sweeps = self.measurement.sweeps
+        print([s.snake_scan for s in sweeps])
+
         for axis_idx, sweep in enumerate(sweeps):
+            print(f"unflipping axis {axis_idx}")
             if not sweep.snake_scan:
                 continue
             # Flip every other slice along axis_idx, indexed by axis_idx - 1
@@ -303,8 +307,7 @@ def _flip_alternating_slices(
         ) -> np.ndarray:
     """
     Flips every other slice along flip_axis, where 'every other' is
-    determined by odd indices along outer_axis. Operates without Python
-    loops using numpy advanced slicing.
+    determined by odd indices along outer_axis.
     """
     result = data.copy()
     odd_selector = [slice(None)] * data.ndim
