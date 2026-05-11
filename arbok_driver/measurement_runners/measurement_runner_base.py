@@ -284,10 +284,7 @@ class MeasurementRunnerBase(ABC):
         """
         result = data.copy()
         sweeps = self.measurement.sweeps
-        print([s.snake_scan for s in sweeps])
-
         for axis_idx, sweep in enumerate(sweeps):
-            print(f"unflipping axis {axis_idx}")
             if not sweep.snake_scan:
                 continue
             # Flip every other slice along axis_idx, indexed by axis_idx - 1
