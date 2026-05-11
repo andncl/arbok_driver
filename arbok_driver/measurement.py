@@ -495,43 +495,6 @@ class Measurement(SequenceBase):
                 gettables.append(gettable)
         return gettables
 
-    def get_qua_code(self, simulate = False) -> None:
-        """
-        Compiles all qua code from its sub-sequences and writes their loops
-        
-        Args:
-            simulate (bool): True if the program is meant to be simulated
-
-        Reterns:
-            qua_program: Program from qm context manager
-        """
-        ### In the first step all variables of all sub-sequences are declared
-        self.qua_declare_sweep_vars()
-        self.qua_declare()
-
-        ### An infinite loop starting with a pause is defined to sync the
-        ### client with the QMs
-        with qua.infinite_loop_():
-            if not simulate:
-                qua.pause()
-
-            ### Check requirements are set to True if the measurement is simulated
-            if simulate:
-                for qua_var in self.measurement.step_requirements:
-                    qua.assign(qua_var, True)
-
-            ### The sub-sequences are run in the order they were added
-            ### Before_sweep methods are run before the sweep loop
-            self.qua_before_sweep()
-            ### The sweep loop is defined for each sub-sequence recursively
-            ### Reversing the sweeps is necessary to have the outermost sweep
-            ### loop first (e.g last element in the list is the innermost sweep)
-            self.recursive_sweep_generation(
-                copy.copy(self.sweeps)
-                )
-        with qua.stream_processing():
-            self.qua_stream()
-
     def compile_qua_and_run(self, save_path: str | None = None) -> Program:
         """Compiles the QUA code and runs it"""
         self.reset_registered_gettables()
@@ -550,7 +513,7 @@ class Measurement(SequenceBase):
                 )
             with open(save_path, 'w', encoding="utf-8") as file:
                 file.write(
-                    generate_qua_script(self.qua_program, self.parent.device.config))
+                    generate_qua_script(self.qua_program, self.opx_config))
             print('QUA program saved')
 
         if not self.driver.is_mock:

@@ -1,6 +1,7 @@
 """ Module containing Devices class """
-import warnings
-from .utils import get_module
+from typing import cast
+
+from qm.type_hinting import FullQuaConfig
 
 class Device():
     """
@@ -28,7 +29,7 @@ class Device():
                 sequence configurations.
         """
         self.name = name
-        self.config = opx_config
+        self.config = cast(FullQuaConfig, opx_config)
         self.elements = list(self.config['elements'].keys())
         self.divider_config = divider_config
         self.master_config = master_config

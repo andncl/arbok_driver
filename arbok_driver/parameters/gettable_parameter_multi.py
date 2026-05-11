@@ -18,6 +18,7 @@ class GettableParameterMulti(GettableParameterBase):
     GettableParameterMulti class handling high dimensional results from an
     abstract readout
     """
+    qua_var_index: QuaVariable[int]
     def __init__(
             self,
             name: str,
@@ -44,13 +45,12 @@ class GettableParameterMulti(GettableParameterBase):
             )
         self.reset_measuerement_attributes()
         self.internal_setpoints: tuple[SequenceParameter] = tuple(internal_setpoints)
-        self.qua_var_index: QuaVariable | None = None
         self.length: int = self.get_length()
 
     def qua_declare_variables(self) -> None:
         """Declares the qua variables and streams for this gettable"""
         self.length = self.get_length()
-        self.qua_var_index: QuaVariable = qua.declare(int)
+        self.qua_var_index = qua.declare(int)
         self.qua_result_array: QuaArrayVariable = qua.declare(
             self.var_type,
             size = self.length
