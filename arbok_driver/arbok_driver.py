@@ -24,13 +24,14 @@ if TYPE_CHECKING:
     from qm.quantum_machine import QuantumMachine
     from qm.quantum_machines_manager import QuantumMachinesManager
     from qm import StreamsManager
+    from qm.api.v2.qm_api import QmApi
 
 class ArbokDriver(Instrument):
     """
     Class containing all functionality to manage and run modular sequences on a 
     physical OPX instrument
     """
-    opx: QuantumMachine
+    opx: QuantumMachine | QmApi
     qm_job: RunningQmJob
     qmm: QuantumMachinesManager
     result_handles: StreamsManager
@@ -104,7 +105,8 @@ class ArbokDriver(Instrument):
                 raise ValueError(
                     "qm_config must be a dictionary, not a string")
             self.device.config = copy.deepcopy(qm_config)
-        self.opx = self.qmm.open_qm(self.device.config)
+        self.opx = self.qmm.open_qm(
+            self.device.config, close_other_machines = True)
 
     def reconnect_opx(
             self, host_ip: str, qm_config: dict = None) -> None:
