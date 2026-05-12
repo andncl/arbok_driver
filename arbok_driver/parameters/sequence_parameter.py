@@ -143,7 +143,14 @@ class SequenceParameter(Parameter, Generic[T_co]):
         self.qua_sweeped = True
 
         self.qua_var = qua.declare(self.var_type)
-        if self.can_be_parameterized:
+        if self.has_input_stream is True:
+            self.input_stream = qua.declare_input_stream(
+                t = self.var_type,
+                name = self.sequence_path,
+                size = int(len(setpoints))
+            )
+            print(f"declaring input stream for {self.register_name}")
+        elif self.can_be_parameterized:
             pass
         elif self.input_stream is None:
             self.qua_sweep_arr = qua.declare(
