@@ -100,6 +100,7 @@ class List(SequenceParameter[list]):
 
 class Int(SequenceParameter[int | QuaVariable]):
     var_type = int
+    unit = '#'
     """ Default: int """
     vals = Ints()
     scale = 1

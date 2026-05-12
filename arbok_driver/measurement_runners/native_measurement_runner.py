@@ -136,7 +136,7 @@ class NativeMeasurementRunner(MeasurementRunnerBase):
         """
         program_str = generate_qua_script(
             self.measurement.qua_program,
-            self.measurement.device.config
+            self.measurement.opx_config
         )
         program_str_binary = io.BytesIO(program_str.encode("utf-8"))
         self.minio_metadata_store["qua_program.py"] = program_str_binary.getvalue()

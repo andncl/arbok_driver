@@ -81,7 +81,7 @@ class ArbokDriver(Instrument):
     def connect_opx(
             self,
             host_ip: str,
-            qm_config: dict = None,
+            qm_config: dict | None = None,
             reconnect: bool = False,
             **kwargs) -> None:
         """
