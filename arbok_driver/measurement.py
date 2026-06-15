@@ -269,6 +269,8 @@ class Measurement(SequenceBase):
         if fixed_params:
             self._qua_advance_assign_save_input_streams(
                 'fixed', fixed_params, self._qua_fixed_input_stream, index)
+        for sub_sequence in self.sub_sequences:
+            sub_sequence.qua_before_sweep()
 
     def _qua_advance_assign_save_input_streams(
         self, var_type, input_params, input_stream, index = None) -> None:
