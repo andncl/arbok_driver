@@ -86,14 +86,10 @@ Install the git hook so that your notebooks are stripped before committing.
 ./tools/git.hooks/setupLinux.sh
 ```
 
+---
 
+## Use of AI
 
-
-
-
-
-
-
-
+Large language models (LLMs) were used to help generate the documentation of this project, including the tutorials, developer guides, and examples. The core logic and code of the **arbok-driver** were written without the use of AI.
 
 
