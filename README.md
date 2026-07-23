@@ -55,7 +55,7 @@ The tutorial series introduces the core concepts of the *arbok* framework, guidi
 - [Tutorial 5: **Ekans**](https://arbok-driver.readthedocs.io/en/latest/5_Ekans.html)
 >Learn about dynamic FPGA program reloading and real-time parameter updates for fast iteration and adaptive measurements
 
-- [Tutorial 6: **Ekans**](https://arbok-driver.readthedocs.io/en/latest/6_Asynchronous_control.html)
+- [Tutorial 6: **Asynchronous control**](https://arbok-driver.readthedocs.io/en/latest/6_Asynchronous_control.html)
 >Implement an asynchronous heralded quantum state initialization via a real time repeat-until-success loop.
 
 Together, these tutorials demonstrate how *arbok* enables:
