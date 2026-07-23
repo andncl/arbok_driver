@@ -1,6 +1,7 @@
 from .coulomb_peaks import CoulombPeaks
 from .from_control_point import FromControlPoint
 from .parity_initialization import ParityInit
+from .parity_initialization_heralded import ParityInitHeralded
 from .parity_readout import ParityRead
 from .square_pulse import SquarePulse
 from .square_pulse_scalable import SquarePulseScalable
@@ -18,6 +19,7 @@ __all__ = [
     "Cpmg",
     "FromControlPoint",
     "ParityInit",
+    "ParityInitHeralded",
     "ParityRead",
     "SquarePulse",
     "SquarePulseScalable",
