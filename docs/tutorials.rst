@@ -11,3 +11,4 @@ Tutorials
    3_Experiments
    4_Tuning_interface
    5_Ekans
+   6_Asynchronous_control
