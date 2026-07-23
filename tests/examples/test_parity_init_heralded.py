@@ -96,7 +96,7 @@ def test_heralded_measurement_compiles(mock_measurement) -> None:
     lines = [line.strip() for line in prg_str.splitlines()]
     control_idx = next(
         i for i, line in enumerate(lines)
-        if line == 'play("control_pi", "Q1")'
+        if line == "play('control_pi', 'Q1')"
     )
     assert lines[control_idx - 1].startswith('with if_(')
 
