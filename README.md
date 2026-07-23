@@ -74,6 +74,15 @@ Together, these tutorials demonstrate how *arbok* enables:
 - [Developer Guide 2: **Writing readout classes and ReadSequences**](https://arbok-driver.readthedocs.io/en/latest/DG2_readout_sequences.html)
 >Learn how to write `AbstractReadout` subclasses and compose them into a `ReadSequence`: producing and consuming gettables, adding settable parameters, declaring temporary QUA variables, and writing the configuration.
 
+---
+
+## LLM reference
+
+Machine-readable documentation for use with large language models:
+
+- [`llms.md`](llms.md) — Project overview, quick-start guide, sequence authoring patterns, common gotchas, and testing conventions.
+- [`llms-internals.md`](llms-internals.md) — Architecture reference: class hierarchy, compilation pipeline, parameter resolution, and debugging guide. Consult this when extending or debugging the core framework.
+
 ## Stripping jupyter notebooks 📒
 
 We all love running measurements and analysis scripts from notebooks but keeping them up to date with version control can be a pain.
