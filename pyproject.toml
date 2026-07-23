@@ -25,9 +25,9 @@ dependencies = [
     "scipy ~= 1.17", 
     "SQLAlchemy ~= 2.0",
     "qm-qua == 1.3.1",
-    "qcodes ~= 0.54",
-    "qualang_tools ~= 0.21",
-    "qcodes-contrib-drivers ~= 0.24",
+    "qcodes ~= 0.58",
+    "qualang_tools ~= 0.22",
+    "qcodes-contrib-drivers ~= 0.25",
     "rich ~= 14.0",
     "zarr ~= 2.18"
 ]
