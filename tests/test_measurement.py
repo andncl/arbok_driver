@@ -142,7 +142,7 @@ def test_qua_program_compilation_simple_square_pulse(
     qua_prog = mock_measurement.get_qua_program()
     qua_prog_str = generate_qua_script(qua_prog)
     print(qua_prog_str)
-    assert len(re.findall(r'"ramp"\*amp', qua_prog_str)) == 2
+    assert len(re.findall(r"'ramp'\*amp", qua_prog_str)) == 2
 
 @pytest.mark.parametrize("nr_gates", [0, 1, 2, 4])
 def test_qua_program_compilation_scalable_square_pulse(
@@ -182,8 +182,9 @@ def test_qua_program_compilation_scalable_square_pulse(
         assert square_pulse.arbok_params.v_home[gate].qua == 0
         assert square_pulse.arbok_params.v_square[gate].qua == 0.1 * (1 + i)*scale
     qua_prog_str = mock_measurement.get_qua_program_as_str()
+    print(qua_prog_str)
     nr_of_plays = len(
-        list(re.finditer(r'"unit_ramp"\*amp', qua_prog_str))
+        list(re.finditer(r"'unit_ramp'\*amp", qua_prog_str))
     )
     assert nr_of_plays == 2 * nr_gates
 
