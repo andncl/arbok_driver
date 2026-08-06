@@ -144,8 +144,10 @@ class SequenceParameter(Parameter, Generic[T_co]):
         self.qua_var = qua.declare(self.var_type)
         if self.has_input_stream is True:
             self.input_stream = qua.declare_input_stream(
-                t = self.var_type,
-                name = self.sequence_path,
+                'client',
+                stream_id = self.sequence_path,
+                dtype = self.var_type,
+
                 size = int(len(setpoints))
             )
             print(f"Declaring input stream for {self.register_name}")
