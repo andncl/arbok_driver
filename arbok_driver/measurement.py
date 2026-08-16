@@ -805,6 +805,7 @@ class Measurement(SequenceBase):
             qua_program_save_path: str | None = None,
             opx_address: str | None = None,
             measurement_backend: str = 'qcodes',
+            cancel_job_finally: bool = True
             ) -> XrDataset:
         """
         Runs the measurement with the given sweep list based on MeasurementRunner
@@ -825,14 +826,18 @@ class Measurement(SequenceBase):
                 given does not attempt to connect to the OPX.
             measurement_backend (str): The measurement backend to use. Can be either
                 'qcodes' or 'native'.
+            cancel_job_finally (bool): Whether the QM job is being canceled
+                after running. Defaults to True
         """
         if opx_address is not None:
             self.driver.connect_opx(opx_address)
-        qua_prog = self.compile_qua_and_run(save_path = qua_program_save_path)
+        _ = self.compile_qua_and_run(save_path = qua_program_save_path)
         self.measurement_runner = self.get_measurement_runner(
             ext_sweep_list, measurement_backend)
         self.measurement_runner.run_arbok_measurement(
-            inner_func = inner_func)
+            inner_func = inner_func,
+            cancel_job_finally = cancel_job_finally
+            )
         return self.dataset
 
     def get_measurement_runner(
