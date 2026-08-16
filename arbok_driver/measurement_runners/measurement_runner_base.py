@@ -84,7 +84,7 @@ class MeasurementRunnerBase(ABC):
     def run_arbok_measurement(
             self,
             inner_func: Callable | None = None,
-            cancle_job_finally: bool = True
+            cancel_job_finally: bool = True
             ) -> None:
         """
         Runs the measurement with the given inner function.
@@ -93,6 +93,8 @@ class MeasurementRunnerBase(ABC):
             inner_func (callable): The function to be executed for each measurement
                 point. It should accept the datasaver and the current sweep values
                 as arguments.
+            cancel_job_finally (bool): Whether the QM job is being canceled
+                after running. Defaults to True
         Returns:
             dataset (Dataset): The QCoDeS dataset containing the measurement results.
         """
@@ -110,7 +112,7 @@ class MeasurementRunnerBase(ABC):
             print("Measurement interrupted by user.")
             self._handle_keyboard_interrupt()
         finally:
-            if cancle_job_finally and not self.measurement.driver.is_mock:
+            if cancel_job_finally and not self.measurement.driver.is_mock:
                 self.measurement.driver.qm_job.cancel()
         self._wrap_up_measurement()
 
