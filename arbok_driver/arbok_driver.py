@@ -177,35 +177,6 @@ class ArbokDriver(Instrument):
             else:
                 file.write(generate_qua_script(qua_program))
 
-    def run_local_simulation(
-            self,
-            qua_program,
-            duration: int,
-            **kwargs
-            ):
-        """
-        Simulates the given program of the sequence for `duration` cycles
-        TODO: Move to SequenceBase and add checks if OPX is connected
-        Args:
-            qua_program (program): QUA program to be simulated
-            duration (int): Simulation duration in cycles
-            **kwargs: Arbitrary keyword arguments for QMM simulation
-
-        Returns:
-            simulated_job (SimulatedJob): QM job with waveform simulation result
-            nr_controllers (int): Nr of controllers to fetch simulation results
-        """
-        if not self.qmm:
-            raise ConnectionError(
-                "No QMM found! Connect an OPX via `connect_OPX`")
-        simulated_job = self.qmm.simulate(
-            self.opx.get_config(),
-            qua_program,
-            SimulationConfig(duration=duration),
-            **kwargs
-        )
-        return simulated_job
-
     def get_idn(self):
         """
         Overload the get_idn method as we don't have one.

@@ -267,6 +267,34 @@ class SequenceBase(InstrumentModule, ABC):
         with qua.stream_processing():
             self.qua_stream()
 
+    def simulate(self, duration: int = 10000, **kwargs):
+        """
+        Compiles and simulates the QUA program for this sequence.
+
+        Args:
+            duration (int): Simulation duration in cycles
+            **kwargs: Arbitrary keyword arguments for QMM simulation
+
+        Returns:
+            sim_job: QM job with waveform simulation result
+        """
+        qmm = self.measurement.driver.qmm
+        if not qmm:
+            raise ConnectionError(
+                "No QMM found! Connect an OPX via `connect_opx`")
+        qua_program = self.get_qua_program(simulate=True)
+        sim_job = qmm.simulate(
+            self._opx_config,
+            qua_program,
+            SimulationConfig(duration=duration),
+            **kwargs
+        )
+        sim_job.wait_until("Done")
+        sim_results = sim_job.get_simulated_samples()
+        fig = utils.plot_simulation(sim_results, self._opx_config)
+        fig.show()
+        return sim_job
+
     def print_qua_program_to_file(self, file_name: str):
         """Creates file with 'filename' and prints the QUA code to this file"""
         with open(file_name, 'w', encoding="utf-8") as file:
