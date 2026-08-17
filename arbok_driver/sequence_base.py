@@ -223,7 +223,7 @@ class SequenceBase(InstrumentModule, ABC):
         self._opx_config = copy.deepcopy(self.measurement.device.config)
         with qua.program() as prog:
             self.get_qua_code(simulate)
-        self._qua_program_as_str = generate_qua_script(prog, config)
+        self._qua_program_as_str = generate_qua_script(prog, self._opx_config)
         return prog
 
     def get_qua_code(self, simulate = False) -> None:
