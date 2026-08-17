@@ -517,6 +517,7 @@ class Measurement(SequenceBase):
             print('QUA program saved')
 
         if not self.driver.is_mock:
+            self.driver.reconnect_opx(qm_config = self.opx_config)
             self.driver.run(self.qua_program)
             self.qm_job = self.driver.qm_job
             self._add_streams_to_gettables()
