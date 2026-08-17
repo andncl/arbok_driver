@@ -204,6 +204,126 @@ def get_module(name: str = None, mod_path: str = None):
     spec.loader.exec_module(mod)
     return mod
 
+def get_element_port_mapping(opx_config: dict) -> dict:
+    """
+    Extracts a mapping from (controller, fem, port) to element name from the
+    OPX configuration.
+
+    Args:
+        opx_config: The OPX configuration dictionary
+
+    Returns:
+        Dictionary mapping "fem-port" strings to element names, keyed by
+        controller name. Structure:
+        {controller: {"analog": {"fem-port": element_name, ...},
+                      "digital": {"fem-port": element_name, ...}}}
+    """
+    mapping = {}
+    elements = opx_config.get("elements", {})
+    for element_name, element_cfg in elements.items():
+        if "singleInput" in element_cfg:
+            port_tuple = element_cfg["singleInput"]["port"]
+            controller, fem, port = port_tuple
+            mapping.setdefault(controller, {"analog": {}, "digital": {}})
+            key = f"{fem}-{port}"
+            mapping[controller]["analog"][key] = element_name
+
+        if "mixInputs" in element_cfg:
+            mix = element_cfg["mixInputs"]
+            for channel in ("I", "Q"):
+                if channel in mix:
+                    controller, fem, port = mix[channel]
+                    mapping.setdefault(controller, {"analog": {}, "digital": {}})
+                    key = f"{fem}-{port}"
+                    suffix = f"_{channel}" if key in mapping[controller]["analog"] else ""
+                    mapping[controller]["analog"][key] = f"{element_name}{suffix}"
+
+        if "MWInput" in element_cfg:
+            mw = element_cfg["MWInput"]
+            controller, fem, port = mw["port"]
+            mapping.setdefault(controller, {"analog": {}, "digital": {}})
+            key = f"{fem}-{port}"
+            if key not in mapping[controller]["analog"]:
+                mapping[controller]["analog"][key] = element_name
+
+        if "digitalInputs" in element_cfg:
+            for _, dig_cfg in element_cfg["digitalInputs"].items():
+                controller, fem, port = dig_cfg["port"]
+                mapping.setdefault(controller, {"analog": {}, "digital": {}})
+                key = f"{fem}-{port}"
+                mapping[controller]["digital"][key] = element_name
+
+    return mapping
+
+
+def plot_simulation(sim_results, opx_config: dict) -> go.Figure:
+    """
+    Creates an interactive plotly figure from simulation results, labeling
+    traces with element names extracted from the OPX configuration.
+
+    Args:
+        sim_results: Simulated samples from sim_job.get_simulated_samples()
+        opx_config: The OPX configuration dictionary used for the simulation
+
+    Returns:
+        Plotly Figure with all active analog and digital channels
+    """
+    port_mapping = get_element_port_mapping(opx_config)
+    fig = go.Figure()
+
+    for con_name, con_attr in sim_results.__dict__.items():
+        if "con" not in con_name:
+            continue
+        con_mapping = port_mapping.get(con_name, {"analog": {}, "digital": {}})
+
+        for channel_key, data in con_attr.analog.items():
+            if not np.any(data):
+                continue
+            fs = con_attr.analog_sampling_rate.get(channel_key, 1e9)
+            dt_ns = 1e9 / fs
+            taxis = np.arange(len(data)) * dt_ns
+            label = con_mapping["analog"].get(channel_key, f"{con_name}:{channel_key}")
+            fig.add_trace(go.Scatter(
+                x=taxis,
+                y=data,
+                mode="lines",
+                name=label,
+            ))
+
+        for channel_key, data in con_attr.digital.items():
+            if not np.any(data):
+                continue
+            taxis_dig = np.arange(len(data))
+            label = con_mapping["digital"].get(
+                channel_key, f"{con_name}:dig_{channel_key}")
+            fig.add_trace(go.Scatter(
+                x=taxis_dig,
+                y=np.array(data, dtype=float) * 0.1,
+                mode="lines",
+                name=f"{label} (dig)",
+                line=dict(dash="dot"),
+            ))
+
+    fig.update_layout(
+        width=1500,
+        height=500,
+        xaxis=dict(
+            title="Time (ns)",
+            showgrid=True,
+            gridcolor="lightgray",
+        ),
+        yaxis=dict(
+            title="Voltage (V)",
+            showgrid=True,
+            gridcolor="lightgray",
+        ),
+        legend=dict(x=1.0, y=1.0),
+        hovermode="x unified",
+        template="plotly_dark",
+    )
+    return fig
+
+
 def dict_to_anytree(name, d, parent=None):
     """Convert a nested dictionary to an anytree structure."""
     node = Node(name, parent=parent)
