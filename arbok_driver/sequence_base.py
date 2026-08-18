@@ -221,6 +221,7 @@ class SequenceBase(InstrumentModule, ABC):
             program: Program compiled into QUA language
         """
         self._opx_config = copy.deepcopy(self.measurement.device.config)
+        self.measurement._opx_config = self._opx_config
         with qua.program() as prog:
             self.get_qua_code(simulate)
         self._qua_program_as_str = generate_qua_script(prog, self._opx_config)
@@ -267,7 +268,12 @@ class SequenceBase(InstrumentModule, ABC):
         with qua.stream_processing():
             self.qua_stream()
 
-    def simulate(self, duration: int = 10000, **kwargs):
+    def simulate(
+            self,
+            duration_ns: int = 10000,
+            program_save_path: str | None = None,
+            **kwargs
+            ):
         """
         Compiles and simulates the QUA program for this sequence.
 
@@ -283,10 +289,12 @@ class SequenceBase(InstrumentModule, ABC):
             raise ConnectionError(
                 "No QMM found! Connect an OPX via `connect_opx`")
         qua_program = self.get_qua_program(simulate=True)
+        if program_save_path is not None:
+            self.print_qua_program_to_file(file_name = program_save_path)
         sim_job = qmm.simulate(
-            self._opx_config,
+            self.measurement.opx_config,
             qua_program,
-            SimulationConfig(duration=duration),
+            SimulationConfig(duration=int(duration_ns//4)),
             **kwargs
         )
         sim_job.wait_until("Done")
