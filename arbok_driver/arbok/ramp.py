@@ -178,9 +178,9 @@ def _ramp_generated(
         # Compute static amplitude for non-swept case
         if not amp_is_swept:
             if reference is not None:
-                static_amp = float(target[element].get() - reference[element].get())
+                static_amp = float(target[element].get_raw() - reference[element].get_raw())
             else:
-                static_amp = float(target[element].get())
+                static_amp = float(target[element].get_raw())
             if math.isclose(static_amp, 0, abs_tol=no_play_tolerance) and not always_ramp:
                 logging.debug(
                     "Arbok_go: Omitting %s since amplitude %s is small (th = %s)",
