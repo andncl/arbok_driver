@@ -2,12 +2,17 @@ from typing import Optional, Callable
 import logging
 import math
 
+import numpy as np
 from qm import qua
 
 from arbok_driver.parameter_types import ParameterMap, Voltage, Time
+from arbok_driver.sweep import build_wfc_op_name, _strip_measurement_prefix
 
 # Type alias for pulse generator: (amplitude_V, duration_ns) -> samples at 1GHz
 PulseGenerator = Callable[[float, int], list[float]]
+
+MAX_WFC_DURATION_NS = 128_000
+"""Maximum pulse duration (ns) for waveform caching eligibility."""
 
 
 def ramp(
@@ -128,44 +133,40 @@ def _ramp_generated(
     ) -> None:
     """Generates discrete waveforms and injects them into the OPX config.
 
-    Fixed amplitude and duration are baked directly into the waveform samples,
-    eliminating runtime classical logic. Only swept quantities fall back to
-    runtime scaling (qua.amp for amplitude, duration kwarg for time).
+    Two modes depending on whether waveform caching is active:
 
-    The generator is called with unit amplitude (1.0) when the voltage parameters
-    are swept, or with the actual voltage difference when they are fixed. For
-    swept duration, the shortest value in the sweep array is used as the base
-    waveform length.
+    **Cached mode** (wfc registered on sweep): Pre-generates one waveform per
+    amplitude value and injects them as a ``type: array`` config entry. The
+    sweep handles ``load_waveform``; this function only emits ``qua.play``.
+
+    **Scaled mode** (default/fallback): Generates a single waveform and uses
+    ``qua.amp()`` for runtime amplitude scaling.
 
     Args:
         elements: Element names on which the pulse is played.
         target: Voltage point to move to (per-element ParameterMap).
         reference: Voltage point to come from. If None, amplitude equals target.
-        duration: Duration parameter in clock cycles (1cc = 4ns). Required in
-            generator mode.
-        generator: Callable(amplitude_V, duration_ns) returning a list of
-            waveform samples at 1 GHz (1 sample per ns).
+        duration: Duration parameter in clock cycles (1cc = 4ns). Required.
+        generator: Callable(amplitude_V, duration_ns) -> samples at 1 GHz.
         do_align: Whether to align elements before and after the ramp.
         no_play_tolerance: Amplitude threshold below which the pulse is skipped.
         always_ramp: Force playing even when amplitude is near zero.
 
     Raises:
-        ValueError: If duration is None.
+        ValueError: If duration is None or if wfc is registered with
+            incompatible duration.
     """
     if duration is None:
         raise ValueError(
             "Generator mode requires a 'duration' parameter")
 
-    # Resolve opx_config via parameter -> instrument -> measurement chain
     first_param = next(iter(target.values()))
     opx_config = first_param.instrument.measurement._opx_config
 
     dur_is_swept = duration.qua_sweeped
     if dur_is_swept:
-        # After set_sweeps, get() returns real units (seconds for Time)
         dur_ns = int(min(duration.get()) * 1e9)
     else:
-        # Before sweep, get() returns raw clock cycles (1cc = 4ns)
         dur_ns = int(duration.get() * 4)
 
     if do_align:
@@ -175,46 +176,125 @@ def _ramp_generated(
         amp_is_swept = target[element].qua_sweeped or (
             reference is not None and reference[element].qua_sweeped)
 
-        # Compute static amplitude for non-swept case
-        if not amp_is_swept:
-            if reference is not None:
-                static_amp = float(target[element].get_raw() - reference[element].get_raw())
-            else:
-                static_amp = float(target[element].get_raw())
-            if math.isclose(static_amp, 0, abs_tol=no_play_tolerance) and not always_ramp:
-                logging.debug(
-                    "Arbok_go: Omitting %s since amplitude %s is small (th = %s)",
-                    element, static_amp, no_play_tolerance)
-                continue
-            gen_amp = static_amp
+        wfc_active = getattr(target[element], '_wfc_active', False)
+
+        if wfc_active and amp_is_swept:
+            _validate_wfc_eligibility(dur_ns, dur_is_swept)
+            _ramp_cached_element(
+                opx_config, element, target, reference,
+                generator, dur_ns)
+        elif amp_is_swept:
+            _ramp_scaled_element(
+                opx_config, element, target, reference,
+                generator, dur_ns, dur_is_swept, duration)
         else:
-            gen_amp = 1.0
-
-        # Build unique config entry name encoding parameter paths + duration
-        op_name = _build_pulse_name(target[element], reference, element, dur_ns)
-
-        # Inject config entries (idempotent: skip if already present)
-        if op_name not in opx_config['elements'][element].get('operations', {}):
-            samples = generator(gen_amp, dur_ns)
-            _inject_config(opx_config, element, op_name, samples, dur_ns)
-
-        # Emit QUA play — only add runtime scaling for swept quantities
-        if amp_is_swept:
-            if reference is not None:
-                amplitude = target[element].qua - reference[element].qua
-            else:
-                amplitude = target[element].qua
-            pulse_ref = op_name * qua.amp(amplitude)
-        else:
-            pulse_ref = op_name
-
-        kwargs = {'pulse': pulse_ref, 'element': element}
-        if dur_is_swept:
-            kwargs['duration'] = duration.qua
-        qua.play(**kwargs)
+            _ramp_static_element(
+                opx_config, element, target, reference,
+                generator, dur_ns, dur_is_swept, duration,
+                no_play_tolerance, always_ramp)
 
     if do_align:
         qua.align(*elements)
+
+
+def _validate_wfc_eligibility(dur_ns: int, dur_is_swept: bool) -> None:
+    """Raises if waveform caching was registered but constraints are violated."""
+    if dur_is_swept:
+        raise ValueError(
+            "Waveform caching is incompatible with swept duration. "
+            "Remove the register_waveform_load call or use a fixed duration.")
+    if dur_ns > MAX_WFC_DURATION_NS:
+        raise ValueError(
+            f"Waveform caching requires duration <= {MAX_WFC_DURATION_NS} ns, "
+            f"got {dur_ns} ns.")
+
+
+def _ramp_cached_element(
+        opx_config: dict,
+        element: str,
+        target: ParameterMap[str, Voltage],
+        reference: ParameterMap[str, Voltage] | None,
+        generator: PulseGenerator,
+        dur_ns: int,
+    ) -> None:
+    """Injects array-type waveform config and emits a plain ``qua.play``.
+
+    One waveform per amplitude value is pre-computed and stored in
+    ``samples_array``. The sweep handles ``load_waveform`` before play.
+    """
+    op_name = build_wfc_op_name(target[element], reference, element)
+    if op_name not in opx_config['elements'][element].get('operations', {}):
+        amplitudes = _compute_amplitude_array(
+            target[element], reference, element)
+        samples_array = [
+            generator(float(amp), dur_ns) for amp in amplitudes]
+        _inject_wfc_config(opx_config, element, op_name, samples_array, dur_ns)
+
+    qua.play(op_name, element)
+
+
+def _ramp_scaled_element(
+        opx_config: dict,
+        element: str,
+        target: ParameterMap[str, Voltage],
+        reference: ParameterMap[str, Voltage] | None,
+        generator: PulseGenerator,
+        dur_ns: int,
+        dur_is_swept: bool,
+        duration: Time,
+    ) -> None:
+    """Fallback: single waveform with runtime ``qua.amp()`` scaling."""
+    op_name = _build_pulse_name(target[element], reference, element, dur_ns)
+    if op_name not in opx_config['elements'][element].get('operations', {}):
+        samples = generator(1.0, dur_ns)
+        _inject_config(opx_config, element, op_name, samples, dur_ns)
+
+    if reference is not None:
+        amplitude = target[element].qua - reference[element].qua
+    else:
+        amplitude = target[element].qua
+    pulse_ref = op_name * qua.amp(amplitude)
+
+    kwargs = {'pulse': pulse_ref, 'element': element}
+    if dur_is_swept:
+        kwargs['duration'] = duration.qua
+    qua.play(**kwargs)
+
+
+def _ramp_static_element(
+        opx_config: dict,
+        element: str,
+        target: ParameterMap[str, Voltage],
+        reference: ParameterMap[str, Voltage] | None,
+        generator: PulseGenerator,
+        dur_ns: int,
+        dur_is_swept: bool,
+        duration: Time,
+        no_play_tolerance: float,
+        always_ramp: bool,
+    ) -> None:
+    """Amplitude is fixed — bake it directly into the waveform samples."""
+    if reference is not None:
+        static_amp = float(
+            target[element].get_raw() - reference[element].get_raw())
+    else:
+        static_amp = float(target[element].get_raw())
+
+    if math.isclose(static_amp, 0, abs_tol=no_play_tolerance) and not always_ramp:
+        logging.debug(
+            "Arbok_go: Omitting %s since amplitude %s is small (th = %s)",
+            element, static_amp, no_play_tolerance)
+        return
+
+    op_name = _build_pulse_name(target[element], reference, element, dur_ns)
+    if op_name not in opx_config['elements'][element].get('operations', {}):
+        samples = generator(static_amp, dur_ns)
+        _inject_config(opx_config, element, op_name, samples, dur_ns)
+
+    kwargs = {'pulse': op_name, 'element': element}
+    if dur_is_swept:
+        kwargs['duration'] = duration.qua
+    qua.play(**kwargs)
 
 
 def _build_pulse_name(
@@ -223,10 +303,10 @@ def _build_pulse_name(
         element: str,
         dur_ns: int,
     ) -> str:
-    """Builds a unique operation name: <target_path>_from_<ref_path>_<dur>ns"""
-    name = target_param.sequence_path
+    """Builds a unique operation name: <target_path>_FROM_<ref_path>_<dur>ns"""
+    name = _strip_measurement_prefix(target_param.sequence_path)
     if reference is not None:
-        name += f"_from_{reference[element].sequence_path}"
+        name += f"_FROM_{_strip_measurement_prefix(reference[element].sequence_path)}"
     name += f"_{dur_ns}ns"
     return name
 
@@ -252,6 +332,85 @@ def _inject_config(
         'waveforms': {'single': wf_name},
     }
     opx_config['elements'][element].setdefault('operations', {})[op_name] = pulse_name
+
+
+def _inject_wfc_config(
+        opx_config: dict,
+        element: str,
+        op_name: str,
+        samples_array: list[list[float]],
+        dur_ns: int,
+    ) -> None:
+    """Injects a waveform-cached (type: array) entry into the OPX config.
+
+    Args:
+        opx_config: The full OPX configuration dict.
+        element: Element name to attach the operation to.
+        op_name: Operation name (shared with sweep's load_waveform call).
+        samples_array: List of waveform sample lists (one per sweep index).
+        dur_ns: Pulse duration in nanoseconds (all waveforms same length).
+    """
+    wf_name = f"{op_name}_wf"
+    pulse_name = f"{op_name}_pulse"
+
+    opx_config.setdefault('waveforms', {})[wf_name] = {
+        'type': 'array',
+        'samples_array': [list(s) for s in samples_array],
+    }
+    opx_config.setdefault('pulses', {})[pulse_name] = {
+        'operation': 'control',
+        'length': dur_ns,
+        'waveforms': {'single': wf_name},
+    }
+    opx_config['elements'][element].setdefault(
+        'operations', {})[op_name] = pulse_name
+
+
+def _compute_amplitude_array(
+        target_param: Voltage,
+        reference: ParameterMap[str, Voltage] | None,
+        element: str,
+    ) -> np.ndarray:
+    """Computes the amplitude array for all sweep indices.
+
+    Finds the sweep containing the target/reference parameter and extracts
+    the raw voltage values for each index.
+
+    Args:
+        target_param: The swept target voltage parameter.
+        reference: Optional reference ParameterMap.
+        element: Element key for reference lookup.
+
+    Returns:
+        Array of amplitude values (target - reference) per sweep index.
+    """
+    measurement = target_param.instrument.measurement
+    sweep = _find_sweep_for_param(target_param, reference, element, measurement)
+
+    target_array = sweep.config[target_param]
+    if reference is not None and reference[element] in sweep.parameters:
+        ref_array = sweep.config[reference[element]]
+        return np.array(target_array) - np.array(ref_array)
+    elif reference is not None:
+        ref_value = reference[element].get_raw()
+        return np.array(target_array) - ref_value
+    return np.array(target_array)
+
+
+def _find_sweep_for_param(
+        target_param: Voltage,
+        reference: ParameterMap[str, Voltage] | None,
+        element: str,
+        measurement,
+    ):
+    """Finds the sweep that contains the target or reference parameter."""
+    for sweep in measurement.sweeps:
+        if target_param in sweep.parameters:
+            return sweep
+        if reference is not None and reference[element] in sweep.parameters:
+            return sweep
+    raise ValueError(
+        f"Parameter {target_param.full_name} is not swept by any axis")
 
 
 def _check_voltage_point_input(

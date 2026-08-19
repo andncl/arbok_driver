@@ -1,6 +1,7 @@
 """ Module with Sweep class """
 from __future__ import annotations
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 import warnings
 import logging
@@ -12,10 +13,53 @@ from qcodes.parameters import Parameter
 from qcodes.validators import Arrays
 
 from .parameters.sequence_parameter import SequenceParameter
+from .parameter_types import ParameterMap, Voltage
+
 if TYPE_CHECKING:
     from .measurement import Measurement
     from qm.qua._expressions import QuaVariable, QuaVariableInputStream
     from numpy import ndarray
+
+MAX_WFC_WAVEFORMS = 1024
+"""Maximum number of waveforms allowed in a single waveform cache array."""
+
+
+def _strip_measurement_prefix(path: str) -> str:
+    """Removes the leading measurement name from a sequence path."""
+    parts = path.split("__", 1)
+    return parts[1] if len(parts) > 1 else parts[0]
+
+
+def build_wfc_op_name(
+        target_param: Voltage,
+        reference: ParameterMap[str, Voltage] | None,
+        element: str,
+    ) -> str:
+    """Builds the deterministic operation name for waveform-cached pulses.
+
+    Convention: <target_path>[_FROM_<ref_path>]_wfc
+
+    Args:
+        target_param: The target voltage parameter for this element.
+        reference: Optional reference ParameterMap.
+        element: Element key to look up in reference.
+
+    Returns:
+        Unique operation name string.
+    """
+    name = _strip_measurement_prefix(target_param.sequence_path)
+    if reference is not None:
+        name += f"_FROM_{_strip_measurement_prefix(reference[element].sequence_path)}"
+    name += "_wfc"
+    return name
+
+
+@dataclass
+class WaveformCacheRegistration:
+    """Stores a waveform cache registration for a sweep axis."""
+    elements: list[str]
+    target: ParameterMap[str, Voltage]
+    reference: ParameterMap[str, Voltage] | None
 
 class Sweep:
     """ Class characterizing a parameter sweep along one axis in the OPX """
@@ -47,10 +91,11 @@ class Sweep:
         self._config: dict[SequenceParameter, ndarray] = param_dict
         self._inputs_are_streamed: bool = False
         self.snake_scan: bool = False
-    
+
         self._parameters: list[SequenceParameter] = []
         self.inferred_parameters: list[SequenceParameter] = []
         self._config_to_register: dict[SequenceParameter, ndarray] = {}
+        self._waveform_cache_registrations: list[WaveformCacheRegistration] = []
 
         self.configure_sweep()
         self._check_if_parametrizable()
@@ -338,6 +383,7 @@ class Sweep:
 
             self._qua_toggle_and_branch(
                 sweep_idx_var, assign_forward, assign_reverse)
+            self._emit_waveform_loads(sweep_idx_var)
             next_action()
             self._advance_step_counter(sweep_idx_var)
 
@@ -370,6 +416,7 @@ class Sweep:
             self._qua_toggle_and_branch(
                 sweep_idx_var, assign_forward, assign_reverse)
 
+            self._emit_waveform_loads(sweep_idx_var)
             qua.align()
             next_action()
             self._advance_step_counter(sweep_idx_var)
@@ -427,9 +474,9 @@ class Sweep:
 
             self._qua_toggle_and_branch(
                 sweep_idx_var, assign_forward, assign_reverse)
+            self._emit_waveform_loads(sweep_idx_var)
             next_action()
             self._advance_step_counter(sweep_idx_var)
-
 
     def _parameterize_sweep_array(
         self, param: SequenceParameter, sweep_array: np.ndarray
@@ -517,3 +564,90 @@ class Sweep:
         for parameter in self.inferred_parameters:
             self.dim_parameter.has_control_of.remove(parameter)
             parameter.is_controlled_by.remove(self.dim_parameter)
+
+    def register_waveform_load(
+            self,
+            target: ParameterMap[str, Voltage],
+            reference: ParameterMap[str, Voltage] | None = None,
+        ) -> None:
+        """Registers voltage parameter maps for waveform caching on this sweep.
+
+        The sweep will emit ``load_waveform`` commands in its loop body,
+        selecting the pre-cached waveform by sweep index. Registration is
+        skipped (no-op) when eligibility criteria are not met:
+          - No parameters in the ParameterMap are swept by this sweep
+          - Sweep length exceeds 1024
+          - ``use_waveform_caching`` is False on any swept voltage parameter
+
+        Must be called after ``set_sweeps``.
+
+        Args:
+            target: Voltage points to move to (per-element ParameterMap).
+            reference: Voltage points to come from. None means amplitude = target.
+        """
+        for reg in self._waveform_cache_registrations:
+            if reg.target is target and reg.reference is reference:
+                return
+        all_elements = list(target.keys())
+        swept_elements = self._find_swept_elements(target, reference, all_elements)
+        if not swept_elements:
+            return
+        if self.length > MAX_WFC_WAVEFORMS:
+            logging.warning(
+                "Waveform caching disabled: sweep length %d exceeds %d",
+                self.length, MAX_WFC_WAVEFORMS)
+            return
+        for element in swept_elements:
+            param = target[element]
+            if not param.use_waveform_caching:
+                logging.info(
+                    "Waveform caching disabled by user on %s", param.full_name)
+                return
+
+        reg = WaveformCacheRegistration(
+            elements=swept_elements, target=target, reference=reference)
+        self._waveform_cache_registrations.append(reg)
+        for element in swept_elements:
+            target[element]._wfc_active = True
+            if reference is not None:
+                reference[element]._wfc_active = True
+
+    def _find_swept_elements(
+            self,
+            target: ParameterMap[str, Voltage],
+            reference: ParameterMap[str, Voltage] | None,
+            elements: list[str],
+        ) -> list[str]:
+        """Returns elements whose target/reference params are swept by this sweep."""
+        swept = []
+        for element in elements:
+            if target[element] in self.parameters:
+                swept.append(element)
+            elif reference is not None and reference[element] in self.parameters:
+                swept.append(element)
+        return swept
+
+    def _emit_waveform_loads(self, sweep_idx_var) -> None:
+        """Emits ``load_waveform`` QUA commands for all registered caches.
+
+        Respects snake scanning by reversing the index on backward passes.
+        """
+        if not self._waveform_cache_registrations:
+            return
+
+        def load_forward(idx):
+            for reg in self._waveform_cache_registrations:
+                for element in reg.elements:
+                    op_name = build_wfc_op_name(
+                        reg.target[element], reg.reference, element)
+                    qua.load_waveform(op_name, idx, element)
+
+        def load_reverse(idx):
+            rev_idx = self._reverse_idx(idx)
+            for reg in self._waveform_cache_registrations:
+                for element in reg.elements:
+                    op_name = build_wfc_op_name(
+                        reg.target[element], reg.reference, element)
+                    qua.load_waveform(op_name, rev_idx, element)
+
+        self._qua_toggle_and_branch(sweep_idx_var, load_forward, load_reverse)
