@@ -1,4 +1,7 @@
-from typing import Optional, Callable
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 import logging
 import math
 
@@ -8,6 +11,10 @@ from qm import qua
 from arbok_driver.parameter_types import ParameterMap, Voltage, Time
 from arbok_driver.sweep import build_wfc_op_name, _strip_measurement_prefix
 
+if TYPE_CHECKING:
+    from arbok_driver.measurement import Measurement
+    from arbok_driver.sweep import Sweep
+
 # Type alias for pulse generator: (amplitude_V, duration_ns) -> samples at 1GHz
 PulseGenerator = Callable[[float, int], list[float]]
 
@@ -16,15 +23,15 @@ MAX_WFC_DURATION_NS = 128_000
 
 
 def ramp(
-        elements: list,
-        target: ParameterMap,
+        elements: list[str],
+        target: ParameterMap[str, Voltage],
         operation: str | PulseGenerator,
         duration: Time | None = None,
-        reference: Optional[ParameterMap | None] = None,
+        reference: ParameterMap[str, Voltage] | None = None,
         do_align: bool = True,
         no_play_tolerance: float = 1e-6,
         always_ramp: bool = False,
-    ):
+    ) -> None:
     """
     Plays a pulse on all specified elements. Two modes determined by `operation`:
 
@@ -387,22 +394,24 @@ def _compute_amplitude_array(
     measurement = target_param.instrument.measurement
     sweep = _find_sweep_for_param(target_param, reference, element, measurement)
 
-    target_array = sweep.config[target_param]
+    target_array = np.array(sweep.config[target_param]) * target_param.scale
     if reference is not None and reference[element] in sweep.parameters:
-        ref_array = sweep.config[reference[element]]
-        return np.array(target_array) - np.array(ref_array)
+        ref_array = (
+            np.array(sweep.config[reference[element]])
+            * reference[element].scale)
+        return target_array - ref_array
     elif reference is not None:
         ref_value = reference[element].get_raw()
-        return np.array(target_array) - ref_value
-    return np.array(target_array)
+        return target_array - ref_value
+    return target_array
 
 
 def _find_sweep_for_param(
         target_param: Voltage,
         reference: ParameterMap[str, Voltage] | None,
         element: str,
-        measurement,
-    ):
+        measurement: Measurement,
+    ) -> Sweep:
     """Finds the sweep that contains the target or reference parameter."""
     for sweep in measurement.sweeps:
         if target_param in sweep.parameters:
@@ -415,8 +424,8 @@ def _find_sweep_for_param(
 
 def _check_voltage_point_input(
         parameter_maps: ParameterMap[str, Voltage],
-        elements: list[str]
-        ) -> None:
+        elements: list[str],
+    ) -> None:
     """Validates that parameter_maps is a ParameterMap of Voltage params
     covering all requested elements."""
     if parameter_maps is None:
