@@ -25,6 +25,7 @@ from .parameters import (
     SequenceParameter
 )
 from .generic_tuning_interface import GenericTuningInterface
+from .parameter_types import ParameterMap, Voltage
 from .parameter_class import ParameterClass
 from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
@@ -361,6 +362,26 @@ class Measurement(SequenceBase):
             f"Declared {len(self.sweeps)}-dimensional parameter sweep"
             f" of size {self.sweep_size} {[s.length for s in self.sweeps]}"
         )
+
+    def register_waveform_caching(
+            self,
+            target: ParameterMap[str, Voltage],
+            reference: ParameterMap[str, Voltage] | None = None,
+        ) -> None:
+        """Registers waveform caching on all sweeps that contain target/reference.
+
+        Convenience method that calls ``register_waveform_load`` on each sweep.
+        Sweeps that don't contain any of the target/reference parameters are
+        silently skipped.
+
+        Must be called after ``set_sweeps``.
+
+        Args:
+            target: Voltage points to move to (per-element ParameterMap).
+            reference: Voltage points to come from. None means amplitude = target.
+        """
+        for sweep in self.sweeps:
+            sweep.register_waveform_load(target, reference)
 
     def register_gettables(
             self,
