@@ -220,7 +220,7 @@ class MeasurementRunnerBase(ABC):
             description="[green]Total",
             total=self.nr_total_batches)
         batch_progress = self.progress_tracker.add_task(
-            description="[cyan]Batch",
+            description="[purple]Batch",
             total=self.measurement.sweep_size)
         self.progress_bars['total_progress'] = total_progress
         self.progress_bars['batch_progress'] = batch_progress
