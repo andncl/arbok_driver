@@ -7,7 +7,7 @@ from qm import generate_qua_script
 
 from arbok_driver.parameter_types import ParameterMap, Voltage
 from arbok_driver.sweep import build_wfc_op_name, MAX_WFC_WAVEFORMS
-from arbok_driver.arbok.ramp import (
+from arbok_driver.arbok.play import (
     _inject_wfc_config,
     _compute_amplitude_array,
     _validate_wfc_eligibility,
@@ -208,7 +208,8 @@ class TestComputeAmplitudeArray:
         )
         amps = _compute_amplitude_array(
             empty_sub_seq_1.v_home_P1, None, 'P1')
-        np.testing.assert_array_almost_equal(amps, sweep_values)
+        scale = empty_sub_seq_1.v_home_P1.scale
+        np.testing.assert_array_almost_equal(amps, sweep_values * scale)
 
     def test_target_minus_fixed_reference(
             self, empty_sub_seq_1, empty_sub_seq_2, mock_measurement):
@@ -218,10 +219,11 @@ class TestComputeAmplitudeArray:
         mock_measurement.set_sweeps(
             {empty_sub_seq_1.v_home_P1: sweep_values},
         )
+        scale = empty_sub_seq_1.v_home_P1.scale
         ref_value = empty_sub_seq_2.v_home_P1.get_raw()
         amps = _compute_amplitude_array(
             empty_sub_seq_1.v_home_P1, ref_map, 'P1')
-        expected = sweep_values - ref_value
+        expected = sweep_values * scale - ref_value
         np.testing.assert_array_almost_equal(amps, expected)
 
 

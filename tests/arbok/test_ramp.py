@@ -56,20 +56,27 @@ test_conf = {
     }
 }
 
+def _count_play_unit_ramp(prog_str: str) -> int:
+    """Count play() calls that reference unit_ramp (ignoring config dump)."""
+    return sum(
+        1 for line in prog_str.splitlines()
+        if 'play(' in line and 'unit_ramp' in line
+    )
+
 def test_nr_of_ramps(square_pulse_scalable, mock_measurement):
     prog_str = mock_measurement.get_qua_program_as_str(recompile = True)
-    assert len(list(re.finditer("unit_ramp", prog_str))) == 6
+    assert _count_play_unit_ramp(prog_str) == 6
 
     square_pulse_scalable.arbok_params.sticky_elements.set(["P1", "P2"])
     prog_str = mock_measurement.get_qua_program_as_str(recompile = True)
-    assert len(list(re.finditer("unit_ramp", prog_str))) == 4
+    assert _count_play_unit_ramp(prog_str) == 4
 
 def test_no_ramps_for_negligible_amplitudes(
         square_pulse_scalable, mock_measurement):
     square_pulse_scalable.arbok_params.v_square["P1"].set(0)
     square_pulse_scalable.arbok_params.v_square["P2"].set(0)
     prog_str = mock_measurement.get_qua_program_as_str(recompile = True)
-    assert len(list(re.finditer("unit_ramp", prog_str))) == 2
+    assert _count_play_unit_ramp(prog_str) == 2
 
 def test_ramp_without_origin(mock_measurement):
     test_sequence = UserSubSequence(

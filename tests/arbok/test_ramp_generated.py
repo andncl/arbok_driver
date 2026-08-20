@@ -9,7 +9,7 @@ from qm import generate_qua_script, qua
 
 from arbok_driver import arbok, Measurement, ParameterClass, SubSequence
 from arbok_driver.parameter_types import Time, Voltage, ParameterMap
-from arbok_driver.arbok.ramp import _build_pulse_name, _inject_config
+from arbok_driver.arbok.play import _build_pulse_name, _inject_config
 
 
 @dataclass(frozen=True)
@@ -123,15 +123,16 @@ def test_generator_config_injection(ramp_gen_measurement):
 
 
 def test_generator_waveform_values_match_amplitude(ramp_gen_measurement):
-    """Waveform samples should encode the actual voltage difference."""
+    """Waveform samples should encode the actual voltage difference (DAC-level,
+    i.e. after divider compensation: user_voltage * divider)."""
     ramp_gen_measurement.get_qua_program_as_str(recompile=True)
     config = ramp_gen_measurement.opx_config
 
-    # P1: target=0.05, home=0.0 → amplitude=0.05
+    # P1: target=0.05, home=0.0, divider=6 → DAC amplitude=0.05*6=0.3
     p1_wfs = [k for k in config['waveforms'] if 'v_target_P1' in k]
     assert len(p1_wfs) == 1
     samples = config['waveforms'][p1_wfs[0]]['samples']
-    assert samples[-1] == pytest.approx(0.05, abs=1e-6)
+    assert samples[-1] == pytest.approx(0.3, abs=1e-6)
     assert samples[0] == pytest.approx(0.0, abs=1e-6)
 
 
