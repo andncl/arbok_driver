@@ -4,6 +4,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 import logging
 import math
+import warnings
 
 import numpy as np
 from qm import qua
@@ -22,7 +23,7 @@ MAX_WFC_DURATION_NS = 128_000
 """Maximum pulse duration (ns) for waveform caching eligibility."""
 
 
-def ramp(
+def play(
         elements: list[str],
         target: ParameterMap[str, Voltage],
         operation: str | PulseGenerator,
@@ -30,7 +31,7 @@ def ramp(
         reference: ParameterMap[str, Voltage] | None = None,
         do_align: bool = True,
         no_play_tolerance: float = 1e-6,
-        always_ramp: bool = False,
+        always_play: bool = False,
     ) -> None:
     """
     Plays a pulse on all specified elements. Two modes determined by `operation`:
@@ -54,7 +55,7 @@ def ramp(
             Amplitude is always target - reference.
         do_align (bool): whether to align elements before and after
         no_play_tolerance (float): amplitude below which pulse is skipped
-        always_ramp (bool): force playing even at zero amplitude
+        always_play (bool): force playing even at zero amplitude
     """
     _check_voltage_point_input(target, elements)
     if reference is not None:
@@ -63,11 +64,11 @@ def ramp(
     if isinstance(operation, str):
         _ramp_legacy(
             elements, target, reference, operation, duration,
-            do_align, no_play_tolerance, always_ramp)
+            do_align, no_play_tolerance, always_play)
     elif callable(operation):
         _ramp_generated(
             elements, target, reference, duration, operation,
-            do_align, no_play_tolerance, always_ramp)
+            do_align, no_play_tolerance, always_play)
     else:
         raise TypeError(
             f"'operation' must be a str or callable, got {type(operation)}")
@@ -81,7 +82,7 @@ def _ramp_legacy(
         duration: Time | None,
         do_align: bool,
         no_play_tolerance: float,
-        always_ramp: bool,
+        always_play: bool,
     ) -> None:
     """Plays a pre-existing operation from the OPX config with runtime scaling.
 
@@ -96,9 +97,9 @@ def _ramp_legacy(
         operation: Name of an existing operation in the element's OPX config.
         duration: Duration parameter in clock cycles (1cc = 4ns). If None, the
             pulse plays at its configured length.
-        do_align: Whether to align elements before and after the ramp.
+        do_align: Whether to align elements before and after.
         no_play_tolerance: Amplitude threshold below which the pulse is skipped.
-        always_ramp: Force playing even when amplitude is near zero.
+        always_play: Force playing even when amplitude is near zero.
     """
     if do_align:
         qua.align(*elements)
@@ -116,7 +117,7 @@ def _ramp_legacy(
         logging.debug(
             "Arbok_go: Moving %s from %s to %s by %s",
             element, reference, target, amplitude)
-        if not isinstance(amplitude, (float, int)) or always_ramp:
+        if not isinstance(amplitude, (float, int)) or always_play:
             qua.play(**kwargs)
         elif math.isclose(amplitude, 0, abs_tol=no_play_tolerance):
             logging.debug(
@@ -136,7 +137,7 @@ def _ramp_generated(
         generator: PulseGenerator,
         do_align: bool,
         no_play_tolerance: float,
-        always_ramp: bool,
+        always_play: bool,
     ) -> None:
     """Generates discrete waveforms and injects them into the OPX config.
 
@@ -155,9 +156,9 @@ def _ramp_generated(
         reference: Voltage point to come from. If None, amplitude equals target.
         duration: Duration parameter in clock cycles (1cc = 4ns). Required.
         generator: Callable(amplitude_V, duration_ns) -> samples at 1 GHz.
-        do_align: Whether to align elements before and after the ramp.
+        do_align: Whether to align elements before and after.
         no_play_tolerance: Amplitude threshold below which the pulse is skipped.
-        always_ramp: Force playing even when amplitude is near zero.
+        always_play: Force playing even when amplitude is near zero.
 
     Raises:
         ValueError: If duration is None or if wfc is registered with
@@ -198,7 +199,7 @@ def _ramp_generated(
             _ramp_static_element(
                 opx_config, element, target, reference,
                 generator, dur_ns, dur_is_swept, duration,
-                no_play_tolerance, always_ramp)
+                no_play_tolerance, always_play)
 
     if do_align:
         qua.align(*elements)
@@ -278,7 +279,7 @@ def _ramp_static_element(
         dur_is_swept: bool,
         duration: Time,
         no_play_tolerance: float,
-        always_ramp: bool,
+        always_play: bool,
     ) -> None:
     """Amplitude is fixed — bake it directly into the waveform samples."""
     if reference is not None:
@@ -287,7 +288,7 @@ def _ramp_static_element(
     else:
         static_amp = float(target[element].get_raw())
 
-    if math.isclose(static_amp, 0, abs_tol=no_play_tolerance) and not always_ramp:
+    if math.isclose(static_amp, 0, abs_tol=no_play_tolerance) and not always_play:
         logging.debug(
             "Arbok_go: Omitting %s since amplitude %s is small (th = %s)",
             element, static_amp, no_play_tolerance)
@@ -441,4 +442,33 @@ def _check_voltage_point_input(
     if not set(elements).issubset(parameter_maps):
         missing = set(elements) - parameter_maps.keys()
         raise ValueError(
-            f"Missing elements in arbok.ramp parameter maps: {missing}")
+            f"Missing elements in arbok.play parameter maps: {missing}")
+
+
+def ramp(
+        elements: list[str],
+        target: ParameterMap[str, Voltage],
+        operation: str | PulseGenerator,
+        duration: Time | None = None,
+        reference: ParameterMap[str, Voltage] | None = None,
+        do_align: bool = True,
+        no_play_tolerance: float = 1e-6,
+        always_ramp: bool = False,
+    ) -> None:
+    """Deprecated alias for :func:`play`. Use ``arbok.play()`` instead."""
+    warnings.warn(
+        "arbok.ramp() is deprecated and will be removed in a future version. "
+        "Use arbok.play() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    play(
+        elements=elements,
+        target=target,
+        operation=operation,
+        duration=duration,
+        reference=reference,
+        do_align=do_align,
+        no_play_tolerance=no_play_tolerance,
+        always_play=always_ramp,
+    )
