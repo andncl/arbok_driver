@@ -25,6 +25,7 @@ from .parameters import (
     SequenceParameter
 )
 from .generic_tuning_interface import GenericTuningInterface
+from .parameter_types import ParameterMap, Voltage
 from .parameter_class import ParameterClass
 from .sequence_base import SequenceBase
 from .sub_sequence import SubSequence
@@ -362,6 +363,26 @@ class Measurement(SequenceBase):
             f" of size {self.sweep_size} {[s.length for s in self.sweeps]}"
         )
 
+    def register_waveform_caching(
+            self,
+            target: ParameterMap[str, Voltage],
+            reference: ParameterMap[str, Voltage] | None = None,
+        ) -> None:
+        """Registers waveform caching on all sweeps that contain target/reference.
+
+        Convenience method that calls ``register_waveform_load`` on each sweep.
+        Sweeps that don't contain any of the target/reference parameters are
+        silently skipped.
+
+        Must be called after ``set_sweeps``.
+
+        Args:
+            target: Voltage points to move to (per-element ParameterMap).
+            reference: Voltage points to come from. None means amplitude = target.
+        """
+        for sweep in self.sweeps:
+            sweep.register_waveform_load(target, reference)
+
     def register_gettables(
             self,
             *args,
@@ -517,6 +538,7 @@ class Measurement(SequenceBase):
             print('QUA program saved')
 
         if not self.driver.is_mock:
+            self.driver.reconnect_opx(qm_config = self.opx_config)
             self.driver.run(self.qua_program)
             self.qm_job = self.driver.qm_job
             self._add_streams_to_gettables()
@@ -875,20 +897,18 @@ class Measurement(SequenceBase):
         Waits until the result buffer is full and updates the progress bar if given
 
         Args:
-            progress_bar (tuple): Tuple containing the progress bar and the
-                total number of results
+            progress_tracker (tuple): Tuple containing (task_id, Progress instance).
         """
-        bar_title = "[slate_blue1]Batch progress\n "
         batch_count = 0
-        time_per_shot = 0
-        shot_timing = "Calculate timing...\n"
-        total_results = "Total results: ..."
         t0 = time.time()
+        if progress_tracker is not None:
+            task_id, progress = progress_tracker
+            progress.update(task_id, completed=0, description="[cyan]Batch")
+            progress.tasks[task_id].start_time = progress.get_time()
         if self.is_mock:
+            bar_title = "[slate_blue1]Batch\n "
             self._mock_wait_until_result_buffer_full(progress_tracker, bar_title)
             return
-        ### Add checks if job exists and is running
-        ### Also check if streams are available
         try:
             is_paused = self.driver.qm_job.is_paused()
             while batch_count < self.sweep_size and not is_paused:
@@ -899,23 +919,24 @@ class Measurement(SequenceBase):
                 shot_count_result = self.batch_counter.fetch_all()
                 if shot_count_result is not None:
                     batch_count = shot_count_result[0]
-                    total_nr_results = batch_count + self.nr_registered_results
-                    total_results = f"Total results: {total_nr_results}"
                 if progress_tracker is not None:
-                    count = f"{batch_count}/{self.sweep_size}\n"
+                    total_shots = batch_count + self.nr_registered_results
                     if batch_count > 0:
-                        time_per_shot = 1e3*(time.time()-t0)/(batch_count)
-                    shot_timing = f" {time_per_shot:.1f}ms/shot\n"
+                        ms_per_shot = 1e3 * (time.time() - t0) / batch_count
+                        status = f"{ms_per_shot:.3f}ms"
+                    else:
+                        status = f"... | {total_shots} shots"
                     progress_tracker[1].update(
                         progress_tracker[0],
-                        completed = batch_count,
-                        description = bar_title+count+shot_timing+total_results
+                        completed=batch_count,
+                        description=f"[cyan]Batch\n {status}",
                     )
                     progress_tracker[1].refresh()
         except KeyboardInterrupt:
             raise KeyboardInterrupt("Measurement interrupted by user")
         if progress_tracker is not None:
-            progress_tracker[1].update(progress_tracker[0], completed = batch_count)
+            progress_tracker[1].update(
+                progress_tracker[0], completed=batch_count)
         self.nr_registered_results += self.sweep_size
 
     def fetch_all_results(self) -> dict:
@@ -1000,7 +1021,7 @@ class Measurement(SequenceBase):
                 progress_tracker[1].update(
                     progress_tracker[0],
                     completed = (i+1)*step_chunk,
-                    description = f"{bar_title}{i*step_chunk}/{self.sweep_size}"
+                    description = f"{bar_title}"
                 )
                 progress_tracker[1].refresh()
             time.sleep(self.mock_delay/self.mock_steps)
