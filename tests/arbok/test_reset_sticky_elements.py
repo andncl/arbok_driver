@@ -1,11 +1,18 @@
-
-
 import re
 
 import pytest
 from qm import generate_qua_script, qua
 
 from arbok_driver import arbok
+from arbok_driver.backends.qua_backend import QuaBackend
+
+
+@pytest.fixture(autouse=True)
+def _set_qua_backend():
+    arbok.set_active_backend(QuaBackend())
+    yield
+    arbok.set_active_backend(None)
+
 
 @pytest.mark.parametrize("nr_elements", [0, 1, 2, 4])
 def test_correct_amount_of_resets(nr_elements):
