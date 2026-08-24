@@ -7,10 +7,10 @@ import math
 import warnings
 
 import numpy as np
-from qm import qua
 
 from arbok_driver.parameter_types import ParameterMap, Voltage, Time
 from arbok_driver.sweep import build_wfc_op_name, _strip_measurement_prefix
+from .context import get_active_backend
 
 if TYPE_CHECKING:
     from arbok_driver.measurement import Measurement
@@ -101,32 +101,28 @@ def _ramp_legacy(
         no_play_tolerance: Amplitude threshold below which the pulse is skipped.
         always_play: Force playing even when amplitude is near zero.
     """
+    backend = get_active_backend()
     if do_align:
-        qua.align(*elements)
+        backend.align(elements)
     for element in elements:
         if reference is not None:
             amplitude = target[element].qua - reference[element].qua
         else:
             amplitude = target[element].qua
-        kwargs = {
-            'pulse': operation * qua.amp(amplitude),
-            'element': element
-        }
-        if duration is not None:
-            kwargs['duration'] = duration.qua
+        dur = duration.qua if duration is not None else None
         logging.debug(
             "Arbok_go: Moving %s from %s to %s by %s",
             element, reference, target, amplitude)
         if not isinstance(amplitude, (float, int)) or always_play:
-            qua.play(**kwargs)
+            backend.play(element, operation, amplitude, dur)
         elif math.isclose(amplitude, 0, abs_tol=no_play_tolerance):
             logging.debug(
                 "Arbok_go: Omitting %s since amplitude %s is small (th = %s)",
                 element, amplitude, no_play_tolerance)
         else:
-            qua.play(**kwargs)
+            backend.play(element, operation, amplitude, dur)
     if do_align:
-        qua.align(*elements)
+        backend.align(elements)
 
 
 def _ramp_generated(
@@ -150,6 +146,9 @@ def _ramp_generated(
     **Scaled mode** (default/fallback): Generates a single waveform and uses
     ``qua.amp()`` for runtime amplitude scaling.
 
+    When the active backend is a SimBackend, the generator callable is passed
+    directly to backend.play() — no config injection is performed.
+
     Args:
         elements: Element names on which the pulse is played.
         target: Voltage point to move to (per-element ParameterMap).
@@ -168,8 +167,17 @@ def _ramp_generated(
         raise ValueError(
             "Generator mode requires a 'duration' parameter")
 
+    backend = get_active_backend()
+
+    from arbok_driver.backends.sim_backend import SimBackend
+    if isinstance(backend, SimBackend):
+        _ramp_generated_sim(
+            elements, target, reference, duration, generator,
+            do_align, no_play_tolerance, always_play, backend)
+        return
+
     first_param = next(iter(target.values()))
-    opx_config = first_param.instrument.measurement._opx_config
+    opx_config = first_param.instrument.measurement._hardware_config
 
     dur_is_swept = duration.qua_sweeped
     if dur_is_swept:
@@ -178,7 +186,7 @@ def _ramp_generated(
         dur_ns = int(duration.get() * 4)
 
     if do_align:
-        qua.align(*elements)
+        backend.align(elements)
 
     for element in elements:
         amp_is_swept = target[element].qua_sweeped or (
@@ -202,7 +210,40 @@ def _ramp_generated(
                 no_play_tolerance, always_play)
 
     if do_align:
-        qua.align(*elements)
+        backend.align(elements)
+
+
+def _ramp_generated_sim(
+        elements: list[str],
+        target: ParameterMap[str, Voltage],
+        reference: ParameterMap[str, Voltage] | None,
+        duration: Time,
+        generator: PulseGenerator,
+        do_align: bool,
+        no_play_tolerance: float,
+        always_play: bool,
+        backend,
+    ) -> None:
+    """Simulation path: passes the generator callable directly to SimBackend."""
+    dur_ns = int(duration.get() * 4)
+
+    if do_align:
+        backend.align(elements)
+
+    for element in elements:
+        if reference is not None:
+            amplitude = float(
+                target[element].get_raw() - reference[element].get_raw())
+        else:
+            amplitude = float(target[element].get_raw())
+
+        if math.isclose(amplitude, 0, abs_tol=no_play_tolerance) and not always_play:
+            continue
+
+        backend.play(element, generator, amplitude, dur_ns // 4)
+
+    if do_align:
+        backend.align(elements)
 
 
 def _validate_wfc_eligibility(dur_ns: int, dur_is_swept: bool) -> None:
@@ -225,7 +266,7 @@ def _ramp_cached_element(
         generator: PulseGenerator,
         dur_ns: int,
     ) -> None:
-    """Injects array-type waveform config and emits a plain ``qua.play``.
+    """Injects array-type waveform config and emits a plain play.
 
     One waveform per amplitude value is pre-computed and stored in
     ``samples_array``. The sweep handles ``load_waveform`` before play.
@@ -238,7 +279,7 @@ def _ramp_cached_element(
             generator(float(amp), dur_ns) for amp in amplitudes]
         _inject_wfc_config(opx_config, element, op_name, samples_array, dur_ns)
 
-    qua.play(op_name, element)
+    get_active_backend().play(element, op_name)
 
 
 def _ramp_scaled_element(
@@ -251,7 +292,7 @@ def _ramp_scaled_element(
         dur_is_swept: bool,
         duration: Time,
     ) -> None:
-    """Fallback: single waveform with runtime ``qua.amp()`` scaling."""
+    """Fallback: single waveform with runtime amplitude scaling."""
     op_name = _build_pulse_name(target[element], reference, element, dur_ns)
     if op_name not in opx_config['elements'][element].get('operations', {}):
         samples = generator(1.0, dur_ns)
@@ -261,12 +302,9 @@ def _ramp_scaled_element(
         amplitude = target[element].qua - reference[element].qua
     else:
         amplitude = target[element].qua
-    pulse_ref = op_name * qua.amp(amplitude)
 
-    kwargs = {'pulse': pulse_ref, 'element': element}
-    if dur_is_swept:
-        kwargs['duration'] = duration.qua
-    qua.play(**kwargs)
+    dur = duration.qua if dur_is_swept else None
+    get_active_backend().play(element, op_name, amplitude, dur)
 
 
 def _ramp_static_element(
@@ -299,10 +337,8 @@ def _ramp_static_element(
         samples = generator(static_amp, dur_ns)
         _inject_config(opx_config, element, op_name, samples, dur_ns)
 
-    kwargs = {'pulse': op_name, 'element': element}
-    if dur_is_swept:
-        kwargs['duration'] = duration.qua
-    qua.play(**kwargs)
+    dur = duration.qua if dur_is_swept else None
+    get_active_backend().play(element, op_name, None, dur)
 
 
 def _build_pulse_name(
