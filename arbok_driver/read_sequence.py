@@ -62,23 +62,30 @@ class ReadSequence(SubSequence):
         """All abstract readouts in this read-sequence"""
         return self._abstract_readouts
 
-    def qua_declare(self):
+    def fpga_declare(self):
         """
-        QUA variable and stream declaration based on the given sequence
-        configuration. Only to be called within qua.program() context manager!
+        Hardware variable and stream declaration based on the given sequence
+        configuration. Only to be called within a program context.
         """
         for _, abstract_readout in self._abstract_readouts.items():
-            abstract_readout.qua_declare_variables()
+            abstract_readout.fpga_declare_variables()
 
-    def qua_stream(self):
+    def qua_declare(self):
+        """Deprecated: use fpga_declare()"""
+        self.fpga_declare()
+
+    def fpga_stream(self):
         """
-        Saves acquired results to qua stream
-        Only to be called within qua.program() context manager!
+        Saves acquired results to hardware stream.
+        Only to be called within a program context.
         """
         for readout_name, abstract_readout in self._abstract_readouts.items():
             logging.debug("Saving streams of abstract readout %s", readout_name)
-            abstract_readout.qua_save_streams()
-            continue
+            abstract_readout.fpga_save_streams()
+
+    def qua_stream(self):
+        """Deprecated: use fpga_stream()"""
+        self.fpga_stream()
 
     def _add_signals_from_config(self, signal_name_list: list):
         """
