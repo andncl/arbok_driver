@@ -1,11 +1,10 @@
 """ Module containing Devices class """
-from typing import cast
+import warnings
 
-from qm.type_hinting import FullQuaConfig
 
 class Device():
     """
-    Class describing the used device by its config and the used sequence. 
+    Class describing the used device by its config and the used sequence.
     """
     _master_config: dict
     _param_config: dict
@@ -13,23 +12,35 @@ class Device():
 
     def __init__(
             self, name: str,
-            opx_config: dict,
-            divider_config: dict,
+            hardware_config: dict | None = None,
+            divider_config: dict | None = None,
             master_config: dict | None = None,
+            *,
+            opx_config: dict | None = None,
             ):
         """
         Constructor class for 'Device' class.
 
         Args:
             name (str): Name of the used device
-            opx_config (dict): Configuration dictionary for the OPX
+            hardware_config (dict): Hardware configuration dictionary
             divider_config (dict): Configuration dictionary for the divider
-            master_config (dict): Configuration dictionary for universally accessible
-                parameters across all sub-sequences as well as default
-                sequence configurations.
+            master_config (dict): Configuration dictionary for universally
+                accessible parameters across all sub-sequences as well as
+                default sequence configurations.
+            opx_config (dict): Deprecated alias for hardware_config.
         """
+        if opx_config is not None:
+            warnings.warn(
+                "Device(opx_config=...) is deprecated, use "
+                "Device(hardware_config=...) instead.",
+                DeprecationWarning, stacklevel=2)
+            if hardware_config is None:
+                hardware_config = opx_config
+        if hardware_config is None:
+            raise TypeError("Device() requires 'hardware_config' argument")
         self.name = name
-        self.config = cast(FullQuaConfig, opx_config)
+        self.config: dict = hardware_config
         self.elements = list(self.config['elements'].keys())
         self.divider_config = divider_config
         self.master_config = master_config
