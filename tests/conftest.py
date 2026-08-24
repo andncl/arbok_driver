@@ -1,6 +1,6 @@
 """Module containing fixtures for pytests"""
 from dataclasses import dataclass
-import pytest 
+import pytest
 
 from arbok_driver import (
     ArbokDriver,
@@ -10,6 +10,7 @@ from arbok_driver import (
     ReadSequence,
     SequenceParameter,
     SubSequence,
+    arbok,
 )
 from arbok_driver.examples.configurations.hardware import (
     opx1000_config,
@@ -58,7 +59,7 @@ def dummy_device():
     """Returns dummy device instance"""
     return Device(
         name = 'dummy_device',
-        opx_config = opx1000_config,
+        hardware_config = opx1000_config,
         divider_config = divider_config,
         master_config = device_config
     )
@@ -77,7 +78,9 @@ def mock_measurement(arbok_driver, dummy_device) -> Measurement: # type: ignore[
         parent = arbok_driver,
         name = 'mock_measurement'
         )
+    arbok.set_active_backend(measurement.backend)
     yield measurement
+    arbok.set_active_backend(None)
     arbok_driver.submodules.pop(measurement.full_name)
     arbok_driver.measurements.remove(measurement)
     del measurement
