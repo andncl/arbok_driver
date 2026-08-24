@@ -1,5 +1,6 @@
 """Module containing reset_sticky_elements function"""
-from qm import qua
+from .context import get_active_backend
+
 
 def reset_sticky_elements(
         element_list: list,
@@ -10,7 +11,8 @@ def reset_sticky_elements(
     This is cruicial to stop numerical errors from accumulation on the sticky
     elements
     """
+    backend = get_active_backend()
     for element_name in element_list:
-        qua.ramp_to_zero(element_name)
+        backend.ramp_to_zero(element_name)
     if do_align:
-        qua.align(*element_list)
+        backend.align(element_list)
