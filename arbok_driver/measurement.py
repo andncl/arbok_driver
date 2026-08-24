@@ -12,7 +12,6 @@ import warnings
 
 import numpy as np
 import numpy.typing as npt
-from qm import qua, generate_qua_script
 import qcodes as qc
 
 from .measurement_runners import(
@@ -133,7 +132,7 @@ class Measurement(SequenceBase):
         self.shot_tracker_qua_stream = None
         self._step_requirements = []
         self._input_stream_parameters = []
-        self._input_stream_type_shapes = {'int': 0, 'bool': 0, 'qua.fixed': 0}
+        self._input_stream_type_shapes = {'int': 0, 'bool': 0, 'float': 0}
         self._available_gettables = []
         self.debug_input_streams = False
 
@@ -242,24 +241,26 @@ class Measurement(SequenceBase):
 
     def qua_declare(self):
         """Contains raw QUA code to declare variables"""
-        self.shot_tracker_qua_var = qua.declare(int, value = 0)
-        self.shot_tracker_qua_stream = qua.declare_stream()
+        backend = self.backend
+        self.shot_tracker_qua_var = backend.declare(int, value=0)
+        self.shot_tracker_qua_stream = backend.declare_stream()
         self._qua_declare_input_streams()
         for sub_sequence in self.sub_sequences:
             sub_sequence.qua_declare()
 
     def qua_before_sweep(self) -> None:
         """
-        Qua code to be executed before the sweep loop but after the qua.pause
-        statement that aligns the measurement results
+        Code executed before the sweep loop but after the pause statement
+        that aligns the measurement results.
         """
-        qua.assign(self.shot_tracker_qua_var, 0)
+        backend = self.backend
+        backend.assign(self.shot_tracker_qua_var, 0)
         stream_params = self.input_stream_parameters
         int_params = [p for p in stream_params if p.var_type == int]
         bool_params = [p for p in stream_params if p.var_type == bool]
-        fixed_params = [p for p in stream_params if p.var_type == qua.fixed]
+        fixed_params = [p for p in stream_params if p.var_type == backend.fixed_type]
 
-        index = qua.declare(int) if self.debug_input_streams else None
+        index = backend.declare(int) if self.debug_input_streams else None
 
         if int_params:
             self._qua_advance_assign_save_input_streams(
@@ -269,62 +270,66 @@ class Measurement(SequenceBase):
                 'bool', bool_params, self._qua_bool_input_stream, index)
         if fixed_params:
             self._qua_advance_assign_save_input_streams(
-                'fixed', fixed_params, self._qua_fixed_input_stream, index)
+                'float', fixed_params, self._qua_float_input_stream, index)
 
     def _qua_advance_assign_save_input_streams(
-        self, var_type, input_params, input_stream, index = None) -> None:
+        self, var_type, input_params, input_stream, index=None) -> None:
         """
-        Takes the given paramters to stream and the respective input stream and
+        Takes the given parameters to stream and the respective input stream and
         advances the input stream, assigns the values to the parameters and
-        and saves the values to the respective output streams if debug flag
+        saves the values to the respective output streams if debug flag.
 
         Args:
             input_params (list): List of values to be streamed
-            input_stream (qua stream): Input stream to advance
-            index (qua variable): Index variable for debug output
+            input_stream: Input stream to advance
+            index: Index variable for debug output
         """
-        qua.advance_input_stream(input_stream)
+        backend = self.backend
+        backend.advance_input_stream(input_stream)
         for i, param in enumerate(input_params):
-            qua.assign(param.qua_var, input_stream[i])
+            backend.assign(param.qua_var, input_stream[i])
         if self.debug_input_streams:
-            input_stream_out = qua.declare_stream()
+            input_stream_out = backend.declare_stream()
             setattr(self, f"debug_{var_type}_input_stream", input_stream_out)
-            with qua.for_(index, 0, index < len(input_params), index + 1):
-                qua.save(input_stream[index], input_stream_out)
+            with backend.for_loop(index, 0, index < len(input_params), index + 1):
+                backend.save(input_stream[index], input_stream_out)
 
     def qua_before_sequence(self, simulate: bool = False):
         """
-        Qua code to be executed before the inner measurement
+        Code to be executed before the inner measurement.
         """
         if simulate:
-            for qua_var in self.step_requirements:
-                qua.assign(qua_var, True)
+            backend = self.backend
+            for hw_var in self.step_requirements:
+                backend.assign(hw_var, True)
         for sub_sequence in self.sub_sequences:
             sub_sequence.qua_before_sequence()
 
     def qua_after_sequence(self):
         """
-        Qua code to be executed after the measurement loop and the code it contains
+        Code to be executed after the measurement loop and the code it contains.
         """
         for sub_sequence in self.sub_sequences:
             sub_sequence.qua_after_sequence()
-        qua.align()
+        backend = self.backend
+        backend.align()
         self.qua_check_step_requirements(self.qua_increment_shot_tracker)
-        qua.align()
+        backend.align()
 
     def qua_increment_shot_tracker(self):
         """Increments the shot tracker variable by one and saves it to stream"""
-        qua.assign(
+        backend = self.backend
+        backend.assign(
             self.shot_tracker_qua_var,
             self.shot_tracker_qua_var + 1
-            )
-        qua.save(self.shot_tracker_qua_var, self.shot_tracker_qua_stream)
+        )
+        backend.save(self.shot_tracker_qua_var, self.shot_tracker_qua_stream)
 
     def qua_stream(self):
         """Contains raw QUA code to define streams"""
         self.shot_tracker_qua_stream.buffer(1).save(self.name + "_shots")
         if self.debug_input_streams:
-            for var_type in ['int', 'bool', 'fixed']:
+            for var_type in ['int', 'bool', 'float']:
                 stream_name = f"debug_{var_type}_input_stream"
                 if hasattr(self, stream_name):
                     stream = getattr(self, stream_name)
@@ -517,12 +522,12 @@ class Measurement(SequenceBase):
         return gettables
 
     def compile_qua_and_run(self, save_path: str | None = None) -> Program:
-        """Compiles the QUA code and runs it"""
+        """Compiles the FPGA program and runs it on the hardware backend."""
         self.reset_registered_gettables()
         self.register_gettables(*list(self.gettables.values()))
 
         self.nr_registered_results = 0
-        self.qua_program = self.get_qua_program()
+        self.qua_program = self.compile_program()
         print('QUA program compiled')
         if save_path:
             # Check if the directory exists
@@ -533,8 +538,8 @@ class Measurement(SequenceBase):
                     f"Please create the directory before saving the QUA script."
                 )
             with open(save_path, 'w', encoding="utf-8") as file:
-                file.write(
-                    generate_qua_script(self.qua_program, self.opx_config))
+                file.write(self.backend.generate_program_script(
+                    self.qua_program, self.opx_config))
             print('QUA program saved')
 
         if not self.driver.is_mock:
@@ -595,7 +600,7 @@ class Measurement(SequenceBase):
         for param in self.input_stream_parameters:
             if param.var_type == int:
                 int_vals.append(int(value_dict[param]*param.scale))
-            elif param.var_type == qua.fixed:
+            elif param.var_type == self.backend.fixed_type:
                 fixed_vals.append(float(value_dict[param]*param.scale))
             elif param.var_type == bool:
                 bool_vals.append(bool(value_dict[param]))
@@ -672,25 +677,26 @@ class Measurement(SequenceBase):
     def _qua_declare_input_streams(self) -> None:
         if not self.input_stream_parameters:
             return
-        for qua_type in [bool, int, qua.fixed]:
-            self._qua_declare_input_stream_type(qua_type)
+        backend = self.backend
+        for hw_type in [bool, int, backend.fixed_type]:
+            self._qua_declare_input_stream_type(hw_type)
 
-    def _qua_declare_input_stream_type(
-        self, qua_type: int | bool | qua.fixed) -> None:
+    def _qua_declare_input_stream_type(self, hw_type) -> None:
+        backend = self.backend
         length = 0
         for param in self.input_stream_parameters:
-            if param.var_type == qua_type:
+            if param.var_type == hw_type:
                 length += 1
-                param.qua_var = qua.declare(param.var_type)
+                param.qua_var = backend.declare(param.var_type)
                 param.qua_sweeped = True
         if length > 0:
-            input_stream = qua.declare_input_stream(
-                qua_type,
-                name = f"{self.short_name}_{qua_type.__name__}_input_stream",
-                size = length
+            input_stream = backend.declare_input_stream(
+                hw_type,
+                name=f"{self.short_name}_{hw_type.__name__}_input_stream",
+                size=length
             )
-            setattr(self, f"_qua_{qua_type.__name__}_input_stream", input_stream)
-            self._input_stream_type_shapes[qua_type.__name__] = length
+            setattr(self, f"_qua_{hw_type.__name__}_input_stream", input_stream)
+            self._input_stream_type_shapes[hw_type.__name__] = length
 
     def get_sequence_path(self):
         """Returns its name since Measurement is the top level"""
@@ -727,9 +733,9 @@ class Measurement(SequenceBase):
     def qua_check_step_requirements(
         self, action: callable, requirements_list: list = None):
         """
-        Checks if the qua variables corresponding to the given save requirements
-        are true and save results to GettableParameters. Otherwise continue
-        without saving.
+        Checks if the hardware variables corresponding to the given step
+        requirements are true and executes the action. Otherwise continues
+        without executing.
         This is useful for feedback sequences or conditional operations.
         """
         if requirements_list is None:
@@ -737,7 +743,7 @@ class Measurement(SequenceBase):
         if len(requirements_list) == 0:
             action()
         else:
-            with qua.if_(requirements_list[0]):
+            with self.backend.if_block(requirements_list[0]):
                 self.qua_check_step_requirements(action, requirements_list[1:])
 
     def find_parameter_from_sub_sequence(self, attr_path: str) -> SequenceParameter:
