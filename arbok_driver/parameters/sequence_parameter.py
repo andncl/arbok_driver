@@ -1,14 +1,15 @@
 """ Module containing SequenceParameter class """
 from __future__ import annotations
-from typing import Any, TypeVar, Generic, Optional
+from typing import Any, TypeVar, Generic, Optional, TYPE_CHECKING
 import logging
 
 from numpy import ndarray
 import numpy as np
 from qcodes.parameters import Parameter
 from qcodes.validators import Arrays, Validator
-from qm import qua
-from qm.qua._expressions import QuaVariable, QuaArrayVariable
+
+if TYPE_CHECKING:
+    from qm.qua._expressions import QuaVariable, QuaArrayVariable
 
 T_co = TypeVar("T_co", covariant=True)
 
@@ -59,13 +60,24 @@ class SequenceParameter(Parameter, Generic[T_co]):
         return self.sequence_path
 
     @property
-    def qua(self) -> T_co:
-        """Getter method for parameter"""
+    def hw_var(self) -> T_co:
+        """Returns the hardware variable if declared, else the Python value.
+
+        This is the primary accessor for use in sequence code. When the
+        parameter has been declared on the hardware backend (e.g. as a QUA
+        variable for sweeps), returns that handle. Otherwise returns the
+        current Python value via get().
+        """
         if self.qua_var is not None:
             return self.qua_var
         else:
             return_value = self.call_method()
             return return_value
+
+    @property
+    def qua(self) -> T_co:
+        """Backwards-compatible alias for hw_var."""
+        return self.hw_var
 
     def convert_to_real_units(self, value):
         """
@@ -141,21 +153,20 @@ class SequenceParameter(Parameter, Generic[T_co]):
             setpoints = np.array(setpoints)
         self.qua_sweeped = True
 
-        self.qua_var = qua.declare(self.var_type)
+        backend = self.instrument.backend
+        self.qua_var = backend.declare(self.var_type)
         if self.has_input_stream is True:
-            self.input_stream = qua.declare_input_stream(
-                'client',
-                stream_id = self.sequence_path,
-                dtype = self.var_type,
-
-                size = int(len(setpoints))
+            self.input_stream = backend.declare_input_stream(
+                self.var_type,
+                name=self.sequence_path,
+                size=int(len(setpoints))
             )
             print(f"Declaring input stream for {self.register_name}")
         elif self.can_be_parameterized:
             pass
         elif self.has_input_stream is False:
-            self.qua_sweep_arr = qua.declare(
-                self.var_type, value = setpoints*self.scale)
+            self.qua_sweep_arr = backend.declare(
+                self.var_type, value=setpoints*self.scale)
         else:
             raise ValueError(
                 f"The parameter {self.register_name} has reached an unexpected state")
