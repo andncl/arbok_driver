@@ -4,6 +4,7 @@ from abc import ABC
 from dataclasses import fields
 from typing import TYPE_CHECKING, Any
 import logging
+import warnings
 
 from .parameter_class import ParameterClass
 from .sequence_base import SequenceBase
@@ -13,7 +14,15 @@ if TYPE_CHECKING:
 
 class SubSequence(SequenceBase, ABC):
     """
-    Class describing a subsequence of a QUA programm (e.g Init, Control, Read). 
+    Class describing a subsequence of a QUA program (e.g Init, Control, Read).
+
+    Subclasses should implement either:
+    - ``fpga_sequence()`` for hardware-agnostic code (works with any backend)
+    - ``qua_sequence()`` for QUA-specific code (legacy, QuaBackend only)
+
+    If both are defined, ``fpga_sequence()`` takes priority when a non-QUA
+    backend is active. The QUA backend uses ``qua_sequence()`` if defined,
+    falling back to ``fpga_sequence()`` otherwise.
     """
     _enforce_parameter_class: bool = False
     def __init__(
@@ -26,7 +35,7 @@ class SubSequence(SequenceBase, ABC):
             ):
         """
         Constructor class for `Program` class
-        
+
         Args:
             name (str): Name of the program
             sequence_config (dict): Dictionary containing all device parameters
@@ -44,7 +53,147 @@ class SubSequence(SequenceBase, ABC):
         """Returns parent (sub) sequence"""
         return self.find_measurement()
 
+    # ──────────────────────────────────────────────────────────────────────
+    # Hardware-agnostic lifecycle hooks (fpga_* prefix)
+    # Override these for multi-backend support
+    # ──────────────────────────────────────────────────────────────────────
+
+    def fpga_sequence(self) -> None:
+        """Hardware-agnostic sequence using arbok.* operations.
+
+        Override this method to write sequences that work with any backend
+        (QUA, simulation, etc.). Uses arbok.play(), arbok.wait(), etc.
+
+        Default implementation delegates to child sub_sequences.
+        """
+        for sub_sequence in self.sub_sequences:
+            sub_sequence._dispatch_fpga_sequence()
+
+    def fpga_declare(self) -> None:
+        """Hardware-agnostic variable declaration hook.
+
+        Override to declare variables needed for your sequence using
+        arbok.declare() etc. Default delegates to children.
+        """
+        for sub_sequence in self.sub_sequences:
+            sub_sequence._dispatch_fpga_declare()
+
+    def fpga_before_sequence(self) -> None:
+        """Hardware-agnostic hook run before the inner measurement loop.
+
+        Default delegates to children.
+        """
+        for sub_sequence in self.sub_sequences:
+            sub_sequence._dispatch_fpga_before_sequence()
+
+    def fpga_after_sequence(self) -> None:
+        """Hardware-agnostic hook run after the inner measurement loop.
+
+        Default delegates to children.
+        """
+        for sub_sequence in self.sub_sequences:
+            sub_sequence._dispatch_fpga_after_sequence()
+
+    def fpga_stream(self) -> None:
+        """Hardware-agnostic stream processing hook.
+
+        Default delegates to children.
+        """
+        for sub_sequence in self.sub_sequences:
+            sub_sequence._dispatch_fpga_stream()
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Dispatch logic
+    # ──────────────────────────────────────────────────────────────────────
+
+    def _dispatch_fpga_sequence(self) -> None:
+        """Dispatch to fpga_sequence or qua_sequence based on backend."""
+        from .backends.qua_backend import QuaBackend
+
+        has_fpga = type(self).fpga_sequence is not SubSequence.fpga_sequence
+        has_qua = type(self).qua_sequence is not SubSequence.qua_sequence
+
+        if has_fpga:
+            if self.check_step_requirements:
+                self.measurement.qua_check_step_requirements(self.fpga_sequence)
+            else:
+                self.fpga_sequence()
+        elif has_qua:
+            if not isinstance(self.backend, QuaBackend):
+                raise NotImplementedError(
+                    f"SubSequence '{self.name}' only defines qua_sequence() "
+                    f"which is not compatible with {type(self.backend).__name__}. "
+                    f"Implement fpga_sequence() for hardware-agnostic operation."
+                )
+            if self.check_step_requirements:
+                self.measurement.qua_check_step_requirements(self.qua_sequence)
+            else:
+                self.qua_sequence()
+        else:
+            if self.check_step_requirements:
+                self.measurement.qua_check_step_requirements(self.fpga_sequence)
+            else:
+                self.fpga_sequence()
+
+    def _dispatch_fpga_declare(self) -> None:
+        """Dispatch to fpga_declare or qua_declare."""
+        from .backends.qua_backend import QuaBackend
+
+        has_fpga = type(self).fpga_declare is not SubSequence.fpga_declare
+        has_qua = type(self).qua_declare is not SubSequence.qua_declare
+
+        if has_fpga:
+            self.fpga_declare()
+        elif has_qua:
+            self.qua_declare()
+        else:
+            self.fpga_declare()
+
+    def _dispatch_fpga_before_sequence(self) -> None:
+        """Dispatch to fpga_before_sequence or qua_before_sequence."""
+        has_fpga = type(self).fpga_before_sequence is not SubSequence.fpga_before_sequence
+        has_qua = type(self).qua_before_sequence is not SubSequence.qua_before_sequence
+
+        if has_fpga:
+            self.fpga_before_sequence()
+        elif has_qua:
+            self.qua_before_sequence()
+        else:
+            self.fpga_before_sequence()
+
+    def _dispatch_fpga_after_sequence(self) -> None:
+        """Dispatch to fpga_after_sequence or qua_after_sequence."""
+        has_fpga = type(self).fpga_after_sequence is not SubSequence.fpga_after_sequence
+        has_qua = type(self).qua_after_sequence is not SubSequence.qua_after_sequence
+
+        if has_fpga:
+            self.fpga_after_sequence()
+        elif has_qua:
+            self.qua_after_sequence()
+        else:
+            self.fpga_after_sequence()
+
+    def _dispatch_fpga_stream(self) -> None:
+        """Dispatch to fpga_stream or qua_stream."""
+        has_fpga = type(self).fpga_stream is not SubSequence.fpga_stream
+        has_qua = type(self).qua_stream is not SubSequence.qua_stream
+
+        if has_fpga:
+            self.fpga_stream()
+        elif has_qua:
+            self.qua_stream()
+        else:
+            self.fpga_stream()
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Legacy QUA lifecycle hooks (backwards compatible)
+    # ──────────────────────────────────────────────────────────────────────
+
     def qua_sequence(self):
+        """QUA-specific sequence (legacy). Override for QuaBackend-only code.
+
+        For new sequences, prefer overriding fpga_sequence() instead.
+        """
         if self.check_step_requirements:
             self.measurement.qua_check_step_requirements(
                 super().qua_sequence
