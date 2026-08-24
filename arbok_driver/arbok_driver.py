@@ -1,18 +1,18 @@
 """
 Module containing the ArbokDriver class for managing and running sequences
-on a physical OPX instrument.
+on hardware via a configurable backend.
 """
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 import copy
 
 import xarray as xr
-from qm import SimulationConfig, generate_qua_script
-from qm.quantum_machines_manager import QuantumMachinesManager
 from qcodes.instrument import Instrument
 from qcodes.dataset import load_or_create_experiment
 from sqlalchemy.orm import Session
 
+from .backend import Backend
+from .backends import QuaBackend
 from .device import Device
 from .measurement import Measurement
 from .sqlalchemy_classes import SqlRun
@@ -20,41 +20,34 @@ from .sqlalchemy_classes import SqlRun
 if TYPE_CHECKING:
     from .experiment import Experiment
     from .sqlalchemy_classes import SqlRun
-    from qm.jobs.running_qm_job import RunningQmJob
-    from qm.quantum_machine import QuantumMachine
-    from qm.quantum_machines_manager import QuantumMachinesManager
-    from qm import StreamsManager
-    from qm.api.v2.qm_api import QmApi
 
 class ArbokDriver(Instrument):
     """
-    Class containing all functionality to manage and run modular sequences on a 
-    physical OPX instrument
+    Class containing all functionality to manage and run modular sequences on
+    a hardware backend.
     """
-    opx: QuantumMachine | QmApi
-    qm_job: RunningQmJob
-    qmm: QuantumMachinesManager
-    result_handles: StreamsManager
 
     def __init__(
             self,
             name: str,
             device: Device,
+            backend: Backend | None = None,
             **kwargs
             ) -> None:
         """
         Constructor class for `Program` class
-        
+
         Args:
             name (str): Name of the instrument
             device (Device): Device class describing phyical device
+            backend (Backend): Hardware backend to use. Defaults to QuaBackend.
             **kwargs: Arbitrary keyword arguments for qcodes Instrument class
         """
         super().__init__(name, **kwargs)
         if not isinstance(device, Device):
             raise TypeError(f"device must be type Device, is {type(Device)}")
         self.device: Device = device
-        self.host_ip: str
+        self.backend: Backend = backend if backend is not None else QuaBackend()
         self.is_mock: bool = False
         self._measurements: list[Measurement] = []
         self.add_parameter('iteration', get_cmd = None, set_cmd =None)
@@ -63,9 +56,62 @@ class ArbokDriver(Instrument):
         self.minio_filesystem = None
         self.station = None
 
+    # ──────────────────────────────────────────────────────────────────────
+    # Backwards-compat properties — these live on QuaBackend now
+    # ──────────────────────────────────────────────────────────────────────
+
+    @property
+    def qmm(self) -> Any:
+        """QUA-specific: QuantumMachinesManager (lives on QuaBackend)."""
+        return getattr(self.backend, 'qmm', None)
+
+    @qmm.setter
+    def qmm(self, value: Any) -> None:
+        self.backend.qmm = value
+
+    @property
+    def opx(self) -> Any:
+        """QUA-specific: open QuantumMachine handle (lives on QuaBackend)."""
+        return getattr(self.backend, 'opx', None)
+
+    @opx.setter
+    def opx(self, value: Any) -> None:
+        self.backend.opx = value
+
+    @property
+    def qm_job(self) -> Any:
+        """QUA-specific: running job handle (lives on QuaBackend)."""
+        return getattr(self.backend, 'qm_job', None)
+
+    @qm_job.setter
+    def qm_job(self, value: Any) -> None:
+        self.backend.qm_job = value
+
+    @property
+    def result_handles(self) -> Any:
+        """QUA-specific: stream result handles (lives on QuaBackend)."""
+        return getattr(self.backend, 'result_handles', None)
+
+    @result_handles.setter
+    def result_handles(self, value: Any) -> None:
+        self.backend.result_handles = value
+
+    @property
+    def host_ip(self) -> str | None:
+        """QUA-specific: OPX host address (lives on QuaBackend)."""
+        return getattr(self.backend, 'host_ip', None)
+
+    @host_ip.setter
+    def host_ip(self, value: str) -> None:
+        self.backend.host_ip = value
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Measurements
+    # ──────────────────────────────────────────────────────────────────────
+
     @property
     def measurements(self) -> list[Measurement]:
-        """Measurements to be run within program uploaded to the OPX"""
+        """Measurements to be run within program"""
         return self._measurements
 
     def reset_measurements(self) -> None:
@@ -79,103 +125,113 @@ class ArbokDriver(Instrument):
         self._measurements = []
         self.submodules = {}
 
-    def connect_opx(
+    # ──────────────────────────────────────────────────────────────────────
+    # Hardware connection (delegated to backend)
+    # ──────────────────────────────────────────────────────────────────────
+
+    def connect_hardware(
             self,
             host_ip: str,
-            qm_config: dict | None = None,
+            config: dict | None = None,
             reconnect: bool = False,
             **kwargs) -> None:
         """
-        Creates QuantumMachinesManager and opens a quantum machine on it with
-        the given IP address
-        
+        Connects to the hardware backend at the given address.
+
+        For the QuaBackend this creates a QuantumMachinesManager and opens a
+        quantum machine. Other backends may not require a connection step.
+
         Args:
-            host_ip (str): Ip address of the OPX
-            qm_config (dict): QM/OPX config dictionary to be used. Defaults to
-                None, in which case the config from the device is used. If given
-                overwrites the device config.
-            reconnect (bool): Whether to reconnect to the OPX if already
-                connected. Keeps QMM alive if true. Defaults to False.
-            **kwargs: Arbitrary keyword arguments for QMM instanciation
+            host_ip (str): Address of the hardware (IP for OPX)
+            config (dict): Hardware config dictionary to use. Defaults to
+                None, in which case the config from the device is used. If
+                given, overwrites the device config.
+            reconnect (bool): Whether to reconnect (keeps manager alive).
+            **kwargs: Backend-specific keyword arguments
         """
-        if not reconnect:
-            self.qmm = QuantumMachinesManager(
-                host = host_ip, **kwargs)
-            self.host_ip = host_ip
-        if qm_config is not None:
-            if not isinstance(qm_config, dict):
+        if config is not None:
+            if not isinstance(config, dict):
                 raise ValueError(
-                    "qm_config must be a dictionary, not a string")
-            self.device.config = copy.deepcopy(qm_config)
-        self.opx = self.qmm.open_qm(
-            self.device.config, close_other_machines = True)
+                    "config must be a dictionary, not a string")
+            self.device.config = copy.deepcopy(config)
+        self.backend.connect(
+            host_ip, self.device.config, reconnect=reconnect, **kwargs)
+
+    def connect_opx(self, host_ip: str, qm_config: dict | None = None,
+                    reconnect: bool = False, **kwargs) -> None:
+        """Backwards-compatible alias for connect_hardware()."""
+        self.connect_hardware(host_ip, config=qm_config,
+                             reconnect=reconnect, **kwargs)
+
+    def reconnect_hardware(
+            self, host_ip: str | None = None, config: dict = None) -> None:
+        """
+        Reconnects to the hardware, closing any previous connection.
+
+        Args:
+            host_ip (str): Address of the hardware. If None, reuses last.
+            config (dict): Hardware config override. Defaults to device config.
+        """
+        if host_ip is None:
+            if self.host_ip is None:
+                raise AttributeError(
+                    "No hardware connected. Run 'connect_hardware' first")
+            host_ip = self.host_ip
+        self.backend.disconnect()
+        self.connect_hardware(host_ip, config, reconnect=True)
 
     def reconnect_opx(
             self, host_ip: str | None = None, qm_config: dict = None) -> None:
-        """
-        Reconnects to the OPX with the given IP address and closes the previous
-        connection
-        
-        Args:
-            host_ip (str): Ip address of the OPX
-            qm_config (dict): QM/OPX config dictionary to be used. Defaults to
-                None, in which case the config from the device is used. If given
-                overwrites the device config. 
-        """
-        if host_ip is None:
-            if self.qmm is None:
-                raise AttributeError(
-                    "No Quantum-Machines-Manager connected. Run 'connect_opx first'")
-            host_ip = self.host_ip
-        if self.opx is not None:
-            print('Closing previous connection')
-            self.opx.close()
-            self.qmm.close_all_quantum_machines()
-        self.connect_opx(host_ip, qm_config, reconnect = True)
+        """Backwards-compatible alias for reconnect_hardware()."""
+        self.reconnect_hardware(host_ip, config=qm_config)
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Program execution (delegated to backend)
+    # ──────────────────────────────────────────────────────────────────────
 
     def add_measurement(self, new_measurement: Measurement):
         """
         Adds a class which inherits `Measurement` to the program and adds it
         as a QCoDeS sub-module
-        
+
         Args:
             new_measurement (Measurement): The instance which inherits
             Measurement to be added
         """
         self._measurements.append(new_measurement)
 
-    def run(self, qua_program, **kwargs):
+    def run(self, program, **kwargs):
         """
-        Sends the qua program for execution to the OPX and sets the programs 
-        result handles 
-        
-        Args:
-            qua_program (program): QUA program to be executed
-        """
-        self.qm_job = self.opx.execute(qua_program, **kwargs)
-        self.result_handles = self.qm_job.result_handles
+        Sends the compiled program for execution on the hardware backend.
 
-    def print_qua_program_to_file(
+        Args:
+            program: Compiled program handle
+            **kwargs: Backend-specific execution arguments
+        """
+        self.backend.run(program, **kwargs)
+
+    def print_program_to_file(
             self,
             path: str,
-            qua_program,
+            program,
             add_config: bool = False
             ) -> None:
         """
-        Creates file with 'filename' and prints the QUA code to this file
-        
+        Creates file with 'filename' and prints the program script to this file.
+
         Args:
-            file_name (str): File name of target file
-            qua_program (program): QUA program to be printed
+            path (str): File path of target file
+            program: Compiled program handle
             add_config (bool): Whether config is added to output file
         """
+        config = self.device.config if (self.device is not None and add_config) else {}
         with open(path, 'w', encoding="utf-8") as file:
-            if self.device is not None and add_config:
-                file.write(generate_qua_script(
-                    qua_program, self.device.config
-                    ))
-            else:
-                file.write(generate_qua_script(qua_program))
+            file.write(self.backend.generate_program_script(program, config))
+
+    def print_qua_program_to_file(
+            self, path: str, qua_program, add_config: bool = False) -> None:
+        """Backwards-compatible alias for print_program_to_file()."""
+        self.print_program_to_file(path, qua_program, add_config)
 
     def get_idn(self):
         """
