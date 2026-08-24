@@ -11,6 +11,15 @@ master_config = {
             'value': int(1),
             'vals': validators.Ints(),
         },
+        'all_elements': {
+            'type': List,
+            'value': [
+                'P1', 'J1',
+                'P2', 'J2',
+                'P7', 'J7',
+                'P8',
+            ]
+        },
         'gate_elements': {
             'type': List,
             'value': [
