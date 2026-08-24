@@ -10,7 +10,6 @@ import warnings
 
 from qcodes.validators import Arrays
 from qcodes.parameters import ParameterWithSetpoints
-from qm import qua
 
 if TYPE_CHECKING:
     from arbok_driver.measurement import Measurement
@@ -35,12 +34,12 @@ class GettableParameterBase(ParameterWithSetpoints):
             QUA program
 
     """
-    qua_stream: ResultStreamSource
+    hw_stream: ResultStreamSource
     def __init__(
             self,
             name: str,
             read_sequence: ReadSequence,
-            var_type: Type[int | bool | qua.fixed],
+            var_type: Type[int | bool | float],
             **kwargs
             ) -> None:
         """
@@ -51,7 +50,7 @@ class GettableParameterBase(ParameterWithSetpoints):
         """
         super().__init__(name, vals=Arrays(shape=(1,)), **kwargs)
         self.vals: Arrays
-        self.var_type: Type[int | bool | qua.fixed] = var_type
+        self.var_type: Type[int | bool | float] = var_type
         self.read_sequence: ReadSequence = read_sequence
         self.read_sequence.add_gettable(self)
         self.measurement: Measurement = read_sequence.measurement
@@ -64,28 +63,61 @@ class GettableParameterBase(ParameterWithSetpoints):
         self.is_mock: bool = self.measurement.is_mock
 
     @abstractmethod
-    def qua_declare_variables(self) -> None:
-        """Declares the qua variables and streams for this gettable"""
+    def fpga_declare_variables(self) -> None:
+        """Declares the hardware variables and streams for this gettable"""
         pass
 
     @abstractmethod
-    def qua_save_variables(self) -> None:
-        """Saves acquired results to qua stream"""
+    def fpga_save_variables(self) -> None:
+        """Saves acquired results to hardware stream"""
         pass
 
-    def qua_save_streams(self) -> None:
-        """Saves acquired results to qua stream"""
-        buffer = self.qua_stream.buffer(*self.vals.shape)
+    def fpga_save_streams(self) -> None:
+        """Saves acquired results to hardware stream"""
+        buffer = self.hw_stream.buffer(*self.vals.shape)
         buffer.save(self.full_name)
+
+    # Deprecated aliases
+    def qua_declare_variables(self) -> None:
+        """Deprecated: use fpga_declare_variables()"""
+        warnings.warn(
+            "qua_declare_variables() is deprecated, use "
+            "fpga_declare_variables()",
+            DeprecationWarning, stacklevel=2)
+        self.fpga_declare_variables()
+
+    def qua_save_variables(self) -> None:
+        """Deprecated: use fpga_save_variables()"""
+        warnings.warn(
+            "qua_save_variables() is deprecated, use fpga_save_variables()",
+            DeprecationWarning, stacklevel=2)
+        self.fpga_save_variables()
+
+    def qua_save_streams(self) -> None:
+        """Deprecated: use fpga_save_streams()"""
+        warnings.warn(
+            "qua_save_streams() is deprecated, use fpga_save_streams()",
+            DeprecationWarning, stacklevel=2)
+        self.fpga_save_streams()
 
     def set_raw(self, *args, **kwargs) -> None:
         """Empty abstract `set_raw` method. Parameter not meant to be set"""
         raise NotImplementedError("GettableParameters are not meant to be set")
 
+    @property
+    def qua_stream(self):
+        """Deprecated: use hw_stream instead."""
+        return self.hw_stream
+
+    @qua_stream.setter
+    def qua_stream(self, value):
+        """Deprecated: use hw_stream instead."""
+        self.hw_stream = value
+
     def reset_measuerement_attributes(self):
         """Resets all job specific attributes"""
         self.buffer = None
-        self.qua_stream = None
+        self.hw_stream = None
 
     def configure_from_measurement(self, setpoints: tuple[ParameterBase, ...]) -> None:
         """
