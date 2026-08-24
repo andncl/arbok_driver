@@ -7,7 +7,7 @@ from arbok_driver import (
     ReadSequence, AbstractReadout, arbok, Signal, ParameterClass
 )
 from arbok_driver.parameter_types import (
-    Voltage, Time, Int, ParameterMap
+    Voltage, Time, Int, ParameterMap,
 )
 
 @dataclass(frozen = True)
@@ -71,7 +71,7 @@ class DcChoppedReadout(AbstractReadout):
 
     def qua_declare_variables(self) -> None:
         """Declares all necessary qua variables for readout"""
-        self.n_chops_division = 1/self.arbok_params.n_chops.qua
+        self.n_chops_division = 1/self.arbok_params.n_chops.hw_var
         super().qua_declare_variables()
         self.qua_chop_nr = qua.declare(int)
         for sub_readout, _ in self.readout_qua_elements.items():
@@ -81,86 +81,82 @@ class DcChoppedReadout(AbstractReadout):
     def qua_measure(self) -> None:
         """Measures the given observables and assigns the result to the vars"""
         for sub_readout, _ in self.readout_qua_elements.items():
-            qua.assign(self.diff_gettables[sub_readout].qua_result_var, 0.)
-            qua.assign(self.ref_temp_vars[sub_readout], 0.)
-            qua.assign(self.read_temp_vars[sub_readout], 0.)
+            arbok.assign(self.diff_gettables[sub_readout].qua_result_var, 0.)
+            arbok.assign(self.ref_temp_vars[sub_readout], 0.)
+            arbok.assign(self.read_temp_vars[sub_readout], 0.)
 
-        with qua.for_(
-            var = self.qua_chop_nr,
-            init = 0,
-            cond = self.qua_chop_nr < self.arbok_params.n_chops.qua,
-            update = self.qua_chop_nr + 1
+        with arbok.for_loop(
+            variable=self.qua_chop_nr,
+            init=0,
+            condition=self.qua_chop_nr < self.arbok_params.n_chops.hw_var,
+            update=self.qua_chop_nr + 1
             ):
-            qua.align()
-            arbok.ramp(
-                elements= self.gate_elements,
-                target = self.arbok_params.v_chop,
-                operation = 'unit_ramp',
-                )
+            arbok.align()
+            arbok.play(
+                elements=self.gate_elements,
+                target=self.arbok_params.v_chop,
+                operation='unit_ramp',
+            )
 
-            qua.align(*self.elements)
-            qua.wait(self.arbok_params.chop_wait.qua, *self.elements)
-            qua.align(*self.elements)
+            arbok.align(*self.elements)
+            arbok.wait(self.arbok_params.chop_wait.hw_var, *self.elements)
+            arbok.align(*self.elements)
 
             for sub_readout, qua_element in self.readout_qua_elements.items():
                 outputs = [
-                    qua.integration.full(
+                    arbok.integration_full(
                         'x_const',
                         self.ref_gettables[sub_readout].qua_result_var),
-                    ]
-                qua.measure('measure', qua_element, *outputs)
-            qua.align(*self.elements)
+                ]
+                arbok.measure('measure', qua_element, *outputs)
+            arbok.align(*self.elements)
 
-            arbok.ramp(
-                elements= self.gate_elements,
-                reference = self.arbok_params.v_chop,
-                target = self.arbok_params.v_home,
-                operation = 'unit_ramp',
-                )
+            arbok.play(
+                elements=self.gate_elements,
+                reference=self.arbok_params.v_chop,
+                target=self.arbok_params.v_home,
+                operation='unit_ramp',
+            )
 
-            qua.align(*self.elements)
-            qua.wait(self.arbok_params.chop_wait.qua, *self.elements)
-            qua.align(*self.elements)
+            arbok.align(*self.elements)
+            arbok.wait(self.arbok_params.chop_wait.hw_var, *self.elements)
+            arbok.align(*self.elements)
 
             for sub_readout, qua_element in self.readout_qua_elements.items():
                 outputs = [
-                    qua.integration.full('x_const', self.read_gettables[sub_readout].qua_result_var),
-                    ]
-                qua.measure('measure', qua_element, *outputs)
-            qua.align(*self.elements)
+                    arbok.integration_full(
+                        'x_const',
+                        self.read_gettables[sub_readout].qua_result_var),
+                ]
+                arbok.measure('measure', qua_element, *outputs)
+            arbok.align(*self.elements)
 
-            ### Calculate difference between read and reference point
-            ### Add to total result
             for sub_readout, _ in self.readout_qua_elements.items():
-                # Calculate the difference in qua
-                qua.assign(
+                arbok.assign(
                     self.ref_temp_vars[sub_readout],
                     self.ref_temp_vars[sub_readout]
                     + self.ref_gettables[sub_readout].qua_result_var*self.n_chops_division
                 )
-                qua.assign(
+                arbok.assign(
                     self.read_temp_vars[sub_readout],
                     self.read_temp_vars[sub_readout]
                     + self.read_gettables[sub_readout].qua_result_var*self.n_chops_division
                 )
-        qua.align()
-        ### Normalize the result and threshold it
+        arbok.align()
         for sub_readout, _ in self.readout_qua_elements.items():
-            ### Save accumulated ref and read to respective observables
-            qua.assign(
+            arbok.assign(
                 self.ref_gettables[sub_readout].qua_result_var,
                 self.ref_temp_vars[sub_readout]
-                )
-            qua.assign(
+            )
+            arbok.assign(
                 self.read_gettables[sub_readout].qua_result_var,
                 self.read_temp_vars[sub_readout]
-                )
-            ### Calculate the difference and threshold it
-            qua.assign(
+            )
+            arbok.assign(
                 self.diff_gettables[sub_readout].qua_result_var,
                 self.read_temp_vars[sub_readout] - self.ref_temp_vars[sub_readout]
-                )
-        qua.align(*self.elements)
+            )
+        arbok.align(*self.elements)
 
     def _create_gettables(self) -> None:
         """

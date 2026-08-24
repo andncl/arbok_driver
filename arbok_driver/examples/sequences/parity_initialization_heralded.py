@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from qm import qua
 from qm.qua._expressions import QuaVariable
-from arbok_driver import SequenceBase
+from arbok_driver import arbok, SequenceBase
 from arbok_driver.parameter_types import Time
 from .parity_initialization import ParityInit, ParityInitDeltaParameters
 
@@ -83,6 +83,34 @@ class ParityInitHeralded(ParityInit):
         self.nr_attempts = qua.declare(int, value = 0)
         if self.debug:
             self.attempt_stream = qua.declare_stream()
+
+    def fpga_sequence(self):
+        """Hardware-agnostic heralded parity initialization."""
+        self.feedback_var = self.measurement.find_parameter_from_sub_sequence(
+            self.feedback_result
+        )
+        with arbok.if_block(self.successful_init):
+            arbok.assign(self.step_requirement, True)
+            if self.debug:
+                arbok.save(self.nr_attempts, self.attempt_stream)
+            arbok.assign(self.nr_attempts, 0)
+            arbok.align(*self.elements)
+            arbok.wait(self.arbok_params.t_wait_post_init.hw_var, *self.elements)
+        with arbok.else_block():
+            arbok.assign(self.step_requirement, False)
+            if self.debug:
+                arbok.assign(self.nr_attempts, self.nr_attempts + 1)
+            super().fpga_sequence()
+
+    def fpga_after_sequence(self):
+        """Updates the heralding flag for the next iteration."""
+        with arbok.if_block(~self.successful_init):
+            if self.target_state:
+                arbok.assign(self.successful_init, self.feedback_var)
+            else:
+                arbok.assign(self.successful_init, ~self.feedback_var)
+        with arbok.else_block():
+            arbok.assign(self.successful_init, False)
 
     def qua_sequence(self):
         """QUA sequence to perform heralded spin parity initialization"""

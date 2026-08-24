@@ -19,22 +19,43 @@ class SquarePulseScalable(SubSequence):
     """
     PARAMETER_CLASS = SquarePulseParameters
     arbok_params: SquarePulseParameters
+
+    def fpga_sequence(self):
+        """Hardware-agnostic scalable square pulse."""
+        elements = self.arbok_params.sticky_elements.hw_var
+        arbok.align(*elements)
+        arbok.play(
+            elements=elements,
+            reference=self.arbok_params.v_home,
+            target=self.arbok_params.v_square,
+            duration=self.arbok_params.t_ramp,
+            operation='unit_ramp',
+        )
+        arbok.wait(self.arbok_params.t_square_pulse.hw_var, *elements)
+        arbok.play(
+            elements=elements,
+            reference=self.arbok_params.v_square,
+            target=self.arbok_params.v_home,
+            duration=self.arbok_params.t_ramp,
+            operation='unit_ramp',
+        )
+
     def qua_sequence(self):
-        """Macro that will be played within the qua.program() context"""
-        qua.align(*self.arbok_params.sticky_elements.qua)
+        """Legacy QUA-specific implementation."""
+        qua.align(*self.arbok_params.sticky_elements.hw_var)
         arbok.ramp(
-            elements= self.arbok_params.sticky_elements.qua,
+            elements= self.arbok_params.sticky_elements.hw_var,
             reference = self.arbok_params.v_home,
             target = self.arbok_params.v_square,
             duration = self.arbok_params.t_ramp,
             operation = 'unit_ramp',
             )
         qua.wait(
-            self.arbok_params.t_square_pulse.qua,
-            *self.arbok_params.sticky_elements.qua
+            self.arbok_params.t_square_pulse.hw_var,
+            *self.arbok_params.sticky_elements.hw_var
             )
         arbok.ramp(
-            elements= self.arbok_params.sticky_elements.qua,
+            elements= self.arbok_params.sticky_elements.hw_var,
             reference = self.arbok_params.v_square,
             target = self.arbok_params.v_home,
             duration = self.arbok_params.t_ramp,

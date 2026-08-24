@@ -43,6 +43,20 @@ class ToControlPoint(SubSequence):
         self.elements = list(self.arbok_params.gate_elements.get())
         self.elements += list(self.arbok_params.qubit_elements.get())
 
+    def fpga_sequence(self):
+        """Hardware-agnostic sequence to move to control point."""
+        arbok.align(*self.elements)
+        arbok.play(
+            elements=self.arbok_params.gate_elements.get(),
+            reference=self.arbok_params.v_home,
+            target=self.arbok_params.v_control,
+            duration=self.arbok_params.t_ramp_to_control,
+            operation='unit_ramp',
+        )
+        arbok.align(*self.elements)
+        arbok.wait(self.arbok_params.t_wait_pre_control.hw_var, *self.elements)
+        arbok.align(*self.elements)
+
     def qua_sequence(self):
         """QUA sequence to perform voltage ramp from home to control point"""
         qua.align(*self.elements)
@@ -52,7 +66,7 @@ class ToControlPoint(SubSequence):
             target = self.arbok_params.v_control,
             duration = self.arbok_params.t_ramp_to_control,
             operation = 'unit_ramp',
-            
+
             )
         qua.align(*self.elements)
         qua.wait(self.arbok_params.t_wait_pre_control.qua, *self.elements)

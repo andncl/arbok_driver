@@ -1,8 +1,8 @@
 """Module containing threshold readout helper"""
 from dataclasses import dataclass
 
-from qm import qua
 from arbok_driver import (
+    arbok,
     AbstractReadout,
     ReadSequence,
     Signal,
@@ -31,7 +31,7 @@ class Threshold(AbstractReadout):
         ):
         """
         Constructor method of `Threshold` readout helper
-        
+
         Args:
             name (str): Name of readout
             read_sequence (arbok_driver.ReadSequence): ReadSequence performing the
@@ -55,11 +55,10 @@ class Threshold(AbstractReadout):
     def qua_measure(self):
         """
         Measures the given gettables and assigns the result to the variables.
-        Only to be called within qua.program() context manager!
         """
-        qua.assign(
+        arbok.assign(
             self.state_gettable.qua_result_var,
-            self.current_gettable.qua_result_var > self.arbok_params.threshold.qua
+            self.current_gettable.qua_result_var > self.arbok_params.threshold.hw_var
             )
 
     def _create_gettables(self):

@@ -46,22 +46,38 @@ class StabilityMap(ReadSequence):
         """
         super().qua_declare()
 
+    def fpga_sequence(self):
+        """Hardware-agnostic stability map sequence."""
+        arbok.align(*self.elements)
+        arbok.play(
+            elements=self.arbok_params.gate_elements.get(),
+            reference=self.arbok_params.v_home,
+            target=self.arbok_params.v_level,
+            operation='unit_ramp',
+        )
+        arbok.wait(self.arbok_params.t_pre_chop.hw_var, *self.elements)
+        arbok.align(*self.elements)
+
+        for _, readout in self.readout_groups["chop"].items():
+            readout.qua_measure_and_save()
+        arbok.align(*self.elements)
+
+        arbok.reset_sticky_elements(self.arbok_params.gate_elements.get())
+
     def qua_sequence(self):
+        """Legacy QUA-specific implementation."""
         qua.align(*self.elements)
-        ### Go to point in voltage space
         arbok.ramp(
             elements= self.arbok_params.gate_elements.get(),
             reference = self.arbok_params.v_home,
             target = self.arbok_params.v_level,
             operation = 'unit_ramp',
             )
-        qua.wait(self.arbok_params.t_pre_chop.qua, *self.elements)
+        qua.wait(self.arbok_params.t_pre_chop.hw_var, *self.elements)
         qua.align(*self.elements)
 
-        ### Conduct chopped readout(s)
         for _, readout in self.readout_groups["chop"].items():
             readout.qua_measure_and_save()
         qua.align(*self.elements)
 
-        ### Reset elements to home voltage
         arbok.reset_sticky_elements(self.arbok_params.gate_elements.get())

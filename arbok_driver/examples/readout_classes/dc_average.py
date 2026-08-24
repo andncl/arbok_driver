@@ -4,9 +4,10 @@ from typing import TYPE_CHECKING
 
 from qm import qua
 from arbok_driver import (
+    arbok,
     AbstractReadout,
     ReadSequence,
-    Signal, 
+    Signal,
 )
 
 if TYPE_CHECKING:
@@ -28,7 +29,7 @@ class DcAverage(AbstractReadout):
         ):
         """
         Constructor method of ReadoutPoint class
-        
+
         Args:
             point_name (str): Name of readout point
             signal (Signal): Signal corresponding to readout point
@@ -50,9 +51,9 @@ class DcAverage(AbstractReadout):
         Measures I and Q at the given read point in a static averaging manner
         """
         outputs = [
-            qua.integration.full('x_const', self.current_gettable.qua_result_var),
-            ]
-        qua.measure('measure', self.qua_element, *outputs)
+            arbok.integration_full('x_const', self.current_gettable.qua_result_var),
+        ]
+        arbok.measure('measure', self.qua_element, *outputs)
 
     def _create_gettables(self):
         self.current_gettable: GettableParameter = self.create_gettable(

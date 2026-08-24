@@ -5,7 +5,7 @@ from qm import qua
 from qm.qua._expressions import QuaVariable
 from qm.qua.lib import Cast
 
-from arbok_driver import SubSequence, ParameterClass
+from arbok_driver import SubSequence, arbok, ParameterClass
 from arbok_driver.parameter_types import (
     Time, Int, List)
 
@@ -76,6 +76,77 @@ class Cpmg(SubSequence):
         self.n_index = qua.declare(int)
         self.wait_time_factor = qua.declare(qua.fixed)
         self.t_sub_equator_wait = qua.declare(int)
+
+    def fpga_before_sequence(self):
+        """Hardware-agnostic pre-sequence for CPMG."""
+        self.x.fpga_sequence()  # x gate pre-sequence
+        if type(self.arbok_params.repetitions.hw_var).__name__ == 'QuaVariable':
+            with arbok.if_block(self.arbok_params.repetitions.hw_var == 0):
+                arbok.assign(self.wait_time_factor, 1)
+            with arbok.else_block():
+                arbok.assign(self.wait_time_factor, 1/(self.arbok_params.repetitions.hw_var*2))
+        elif isinstance(self.arbok_params.repetitions.hw_var, int):
+            if self.arbok_params.repetitions.hw_var == 0:
+                arbok.assign(self.wait_time_factor, 1)
+            else:
+                arbok.assign(self.wait_time_factor, 1/(self.arbok_params.repetitions.hw_var*2))
+        else:
+            raise ValueError('Repetitions must be an integer or a QuaVariable')
+        arbok.align(*self.elements)
+        arbok.assign(
+            self.t_sub_equator_wait,
+            arbok.cast_mul_int_by_fixed(
+                self.arbok_params.t_equator_wait.hw_var, self.wait_time_factor)
+        )
+
+    def fpga_sequence(self):
+        """Hardware-agnostic CPMG sequence."""
+        self._fpga_cpmg()
+
+    def _fpga_cpmg(self) -> None:
+        """CPMG dispatch based on repetitions type."""
+        if type(self.arbok_params.repetitions.hw_var).__name__ == 'QuaVariable':
+            self._fpga_sequence_with_repetitions_as_variable()
+        elif isinstance(self.arbok_params.repetitions.hw_var, int):
+            self._fpga_sequence_with_repetitions_as_int()
+        else:
+            raise ValueError('Repetitions must be an integer or a QuaVariable')
+        arbok.align(*self.elements)
+
+    def _fpga_sequence_with_repetitions_as_variable(self) -> None:
+        with arbok.if_block(self.arbok_params.repetitions.hw_var == 0):
+            self._fpga_cpmg_zero_order()
+        with arbok.else_block():
+            self._fpga_cpmg_non_zero_order()
+
+    def _fpga_sequence_with_repetitions_as_int(self) -> None:
+        if self.arbok_params.repetitions.hw_var == 0:
+            self._fpga_cpmg_zero_order()
+        elif self.arbok_params.repetitions.hw_var == 1:
+            arbok.frame_rotation(0.25, self.target_qubit)
+            self._fpga_cpmg_hahn_order()
+            arbok.frame_rotation(-0.25, self.target_qubit)
+        else:
+            self._fpga_cpmg_non_zero_order()
+
+    def _fpga_cpmg_zero_order(self) -> None:
+        arbok.wait(self.t_sub_equator_wait, self.target_qubit)
+
+    def _fpga_cpmg_hahn_order(self) -> None:
+        arbok.wait(self.t_sub_equator_wait, self.target_qubit)
+        self.x.fpga_gate()
+        arbok.wait(self.t_sub_equator_wait, self.target_qubit)
+
+    def _fpga_cpmg_non_zero_order(self) -> None:
+        arbok.frame_rotation(0.25, self.target_qubit)
+        with arbok.for_loop(
+            variable=self.n_index,
+            init=0,
+            condition=self.n_index < self.arbok_params.repetitions.hw_var,
+            update=self.n_index + 1
+        ):
+            self._fpga_cpmg_hahn_order()
+        arbok.frame_rotation(-0.25, self.target_qubit)
 
     def qua_before_sequence(self):
         """Runs qua commands inside the loop before main sequence"""

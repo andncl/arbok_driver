@@ -63,10 +63,59 @@ class ParityRead(ReadSequence):
         """
         return super().qua_declare()
 
+    def fpga_sequence(self):
+        """Hardware-agnostic parity readout sequence."""
+        arbok.align()
+        arbok.align(*self.elements)
+        arbok.wait(self.arbok_params.t_wait_home_before.hw_var, *self.elements)
+        arbok.play(
+            elements=self.arbok_params.gate_elements.get(),
+            reference=self.arbok_params.v_home,
+            target=self.arbok_params.v_reference,
+            duration=self.arbok_params.t_ramp_to_reference,
+            operation='unit_ramp',
+        )
+        arbok.wait(self.arbok_params.t_wait_pre_read.hw_var, *self.elements)
+        arbok.align(*self.elements)
+        for _, readout in self.readout_groups["ref"].items():
+            readout.qua_measure()
+        arbok.align(*self.elements)
+        arbok.wait(self.arbok_params.t_wait_post_read.hw_var, *self.elements)
+
+        arbok.play(
+            elements=self.arbok_params.gate_elements.get(),
+            reference=self.arbok_params.v_reference,
+            target=self.arbok_params.v_read,
+            duration=self.arbok_params.t_ramp_to_read,
+            operation='unit_ramp',
+        )
+        arbok.wait(self.arbok_params.t_wait_pre_read.hw_var, *self.elements)
+        arbok.align(*self.elements)
+        for _, readout in self.readout_groups["read"].items():
+            readout.qua_measure()
+        arbok.align(*self.elements)
+        arbok.align()
+
+        for _, readout in self.readout_groups["diff"].items():
+            readout.qua_measure()
+        for _, readout in self.readout_groups["state"].items():
+            readout.qua_measure()
+        arbok.align(*self.elements)
+        arbok.wait(self.arbok_params.t_wait_post_read.hw_var, *self.elements)
+
+        arbok.reset_sticky_elements(self.arbok_params.gate_elements.get())
+        arbok.wait(self.arbok_params.t_wait_after_reset.hw_var, *self.elements)
+        arbok.align(*self.elements)
+
+        if 'set_feedback' in self.readout_groups:
+            for _, readout in self.readout_groups["set_feedback"].items():
+                readout.qua_measure()
+        arbok.align()
+
     def qua_sequence(self):
         """
         QUA sequence to perform spin parity readout
-        
+
         The sequence is as follows:
             1. Move to REFERENCE measurement point
             2. Take physical REFERENCE measurement

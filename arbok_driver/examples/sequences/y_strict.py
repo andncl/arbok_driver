@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from qm import qua
 
-from arbok_driver import SubSequence, ParameterClass
+from arbok_driver import SubSequence, arbok, ParameterClass
 from arbok_driver.parameter_types import List
 
 @dataclass(frozen=True)
@@ -41,6 +41,15 @@ class Ystrict(SubSequence):
         super().__init__(parent, name, sequence_config)
         self.elements = list(self.arbok_params.gate_elements.get())
         self.elements += list(self.arbok_params.qubit_elements.get())
+
+    def fpga_sequence(self):
+        """Hardware-agnostic Y gate sequence."""
+        self.fpga_gate()
+
+    def fpga_gate(self):
+        arbok.frame_rotation(-0.25, self.target_qubit)
+        arbok.play_pulse(self.control_pulse, self.target_qubit)
+        arbok.frame_rotation(0.25, self.target_qubit)
 
     def qua_sequence(self):
         """QUA sequence to perform qubit X gate with rotation"""

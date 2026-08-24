@@ -1,9 +1,10 @@
 """Module containing difference readout helper"""
 from qm import qua
 from arbok_driver import (
+    arbok,
     AbstractReadout,
     ReadSequence,
-    Signal, 
+    Signal,
 )
 
 class Difference(AbstractReadout):
@@ -47,9 +48,8 @@ class Difference(AbstractReadout):
     def qua_measure(self):
         """
         Measures the given gettables and assigns the result to the variables.
-        Only to be called within qua.program() context manager!
         """
-        qua.assign(
+        arbok.assign(
             self.difference_gettable.qua_result_var,
             self.minuend_gettable.qua_result_var
             - self.subtrahend_gettable.qua_result_var

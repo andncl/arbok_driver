@@ -43,6 +43,15 @@ class FromControlPoint(SubSequence):
         self.elements += list(self.arbok_params.qubit_elements.get())
         self.elements += list(self.arbok_params.readout_elements.get())
 
+    def fpga_sequence(self):
+        """Hardware-agnostic sequence to move from control point to home."""
+        arbok.align(*self.elements)
+        arbok.reset_sticky_elements(
+            self.arbok_params.gate_elements.get()
+        )
+        arbok.wait(self.arbok_params.t_wait_post_control.hw_var, *self.elements)
+        arbok.align(*self.elements)
+
     def qua_sequence(self):
         """QUA sequence to perform voltage ramp from control to home point"""
         qua.align(*self.elements)

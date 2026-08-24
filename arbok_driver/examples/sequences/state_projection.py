@@ -1,7 +1,7 @@
 """Module containing generic CPMG sequence"""
 from dataclasses import dataclass
 from qm import qua
-from arbok_driver import SubSequence, ParameterClass
+from arbok_driver import SubSequence, arbok, ParameterClass
 from arbok_driver.parameter_types import Int, List
 
 from .x_strict import Xstrict
@@ -79,6 +79,27 @@ class StateProjection(SubSequence):
         """
         for sub_sequence in self.single_qubit_gates:
             sub_sequence.qua_before_sequence()
+
+    def fpga_sequence(self):
+        """Hardware-agnostic state projection sequence."""
+        self._fpga_state_projection()
+
+    def _fpga_state_projection(self):
+        """State projection using arbok.* switch/case."""
+        arbok.align(*self.elements)
+        with arbok.switch_block(self.arbok_params.projection.qua_var, unsafe=True):
+            with arbok.case_block(0):
+                self.y.fpga_gate()
+            with arbok.case_block(1):
+                self.y_minus.fpga_gate()
+            with arbok.case_block(2):
+                self.x.fpga_gate()
+            with arbok.case_block(3):
+                self.x_minus.fpga_gate()
+            with arbok.case_block(4):
+                pass
+            with arbok.case_block(5):
+                self.x_pi.fpga_gate()
 
     def qua_sequence(self):
             self._qua_state_projection()

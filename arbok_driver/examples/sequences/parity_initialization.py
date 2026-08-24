@@ -51,6 +51,36 @@ class ParityInit(SubSequence):
         super().__init__(parent, name, sequence_config)
         self.elements = self.arbok_params.gate_elements.get()
 
+    def fpga_sequence(self):
+        """Hardware-agnostic parity initialization sequence."""
+        arbok.play(
+            elements=self.elements,
+            reference=self.arbok_params.v_home,
+            target=self.arbok_params.v_t1_point,
+            duration=self.arbok_params.t_ramp_to_t1,
+            operation='unit_ramp'
+        )
+        arbok.wait(self.arbok_params.t_wait_at_t1.hw_var, *self.elements)
+
+        arbok.play(
+            elements=self.elements,
+            reference=self.arbok_params.v_t1_point,
+            target=self.arbok_params.v_pre_crossing,
+            duration=self.arbok_params.t_ramp_to_crossing,
+            operation='unit_ramp'
+        )
+        arbok.wait(self.arbok_params.t_wait_before_crossing.hw_var, *self.elements)
+
+        arbok.play(
+            elements=self.elements,
+            target=self.arbok_params.v_delta,
+            duration=self.arbok_params.t_ramp_over_crossing,
+            operation='unit_ramp'
+        )
+        arbok.wait(self.arbok_params.t_wait_after_crossing.hw_var, *self.elements)
+
+        arbok.reset_sticky_elements(self.elements)
+
     def qua_sequence(self):
         """QUA sequence to perform odd spin parity initialization (down-up)"""
         ### Ramping to point in the even charge state region to init GS
