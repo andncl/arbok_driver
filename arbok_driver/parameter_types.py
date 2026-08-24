@@ -1,11 +1,10 @@
 """ Module containing ParameterType classes """
+from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 import numpy as np
-from qm import qua
-from qm.qua._expressions import QuaVariable, Scalar
 from qcodes.validators import (
     Arrays, Numbers, Ints, MultiTypeOr, Strings, Sequence, Bool
 )
@@ -56,10 +55,10 @@ class String(SequenceParameter[str]):
     """ Default: Strings """
     sweep_validator = MultiTypeOr(Strings(), Arrays(valid_types = [None]))
 
-class Voltage(SequenceParameter[float | QuaVariable]):
+class Voltage(SequenceParameter[float | Any]):
     unit = 'V'
     """ Default: 'V' """
-    var_type = qua.fixed
+    var_type = float
     """ Default: fixed """
     vals = Numbers()
     scale = 1
@@ -68,7 +67,7 @@ class Voltage(SequenceParameter[float | QuaVariable]):
     use_waveform_caching: bool = True
     """Whether this parameter may use waveform caching when swept."""
 
-class Frequency(SequenceParameter[int | QuaVariable]):
+class Frequency(SequenceParameter[int | Any]):
     unit = 'Hz'
     """ Default: 'Hz' """
     var_type = int
@@ -78,9 +77,9 @@ class Frequency(SequenceParameter[int | QuaVariable]):
     sweep_validator = MultiTypeOr(Numbers(), Arrays(valid_types = [int]))
     """ Default: Numbers """
 
-class Amplitude(SequenceParameter[float | Scalar]):
+class Amplitude(SequenceParameter[float | Any]):
     unit = None
-    var_type = qua.fixed
+    var_type = float
     """ Default: fixed """
     vals = Numbers(min_value = -2, max_value = 2)
     scale = 1
@@ -100,7 +99,7 @@ class List(SequenceParameter[list]):
     """ Default: Strings """
     sweep_validator = Sequence()
 
-class Int(SequenceParameter[int | QuaVariable]):
+class Int(SequenceParameter[int | Any]):
     var_type = int
     unit = '#'
     """ Default: int """
@@ -117,7 +116,7 @@ class Boolean(SequenceParameter[bool]):
 
 class Radian(SequenceParameter[float]):
     unit = 'pi'
-    var_type = qua.fixed
+    var_type = float
     vals = Numbers(min_value = -2*np.pi, max_value = 2*np.pi)
     scale = 1
     sweep_validator = MultiTypeOr(
@@ -127,7 +126,7 @@ class Radian(SequenceParameter[float]):
 
 class Pi(SequenceParameter):
     unit = 'pi'
-    var_type = qua.fixed
+    var_type = float
     scale = 1
     vals = Numbers(min_value = -2, max_value = 2)
     sweep_validator = MultiTypeOr(
