@@ -1,7 +1,7 @@
 """ Module containing BaseSequence class """
 from __future__ import annotations
 from abc import ABC
-from typing import cast, TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional
 import copy
 import types
 import warnings
@@ -10,17 +10,13 @@ from functools import reduce
 from anytree import RenderTree
 from qcodes.instrument import InstrumentModule
 
-from qm import SimulationConfig, generate_qua_script, qua, QuantumMachinesManager
-from qm.simulate.credentials import create_credentials
-from qm.type_hinting import FullQuaConfig
-
 from .parameters.sequence_parameter import SequenceParameter
 from .parameter_class import ParameterClass, EmptyParameterClass
 from .parameter_types import ParameterMap
 from . import utils
 
 if TYPE_CHECKING:
-    from qm import Program
+    from .backend import Backend
     from .device import Device
     from .sub_sequence import SubSequence
 
@@ -62,7 +58,7 @@ class SequenceBase(InstrumentModule, ABC):
         self._parameter_maps: dict = {}
         self._qua_program_as_str = None
         self.add_qc_params_from_config(self.sequence_config)
-        self._opx_config: FullQuaConfig = cast(FullQuaConfig, {})
+        self._hardware_config: dict = {}
 
     def __init_subclass__(cls, **kwargs) -> None:
         """Enforces child classes to define PARAMETER_CLASS class attribute"""
@@ -85,13 +81,26 @@ class SequenceBase(InstrumentModule, ABC):
         return {}
 
     @property
-    def opx_config(self) -> FullQuaConfig:
+    def backend(self) -> Backend:
+        """The active hardware backend, resolved from the driver."""
+        from .arbok_driver import ArbokDriver
+        if isinstance(self.parent, ArbokDriver):
+            return self.parent.backend
+        return self.parent.backend
+
+    @property
+    def hardware_config(self) -> dict:
         """
-        OPX configuration used to compile the QUA program. Some operations in
+        Hardware configuration used to compile the program. Some operations in
         arbok automatically introduce new pulses and waveforms. Therefore the
-        config you set on the device can be extended
+        config you set on the device can be extended at compile time.
         """
-        return self._opx_config
+        return self._hardware_config
+
+    @property
+    def opx_config(self) -> dict:
+        """Backwards-compatible alias for hardware_config."""
+        return self._hardware_config
 
     def qua_declare(self) -> None:
         """Contains raw QUA code to initialize the qua variables"""
@@ -201,72 +210,87 @@ class SequenceBase(InstrumentModule, ABC):
         for pre, _, node in RenderTree(root_node):
             print(f"{pre}{node.name}")
 
-    def get_qua_program_as_str(self, recompile: bool = False) -> str:
-        """Returns the qua program as str. Will be compiled if it wasnt yet"""
+    def get_program_as_str(self, recompile: bool = False) -> str:
+        """Returns the compiled program as a string."""
         if self._qua_program_as_str is None or recompile:
-            self.get_qua_program()
+            self.compile_program()
         return self._qua_program_as_str
 
-    def get_qua_program(self, simulate = False, config = None) -> Program:
+    def get_qua_program_as_str(self, recompile: bool = False) -> str:
+        """Deprecated alias for get_program_as_str()."""
+        return self.get_program_as_str(recompile)
+
+    def compile_program(self, simulate=False, config=None):
         """
-        Composes the entire sequence by searching recursively through init, 
-        sequence and stream methods of all subsequences and their subsequences.
-        The respective qua sequence will only be added once the recursive
-        scans have reached the lowest level of sequences (e.g sequences have no
-        sub-sequences anymore)
+        Compiles the FPGA program by recursively composing all subsequence
+        hooks (declare, before_sequence, sequence, after_sequence, stream).
+
+        Uses the active backend's program_context() to create the program
+        handle and generate_program_script() for the string representation.
 
         Args:
-            simulate (bool): Flag whether program is simulated
+            simulate (bool): Flag whether program is compiled for simulation
+            config: Optional override config
+
         Returns:
-            program: Program compiled into QUA language
+            program: Compiled program handle (backend-specific)
         """
-        self._opx_config = copy.deepcopy(self.measurement.device.config)
-        self.measurement._opx_config = self._opx_config
-        with qua.program() as prog:
-            self.get_qua_code(simulate)
-        self._qua_program_as_str = generate_qua_script(prog, self._opx_config)
+        from .arbok.context import set_active_backend
+        self._hardware_config = copy.deepcopy(self.measurement.device.config)
+        self.measurement._hardware_config = self._hardware_config
+        backend = self.backend
+        set_active_backend(backend)
+        try:
+            with backend.program_context() as prog:
+                self.compile_fpga_code(simulate)
+            self._qua_program_as_str = backend.generate_program_script(
+                prog, self._hardware_config)
+        finally:
+            set_active_backend(None)
         return prog
 
-    def get_qua_code(self, simulate = False) -> None:
+    def get_qua_program(self, simulate=False, config=None):
+        """Backwards-compatible alias for compile_program()."""
+        return self.compile_program(simulate=simulate, config=config)
+
+    def compile_fpga_code(self, simulate=False) -> None:
         """
-        Composes the entire qua sequence in qua code. Only execurte with
-        qm.qua.program() environment
-        
+        Composes the full FPGA sequence code within the active backend's
+        program context. Calls lifecycle hooks recursively through the
+        sequence tree.
+
         Args:
             simulate (bool): True if program is generated for simulation
         """
         if not hasattr(self, "measurement"):
             raise ReferenceError(
                 "The sub sequence {self.name} is not linked to a measurement")
+        backend = self.backend
         self.qua_declare_sweep_vars()
         self.qua_declare()
 
-        ### An infinite loop starting with a pause is defined to sync the QM
-        ### with the client
-        with qua.infinite_loop_():
+        with backend.infinite_loop():
             if not simulate:
-                qua.pause()
+                backend.pause()
 
-            ### Check requirements are set to True if the sequence is simulated
             if simulate:
-                for qua_var in self.measurement.step_requirements:
-                    qua.assign(qua_var, True)
-            ### The sequences are run in the order they were added
-            ### Before_sweep methods are run before the sweep loop
-            self.qua_before_sweep()
-            # self.recursive_qua_generation(seq_type = 'before_sweep')
+                for hw_var in self.measurement.step_requirements:
+                    backend.assign(hw_var, True)
 
-            ### qua_sequence methods of sub_sequences are called recursively
-            ### If parent sequence is present the sweep generation is added
+            self.qua_before_sweep()
+
             if hasattr(self.measurement, 'sweeps'):
                 self.recursive_sweep_generation(
                     self.measurement.sweeps)
             else:
                 self.qua_sequence()
 
-        ### Stream processing is added after the sequences
-        with qua.stream_processing():
+        with backend.stream_processing():
             self.qua_stream()
+
+    def get_qua_code(self, simulate=False) -> None:
+        """Backwards-compatible alias for compile_fpga_code()."""
+        self.compile_fpga_code(simulate)
 
     def simulate(
             self,
@@ -275,33 +299,90 @@ class SequenceBase(InstrumentModule, ABC):
             **kwargs
             ):
         """
-        Compiles and simulates the QUA program for this sequence.
+        Compiles and simulates the program for this sequence using the
+        active backend's simulate() method.
 
         Args:
-            duration (int): Simulation duration in cycles
-            **kwargs: Arbitrary keyword arguments for QMM simulation
+            duration_ns (int): Simulation duration in nanoseconds
+            program_save_path (str | None): Optional path to save the
+                compiled program script
+            **kwargs: Backend-specific simulation options
 
         Returns:
-            sim_job: QM job with waveform simulation result
+            Backend-specific simulation result
         """
-        qmm = self.measurement.driver.qmm
-        if not qmm:
-            raise ConnectionError(
-                "No QMM found! Connect an OPX via `connect_opx`")
-        qua_program = self.get_qua_program(simulate=True)
+        backend = self.backend
+        program = self.compile_program(simulate=True)
         if program_save_path is not None:
-            self.print_qua_program_to_file(file_name = program_save_path)
-        sim_job = qmm.simulate(
-            self.measurement.opx_config,
-            qua_program,
-            SimulationConfig(duration=int(duration_ns//4)),
-            **kwargs
+            self.print_qua_program_to_file(file_name=program_save_path)
+
+        # Pass qmm for QuaBackend if available
+        from .backends.qua_backend import QuaBackend
+        if isinstance(backend, QuaBackend):
+            qmm = self.measurement.driver.qmm
+            if not qmm:
+                raise ConnectionError(
+                    "No QMM found! Connect an OPX via `connect_opx`")
+            kwargs.setdefault("qmm", qmm)
+
+        return backend.simulate(
+            program, self._hardware_config, duration_ns=duration_ns, **kwargs
         )
-        sim_job.wait_until("Done")
-        sim_results = sim_job.get_simulated_samples()
-        fig = utils.plot_simulation(sim_results, self._opx_config)
-        fig.show()
-        return sim_job
+
+    def simulate_waveforms(self) -> dict:
+        """Simulate the sequence and return per-element voltage time-traces.
+
+        Temporarily swaps the backend to SimBackend, compiles and runs the
+        sequence, then restores the original backend. Works regardless of
+        which backend is currently active.
+
+        Returns:
+            Dict mapping element names to numpy arrays of voltage samples
+            at 1 GS/s (1 sample per nanosecond).
+        """
+        import numpy as np
+        from .backends.sim_backend import SimBackend
+        from .arbok.context import set_active_backend
+
+        sim = SimBackend()
+        driver = self.measurement.driver
+        original_backend = driver.backend
+        driver.backend = sim
+        try:
+            set_active_backend(sim)
+            with sim.program_context():
+                self.compile_fpga_code(simulate=True)
+        finally:
+            driver.backend = original_backend
+            set_active_backend(None)
+
+        all_elements = self._get_simulation_elements()
+        waveforms = sim.get_waveforms()
+
+        max_len = max((len(w) for w in waveforms.values()), default=0)
+        result = {}
+        for element in all_elements:
+            if element in waveforms:
+                arr = waveforms[element]
+                if len(arr) < max_len:
+                    arr = np.pad(arr, (0, max_len - len(arr)),
+                                 constant_values=arr[-1] if len(arr) > 0 else 0.0)
+                result[element] = arr
+            else:
+                result[element] = np.zeros(max_len)
+        return result
+
+    def _get_simulation_elements(self) -> list[str]:
+        """Returns element list for simulation output.
+
+        Uses this sequence's all_elements parameter if it exists,
+        otherwise falls back to the measurement's all_elements.
+        """
+        if hasattr(self, 'all_elements') and callable(self.all_elements):
+            return list(self.all_elements())
+        if hasattr(self, 'measurement') and hasattr(self.measurement, 'all_elements'):
+            return list(self.measurement.all_elements())
+        return list(self.device.elements)
 
     def print_qua_program_to_file(self, file_name: str):
         """Creates file with 'filename' and prints the QUA code to this file"""
@@ -515,16 +596,18 @@ class SequenceBase(InstrumentModule, ABC):
         Returns:
             SimulatedJob: QM job containing simulation results
         """
+        from qm import SimulationConfig, QuantumMachinesManager
+        from qm.simulate.credentials import create_credentials
         qmm = QuantumMachinesManager(
-            host = host,
-            port = port,
+            host=host,
+            port=port,
             credentials=create_credentials()
         )
         simulated_job = qmm.simulate(
             self.opx_config,
-            self.get_qua_program(simulate = True),
+            self.compile_program(simulate=True),
             SimulationConfig(duration=duration)
-            )
+        )
 
         devices = simulated_job.get_simulated_devices()
         utils.plot_qmm_simulation_results(devices)
