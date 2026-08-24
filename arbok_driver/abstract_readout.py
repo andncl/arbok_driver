@@ -1,11 +1,10 @@
 """Module containing abstract class for dependent readouts"""
 from __future__ import annotations
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass, fields
 import logging
+import warnings
 from typing import Generic, Sequence, TYPE_CHECKING, Type, TypeVar
-
-from qm import qua
 
 from .parameter_class import ParameterClass
 from .parameters.gettable_parameter import GettableParameter
@@ -27,9 +26,9 @@ class EmptyParameterClass(ParameterClass):
 
 class AbstractReadout(Generic[P], ABC):
     """
-    Abstract base class for abstract readouts. This base class handles qua
-    variable and stream declaration, saving and streaming. The child class only
-    needs to handle the abstract method `qua_measure`
+    Abstract base class for abstract readouts. This base class handles
+    hardware variable and stream declaration, saving and streaming. The child
+    class only needs to handle the abstract method `fpga_measure`.
     """
     PARAMETER_CLASS: Type[P]
     arbok_params: P
@@ -82,12 +81,25 @@ class AbstractReadout(Generic[P], ABC):
         if "PARAMETER_CLASS" not in cls.__dict__:
             cls.PARAMETER_CLASS = EmptyParameterClass  # type: ignore[assignment]
 
-    @abstractmethod
-    def qua_measure(self):
-        """Measures the qua variables for the given abstract readout"""
-        raise NotImplementedError(
-            "Abstract method 'qua_measure' not implemented in child class"
-        )
+    def fpga_measure(self, *args, **kwargs):
+        """Measures the hardware variables for the given abstract readout.
+
+        Override this in subclasses to implement measurement logic.
+        Falls back to qua_measure() for backwards compatibility with
+        existing subclasses.
+        """
+        if type(self).qua_measure is not AbstractReadout.qua_measure:
+            type(self).qua_measure(self, *args, **kwargs)
+        else:
+            raise NotImplementedError(
+                "Implement fpga_measure() in your AbstractReadout subclass")
+
+    def qua_measure(self, *args, **kwargs):
+        """Deprecated: override fpga_measure() instead."""
+        warnings.warn(
+            "qua_measure() is deprecated, override fpga_measure() instead",
+            DeprecationWarning, stacklevel=2)
+        self.fpga_measure(*args, **kwargs)
 
     @property
     def parameters(self) -> dict[str, SequenceParameter]:
@@ -102,7 +114,7 @@ class AbstractReadout(Generic[P], ABC):
     def create_gettable(
         self,
         gettable_name: str,
-        var_type: type[int | bool | qua.fixed]
+        var_type: type[int | bool | float]
         ) -> GettableParameter:
         """
         Creates a new GettableParameter for the AbstractReadout.
@@ -111,7 +123,7 @@ class AbstractReadout(Generic[P], ABC):
         
         Args:
             gettable_name (str): Name of the gettable to be created
-            var_type (int | bool | qua.fixed): Type of the gettable variable
+            var_type (int | bool | float): Type of the gettable variable
 
         Returns:
             GettableParameter: The created gettable parameter
@@ -129,7 +141,7 @@ class AbstractReadout(Generic[P], ABC):
     def create_multi_gettable(
         self,
         gettable_name: str,
-        var_type: type[int | bool | qua.fixed],
+        var_type: type[int | bool | float],
         internal_setpoints: Sequence[Parameter]
     ) -> GettableParameterMulti:
         """
@@ -139,7 +151,7 @@ class AbstractReadout(Generic[P], ABC):
         
         Args:
             gettable_name (str): Name of the gettable to be created
-            var_type (int | bool | qua.fixed): Type of the gettable variable
+            var_type (int | bool | float): Type of the gettable variable
             internal_setpoints (internal_setpoints: Sequence[Parameter]):
                 setpoints for this multi gettable
 
@@ -157,39 +169,99 @@ class AbstractReadout(Generic[P], ABC):
         self._gettables[gettable.full_name] = gettable
         return gettable
 
-    def qua_declare_variables(self) -> None:
-        """Declares all necessary qua variables for readout"""
+    def fpga_declare_variables(self) -> None:
+        """Declares all necessary hardware variables for readout.
+
+        Falls back to qua_declare_variables() for subclasses that override it.
+        """
+        if type(self).qua_declare_variables is not AbstractReadout.qua_declare_variables:
+            type(self).qua_declare_variables(self)
+        else:
+            self._default_declare_variables()
+
+    def fpga_save_variables(self) -> None:
+        """Saves the hardware variables of all gettables in this readout.
+
+        Falls back to qua_save_variables() for subclasses that override it.
+        """
+        if type(self).qua_save_variables is not AbstractReadout.qua_save_variables:
+            type(self).qua_save_variables(self)
+        else:
+            self._default_save_variables()
+
+    def fpga_save_streams(self) -> None:
+        """Saves acquired results to hardware stream.
+
+        Falls back to qua_save_streams() for subclasses that override it.
+        """
+        if type(self).qua_save_streams is not AbstractReadout.qua_save_streams:
+            type(self).qua_save_streams(self)
+        else:
+            self._default_save_streams()
+
+    def fpga_measure_and_save(self, *args, **kwargs):
+        """Measures and saves the result of the given readout"""
+        self.fpga_measure(*args, **kwargs)
+        self.fpga_save_variables()
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Default implementations (used by dispatch and super() calls)
+    # ──────────────────────────────────────────────────────────────────────
+
+    def _default_declare_variables(self) -> None:
         for gettable_name, gettable in self.gettables.items():
             logging.debug(
                 "Declaring variables for gettable %s on abstract readout %s",
                 gettable_name, self.name)
-            gettable.qua_declare_variables()
+            gettable.fpga_declare_variables()
 
-    def qua_save_variables(self) -> None:
-        """Saves the qua variables of all gettables in this readout"""
+    def _default_save_variables(self) -> None:
         if self.save_results:
             for gettable_name, gettable in self.gettables.items():
                 logging.debug(
                     "Saving variables of gettable %s on abstract readout %s",
                     gettable_name, self.name)
-                gettable.qua_save_variables()
+                gettable.fpga_save_variables()
 
-    def qua_save_streams(self) -> None:
-        """Saves acquired results to qua stream"""
+    def _default_save_streams(self) -> None:
         if self.save_results:
             for gettable_name, gettable in self.gettables.items():
                 logging.debug(
                     "Saving streams of gettable %s on abstract readout %s",
                     gettable_name, self.name)
-                gettable.qua_save_streams()
+                gettable.fpga_save_streams()
         else:
             logging.debug(
                 "NOT saving streams of abstract readout %s", self.name)
 
+    # ──────────────────────────────────────────────────────────────────────
+    # Deprecated aliases (forward to fpga_* with DeprecationWarning)
+    # ──────────────────────────────────────────────────────────────────────
+
+    def qua_declare_variables(self) -> None:
+        """Deprecated: use fpga_declare_variables().
+
+        Subclasses that override this should migrate to overriding
+        fpga_declare_variables() instead. When called via super(), performs
+        the default gettable variable declaration.
+        """
+        self._default_declare_variables()
+
+    def qua_save_variables(self) -> None:
+        """Deprecated: use fpga_save_variables()"""
+        self._default_save_variables()
+
+    def qua_save_streams(self) -> None:
+        """Deprecated: use fpga_save_streams()"""
+        self._default_save_streams()
+
     def qua_measure_and_save(self, *args, **kwargs):
-        """Measures and saves the result of the given readout"""
-        self.qua_measure(*args, **kwargs)
-        self.qua_save_variables()
+        """Deprecated: use fpga_measure_and_save()"""
+        warnings.warn(
+            "qua_measure_and_save() is deprecated, use "
+            "fpga_measure_and_save()",
+            DeprecationWarning, stacklevel=2)
+        self.fpga_measure_and_save(*args, **kwargs)
 
     def add_qc_params_from_config(self, param_dict: dict) -> None:
         """
