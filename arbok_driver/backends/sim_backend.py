@@ -60,41 +60,67 @@ class SimIntegrationOutput:
 
 
 class ElementTimeline:
-    """Tracks the waveform output of a single element."""
+    """Tracks the waveform output of a single element.
+
+    Uses chunked numpy arrays internally — samples are stored as a list of
+    NDArray chunks and only concatenated on final read via get_samples().
+    """
 
     def __init__(self, name: str):
         self.name = name
-        self.samples: list[float] = []
+        self._chunks: list[NDArray] = []
+        self._total_ns: int = 0
         self.current_voltage: float = 0.0
         self.frame_phase: float = 0.0
 
     @property
     def time_ns(self) -> int:
-        return len(self.samples)
+        return self._total_ns
 
-    def append_samples(self, waveform: list[float] | NDArray) -> None:
+    @property
+    def samples(self) -> list[float]:
+        """Legacy accessor — returns samples as a list (for backwards compat)."""
+        return self.get_samples().tolist()
+
+    def get_samples(self) -> NDArray:
+        """Return all samples as a single numpy array."""
+        if not self._chunks:
+            return np.empty(0, dtype=np.float64)
+        if len(self._chunks) == 1:
+            return self._chunks[0]
+        result = np.concatenate(self._chunks)
+        self._chunks = [result]
+        return result
+
+    def append_samples(self, waveform: Any) -> None:
         """Append waveform samples and update current_voltage to last sample."""
-        for sample in waveform:
-            self.samples.append(float(sample))
-        if len(waveform) > 0:
-            self.current_voltage = float(waveform[-1])
+        arr = np.asarray(waveform, dtype=np.float64)
+        if arr.size > 0:
+            self._chunks.append(arr)
+            self._total_ns += arr.size
+            self.current_voltage = float(arr[-1])
 
     def append_wait(self, duration_ns: int) -> None:
         """Append a wait period holding at the current voltage."""
-        self.samples.extend([self.current_voltage] * duration_ns)
+        if duration_ns <= 0:
+            return
+        chunk = np.full(duration_ns, self.current_voltage, dtype=np.float64)
+        self._chunks.append(chunk)
+        self._total_ns += duration_ns
 
     def pad_to(self, target_ns: int) -> None:
         """Pad timeline to reach target length (holding current voltage)."""
-        if self.time_ns < target_ns:
-            self.append_wait(target_ns - self.time_ns)
+        if self._total_ns < target_ns:
+            self.append_wait(target_ns - self._total_ns)
 
     def ramp_to_zero(self, ramp_ns: int = 4) -> None:
         """Linearly ramp from current voltage to zero."""
         if ramp_ns <= 0:
             self.current_voltage = 0.0
             return
-        ramp = np.linspace(self.current_voltage, 0.0, ramp_ns).tolist()
-        self.append_samples(ramp)
+        ramp = np.linspace(self.current_voltage, 0.0, ramp_ns, dtype=np.float64)
+        self._chunks.append(ramp)
+        self._total_ns += ramp_ns
         self.current_voltage = 0.0
 
 
@@ -140,7 +166,7 @@ class SimBackend(Backend):
             Dict mapping element names to their voltage waveform arrays.
         """
         return {
-            name: np.array(tl.samples, dtype=np.float64)
+            name: tl.get_samples()
             for name, tl in self._timelines.items()
         }
 
@@ -204,16 +230,14 @@ class SimBackend(Backend):
         outputs: list[Any] | None = None,
     ) -> None:
         tl = self._get_or_create_timeline(element)
-        # Simulate a measurement: generate synthetic readout signal
-        dur_ns = 100 * CLOCK_CYCLE_NS  # default measurement duration
-        measurement_signal = np.random.normal(0, 0.01, dur_ns).tolist()
+        dur_ns = 100 * CLOCK_CYCLE_NS
+        measurement_signal = np.random.normal(0, 0.01, dur_ns)
         tl.append_samples(measurement_signal)
 
         if outputs:
             for output in outputs:
                 if isinstance(output, SimIntegrationOutput) and output.output_var is not None:
-                    # Simulate integration: sum of measurement signal
-                    integrated = float(np.sum(measurement_signal)) / dur_ns
+                    integrated = float(measurement_signal.sum()) / dur_ns
                     output.output_var.value = integrated
 
     def ramp_to_zero(self, element: str) -> None:
