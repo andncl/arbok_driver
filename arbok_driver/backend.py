@@ -47,7 +47,14 @@ class Backend(ABC):
        AbstractReadout.measure() via the arbok.* API layer.
     2. **Framework operations** — called by the arbok framework to compile
        programs, manage sweeps, and fetch results.
+
+    Subclasses must define a `name` class attribute (e.g. 'qua', 'sim').
+    This name is used for backend-keyed method dispatch on SubSequences:
+    a method named ``fpga_sequence__qua`` on a SubSequence will only run
+    when the active backend has ``name = 'qua'``.
     """
+
+    name: str
 
     # ──────────────────────────────────────────────────────────────────────
     # Pulse / Element Operations (user-facing)

@@ -25,6 +25,8 @@ if TYPE_CHECKING:
 class QuaBackend(Backend):
     """Backend implementation targeting the Quantum Machines OPX via QUA."""
 
+    name = 'qua'
+
     def __init__(self):
         self.qmm: QuantumMachinesManager | None = None
         self.opx: QuantumMachine | QmApi | None = None

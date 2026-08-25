@@ -109,6 +109,8 @@ class SimBackend(Backend):
     per element.
     """
 
+    name = 'sim'
+
     def __init__(self):
         self._timelines: dict[str, ElementTimeline] = {}
         self._streams: dict[str, SimStream] = {}
@@ -392,8 +394,7 @@ class SimBackend(Backend):
     def generate_program_script(self, program: Any, config: dict) -> str:
         lines = ["# SimBackend — simulated program", ""]
         for name, tl in self._timelines.items():
-            lines.append(f"# Element '{name}': {tl.time_ns} ns, "
-                         f"sticky={tl.sticky}")
+            lines.append(f"# Element '{name}': {tl.time_ns} ns")
         return "\n".join(lines)
 
     def simulate(
