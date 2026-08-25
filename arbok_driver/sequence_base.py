@@ -102,35 +102,85 @@ class SequenceBase(InstrumentModule, ABC):
         """Backwards-compatible alias for hardware_config."""
         return self._hardware_config
 
-    def qua_declare(self) -> None:
-        """Contains raw QUA code to initialize the qua variables"""
-        for sub_sequence in self.sub_sequences:
-            sub_sequence.qua_declare()
-
     def qua_before_sweep(self) -> None:
-        """Contains raw QUA code that is being executed before sweeps"""
+        """Contains code that is being executed before sweeps."""
         for sub_sequence in self.sub_sequences:
             sub_sequence.qua_before_sweep()
 
-    def qua_before_sequence(self) -> None:
-        """Contains raw QUA code that is being executed before the sequence"""
-        for sub_sequence in self.sub_sequences:
-            sub_sequence.qua_before_sequence()
-
     def qua_sequence(self) -> None:
-        """Contains raw QUA code to define the pulse sequence"""
+        """Dispatches sequence hook to all child sub_sequences."""
         for sub_sequence in self.sub_sequences:
-            sub_sequence.qua_sequence()
+            sub_sequence._dispatch('sequence')
 
-    def qua_after_sequence(self) -> None:
-        """Contains raw QUA code that is being executed after the sequence"""
-        for sub_sequence in self.sub_sequences:
-            sub_sequence.qua_after_sequence()
+    # ──────────────────────────────────────────────────────────────────────
+    # Backend-keyed dispatch
+    # ──────────────────────────────────────────────────────────────────────
 
-    def qua_stream(self) -> None:
-        """Contains raw QUA code to define streams"""
-        for sub_sequence in self.sub_sequences:
-            sub_sequence.qua_stream()
+    def _dispatch(self, hook: str) -> None:
+        """Dispatch a lifecycle hook to the best matching method.
+
+        Resolution order (first match wins):
+        1. fpga_{hook}__{backend.name}  — backend-specific override
+        2. fpga_{hook}                  — user override (not the default)
+        3. qua_{hook}                   — legacy (QuaBackend only)
+        4. fpga_{hook} default          — iterates child sub_sequences
+        """
+        from .sub_sequence import SubSequence
+
+        backend_name = self.backend.name
+        backend_method_name = f'fpga_{hook}__{backend_name}'
+        fpga_method_name = f'fpga_{hook}'
+        qua_method_name = f'qua_{hook}'
+
+        # 1. Backend-specific override (e.g. fpga_sequence__qua)
+        if hasattr(type(self), backend_method_name):
+            method = getattr(self, backend_method_name)
+            self._call_hook(method, hook)
+            return
+
+        # 2. User override of fpga_ method
+        fpga_on_class = getattr(type(self), fpga_method_name, None)
+        fpga_default = getattr(SubSequence, fpga_method_name, None)
+        has_fpga_override = (
+            fpga_on_class is not None and fpga_on_class is not fpga_default
+        )
+
+        if has_fpga_override:
+            method = getattr(self, fpga_method_name)
+            self._call_hook(method, hook)
+            return
+
+        # 3. Legacy qua_ override (deprecated, QuaBackend only)
+        qua_on_class = getattr(type(self), qua_method_name, None)
+        qua_default = getattr(SubSequence, qua_method_name, None)
+        has_qua_override = (
+            qua_on_class is not None and qua_on_class is not qua_default
+        )
+
+        if has_qua_override:
+            from .backends.qua_backend import QuaBackend
+            if not isinstance(self.backend, QuaBackend):
+                raise NotImplementedError(
+                    f"'{self.name}' only defines qua_{hook}() "
+                    f"which is not compatible with "
+                    f"{type(self.backend).__name__}. "
+                    f"Implement fpga_{hook}() or "
+                    f"fpga_{hook}__{backend_name}() for this backend."
+                )
+            method = getattr(self, qua_method_name)
+            self._call_hook(method, hook)
+            return
+
+        # 4. Default fpga_ (iterates children)
+        method = getattr(self, fpga_method_name)
+        self._call_hook(method, hook)
+
+    def _call_hook(self, method, hook: str) -> None:
+        """Call a hook method, wrapping with step_requirements if needed."""
+        if self.check_step_requirements and hook == 'sequence':
+            self.measurement.qua_check_step_requirements(method)
+        else:
+            method()
 
     @property
     def sub_sequences(self) -> list[SubSequence]:
