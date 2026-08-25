@@ -240,13 +240,13 @@ class Measurement(SequenceBase):
         self._input_stream_parameters = parameters
 
     def qua_declare(self):
-        """Contains raw QUA code to declare variables"""
+        """Declares framework variables and dispatches to children."""
         backend = self.backend
         self.shot_tracker_qua_var = backend.declare(int, value=0)
         self.shot_tracker_qua_stream = backend.declare_stream()
         self._qua_declare_input_streams()
         for sub_sequence in self.sub_sequences:
-            sub_sequence.qua_declare()
+            sub_sequence._dispatch('declare')
 
     def qua_before_sweep(self) -> None:
         """
@@ -303,14 +303,14 @@ class Measurement(SequenceBase):
             for hw_var in self.step_requirements:
                 backend.assign(hw_var, True)
         for sub_sequence in self.sub_sequences:
-            sub_sequence.qua_before_sequence()
+            sub_sequence._dispatch('before_sequence')
 
     def qua_after_sequence(self):
         """
         Code to be executed after the measurement loop and the code it contains.
         """
         for sub_sequence in self.sub_sequences:
-            sub_sequence.qua_after_sequence()
+            sub_sequence._dispatch('after_sequence')
         backend = self.backend
         backend.align()
         self.qua_check_step_requirements(self.qua_increment_shot_tracker)
@@ -337,7 +337,7 @@ class Measurement(SequenceBase):
                         self._input_stream_type_shapes[var_type]).save_all(
                             stream_name)
         for sub_sequence in self.sub_sequences:
-            sub_sequence.qua_stream()
+            sub_sequence._dispatch('stream')
 
     def set_sweeps(self, *args: dict[SequenceParameter, Sequence | NDArray]
                    ) -> None:
