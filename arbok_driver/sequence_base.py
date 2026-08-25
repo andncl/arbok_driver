@@ -422,6 +422,83 @@ class SequenceBase(InstrumentModule, ABC):
                 result[element] = np.zeros(max_len)
         return result
 
+    def simulate_pulse_waveforms(
+            self,
+            elements: list[str] | None = None,
+            hooks: tuple[str, ...] = (
+                'declare', 'before_sequence', 'sequence'),
+            pad_value: float = 0.0,
+        ) -> dict:
+        """Simulate this (sub)sequence in isolation and return its waveforms.
+
+        Unlike :meth:`simulate_waveforms`, no program is compiled: only the
+        given lifecycle hooks of *this* sequence are dispatched on a fresh
+        SimBackend. There is no infinite loop, no sweep generation and no
+        stream processing, so the returned traces are exactly the pulse this
+        sequence plays once. That makes the result concatenable — which is what
+        pre-computing a whole gate sequence into a single cached waveform needs.
+
+        All returned arrays have the same length. Elements that are shorter
+        than the longest one (because their pulse was skipped or because they
+        were never touched) are padded with ``pad_value`` rather than with
+        their last sample, so concatenating two results does not stretch a
+        voltage level across the gate boundary.
+
+        Args:
+            elements (list | None): Elements to return. Defaults to every
+                element this sequence played on.
+            hooks (tuple): Lifecycle hooks to dispatch, in order.
+            pad_value (float): Value used to pad the shorter elements.
+
+        Returns:
+            Dict mapping element names to numpy arrays of voltage samples at
+            1 GS/s (1 sample per nanosecond).
+        """
+        import numpy as np
+        from .backends.sim_backend import SimBackend
+        from .arbok.context import get_active_backend, set_active_backend
+
+        sim = SimBackend()
+        driver = self.measurement.driver
+        original_backend = driver.backend
+        try:
+            previous_active = get_active_backend()
+        except RuntimeError:
+            previous_active = None
+        driver.backend = sim
+        try:
+            set_active_backend(sim)
+            with sim.program_context():
+                for hook in hooks:
+                    self._dispatch(hook)
+        finally:
+            driver.backend = original_backend
+            set_active_backend(previous_active)
+
+        waveforms = sim.get_waveforms()
+        ### The length is taken over all played elements, so an element that is
+        ### not returned still defines how long the pulse took
+        max_len = max((len(wf) for wf in waveforms.values()), default=0)
+        if elements is None:
+            elements = list(waveforms.keys())
+        else:
+            dropped = [
+                element for element, wf in waveforms.items()
+                if element not in elements and len(wf) > 0
+            ]
+            if dropped:
+                logging.warning(
+                    "%s played on %s, which is not part of the requested "
+                    "elements and is dropped from the simulated waveforms",
+                    self.name, dropped)
+        result = {}
+        for element in elements:
+            waveform = waveforms.get(element, np.empty(0))
+            result[element] = np.pad(
+                waveform, (0, max_len - len(waveform)),
+                constant_values=pad_value)
+        return result
+
     def _get_simulation_elements(self) -> list[str]:
         """Returns element list for simulation output.
 
