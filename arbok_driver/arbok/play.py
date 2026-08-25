@@ -9,7 +9,8 @@ import warnings
 import numpy as np
 
 from arbok_driver.parameter_types import ParameterMap, Voltage, Time
-from arbok_driver.sweep import build_wfc_op_name, _strip_measurement_prefix
+from arbok_driver.sweep import (
+    MAX_WFC_WAVEFORMS, build_wfc_op_name, _strip_measurement_prefix)
 from .context import get_active_backend
 
 if TYPE_CHECKING:
@@ -72,6 +73,169 @@ def play(
     else:
         raise TypeError(
             f"'operation' must be a str or callable, got {type(operation)}")
+
+
+def load_waveform_table(
+        elements: list[str],
+        operation: str,
+        waveforms: dict[str, list],
+        index,
+        hardware_config: dict,
+    ) -> None:
+    """Selects one pre-computed waveform out of a cached table per element.
+
+    All waveforms of the table are uploaded with the program as a
+    ``type: array`` waveform, and the one to play is selected at runtime by
+    ``index``. Selecting costs FPGA time, playing the selected waveform does
+    not, so this belongs into a hook that runs *before* the pulse - typically
+    ``fpga_before_sequence`` - while :func:`play_waveform_table` goes into
+    ``fpga_sequence``. The pulse itself is then free of any classical logic,
+    in contrast to deciding what to play with real time branching.
+
+    Unlike the waveform caching in :func:`play`, the table is not derived from
+    a swept voltage point: the caller hands over the finished samples, so any
+    pulse train can be pre-computed (e.g. a whole gate sequence).
+
+    Args:
+        elements (list): Elements on which a waveform is played.
+        operation (str): Operation name to register on every element. It is
+            also the name ``load_waveform`` selects the waveform with.
+        waveforms (dict): Per element list of waveforms (samples at 1 GS/s).
+            Every waveform of every element must have the same length.
+        index: Waveform to play, as an int or a hardware variable. Sweeping the
+            parameter behind it measures one cached waveform per iteration.
+        hardware_config (dict): Hardware config to inject the waveforms into.
+            This is the config used to compile the program, so pass
+            ``self.measurement.hardware_config``.
+
+    Raises:
+        ValueError: If the table does not cover all elements, if the waveforms
+            do not all have the same length, or if there are more waveforms
+            than the hardware can cache.
+    """
+    dur_ns = _check_waveform_table(elements, waveforms)
+    backend = get_active_backend()
+
+    from arbok_driver.backends.sim_backend import SimBackend
+    is_sim = isinstance(backend, SimBackend)
+    for element in elements:
+        if is_sim:
+            ### Nothing is uploaded in a simulation, so the samples are handed
+            ### to the backend directly to let it resolve the selection
+            backend.register_waveform_array(
+                element, operation, waveforms[element])
+        elif operation not in hardware_config['elements'][element].get(
+                'operations', {}):
+            _inject_waveform_table_config(
+                hardware_config, element, operation,
+                waveforms[element], dur_ns)
+        backend.load_waveform(operation, index, element)
+
+
+def play_waveform_table(
+        elements: list[str],
+        operation: str,
+        do_align: bool = True,
+    ) -> None:
+    """Plays the waveform loaded for an operation on every element.
+
+    Requires :func:`load_waveform_table` to have run for the same elements and
+    operation, which is what registers the operation and selects the waveform.
+
+    Args:
+        elements (list): Elements to play the loaded waveform on.
+        operation (str): Operation name the waveform table is registered under.
+        do_align (bool): Whether to align the elements before and after.
+    """
+    backend = get_active_backend()
+    if do_align:
+        backend.align(elements)
+    for element in elements:
+        backend.play(element, operation)
+    if do_align:
+        backend.align(elements)
+
+
+def _check_waveform_table(
+        elements: list[str],
+        waveforms: dict[str, list],
+    ) -> int:
+    """Validates a waveform table and returns the common waveform length.
+
+    Args:
+        elements: Elements the table has to cover.
+        waveforms: Per element list of waveforms.
+
+    Returns:
+        Length of every waveform in the table, in ns.
+
+    Raises:
+        ValueError: If an element is missing, if the table is empty, if the
+            waveform lengths differ or if the table exceeds the cache size.
+    """
+    missing = [element for element in elements if element not in waveforms]
+    if missing:
+        raise ValueError(
+            f"Missing elements in the waveform table: {missing}")
+
+    lengths = set()
+    counts = set()
+    for element in elements:
+        element_waveforms = waveforms[element]
+        counts.add(len(element_waveforms))
+        for waveform in element_waveforms:
+            lengths.add(len(waveform))
+    if not counts or counts == {0}:
+        raise ValueError("The waveform table does not hold any waveform")
+    if len(counts) != 1:
+        raise ValueError(
+            f"All elements must have the same number of waveforms, got "
+            f"{sorted(counts)}")
+    if len(lengths) != 1:
+        raise ValueError(
+            f"All waveforms of a table must have the same length, got "
+            f"{sorted(lengths)} samples. Pad the shorter ones with zeros.")
+    nr_waveforms = counts.pop()
+    if nr_waveforms > MAX_WFC_WAVEFORMS:
+        raise ValueError(
+            f"A waveform table holds at most {MAX_WFC_WAVEFORMS} waveforms, "
+            f"got {nr_waveforms}.")
+    return lengths.pop()
+
+
+def _inject_waveform_table_config(
+        hardware_config: dict,
+        element: str,
+        op_name: str,
+        samples_array: list,
+        dur_ns: int,
+    ) -> None:
+    """Injects a ``type: array`` waveform table for a single element.
+
+    In contrast to :func:`_inject_wfc_config` the operation name is shared by
+    all elements, so the waveform and pulse names carry the element name.
+
+    Args:
+        hardware_config: The full hardware (OPX) configuration dict.
+        element: Element name to attach the operation to.
+        op_name: Operation name (shared with the ``load_waveform`` call).
+        samples_array: List of waveforms (one per index) for this element.
+        dur_ns: Waveform length in nanoseconds (all waveforms are equal).
+    """
+    wf_name = f"{op_name}_{element}_wf"
+    pulse_name = f"{op_name}_{element}_pulse"
+
+    hardware_config.setdefault('waveforms', {})[wf_name] = {
+        'type': 'array',
+        'samples_array': [list(samples) for samples in samples_array],
+    }
+    hardware_config.setdefault('pulses', {})[pulse_name] = {
+        'operation': 'control',
+        'length': dur_ns,
+        'waveforms': {'single': wf_name},
+    }
+    hardware_config['elements'][element].setdefault(
+        'operations', {})[op_name] = pulse_name
 
 
 def _ramp_legacy(

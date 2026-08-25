@@ -141,6 +141,8 @@ class SimBackend(Backend):
         self._timelines: dict[str, ElementTimeline] = {}
         self._streams: dict[str, SimStream] = {}
         self._opx_config: dict = {}
+        self._waveform_arrays: dict[tuple[str, str], list] = {}
+        self._loaded_waveforms: dict[tuple[str, str], int] = {}
 
     def connect(
         self,
@@ -193,6 +195,9 @@ class SimBackend(Backend):
         duration: Any | None = None,
     ) -> None:
         if not callable(operation):
+            if (element, operation) in self._waveform_arrays:
+                self._play_loaded_waveform(element, operation)
+                return
             raise TypeError(
                 f"SimBackend.play() requires a callable as operation, "
                 f"got {type(operation).__name__} '{operation}'. "
@@ -203,6 +208,34 @@ class SimBackend(Backend):
         dur_ns = int(dur_cycles) * CLOCK_CYCLE_NS
         samples = operation(amp_val, dur_ns)
         tl.append_samples(samples)
+
+    def register_waveform_array(
+        self, element: str, operation: str, waveforms: list
+    ) -> None:
+        """Register a table of waveforms an operation can select from.
+
+        The hardware gets those samples uploaded with the program, which the
+        simulation has no equivalent for. Registering them lets
+        :meth:`load_waveform` and :meth:`play` model the selection instead.
+
+        Args:
+            element: Element the operation is registered on.
+            operation: Operation name selecting one of the waveforms.
+            waveforms: Waveforms (samples at 1 GS/s) to select from.
+        """
+        self._waveform_arrays[(element, operation)] = waveforms
+        self._loaded_waveforms.setdefault((element, operation), 0)
+
+    def _play_loaded_waveform(self, element: str, operation: str) -> None:
+        """Append the samples of the waveform loaded for an operation."""
+        index = self._loaded_waveforms.get((element, operation), 0)
+        waveforms = self._waveform_arrays[(element, operation)]
+        if not 0 <= index < len(waveforms):
+            raise IndexError(
+                f"Waveform {index} of '{operation}' is not in the table "
+                f"registered on {element}, which holds {len(waveforms)} "
+                f"waveforms")
+        self._get_or_create_timeline(element).append_samples(waveforms[index])
 
     def wait(self, duration: Any, elements: list[str]) -> None:
         dur_cycles = self._resolve_value(duration)
@@ -357,6 +390,8 @@ class SimBackend(Backend):
     def program_context(self) -> Generator[Any, None, None]:
         self._timelines.clear()
         self._streams.clear()
+        self._waveform_arrays.clear()
+        self._loaded_waveforms.clear()
         yield self
 
     @contextmanager
@@ -382,7 +417,15 @@ class SimBackend(Backend):
     def load_waveform(
         self, operation: str, index: Any, element: str
     ) -> None:
-        pass
+        """Select which waveform of a registered array the operation plays.
+
+        Args:
+            operation: Operation name the waveform array is registered under.
+            index: Waveform to play, as an int or a SimVariable.
+            element: Element the operation is registered on.
+        """
+        self._loaded_waveforms[(element, operation)] = int(
+            self._resolve_value(index))
 
     def stream_buffer(self, stream: Any, *shape: int) -> Any:
         if isinstance(stream, SimStream):
