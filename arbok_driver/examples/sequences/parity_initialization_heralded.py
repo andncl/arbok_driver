@@ -69,14 +69,8 @@ class ParityInitHeralded(ParityInit):
         self.successful_init: QuaVariable[bool]
         self.feedback_var: QuaVariable[bool]
 
-    def qua_declare(self):
-        """
-        Declares the flags coordinating the heralding loop.
-
-        ``successful_init`` remembers the outcome of the previous readout, while
-        ``step_requirement`` is registered on the measurement and gates the
-        downstream control and data-saving stages.
-        """
+    def fpga_declare__qua(self):
+        """QUA-backend-specific variable declarations for heralding."""
         self.successful_init = qua.declare(bool, value = False)
         self.step_requirement = qua.declare(bool, value = False)
         self.measurement.add_step_requirement(self.step_requirement)
@@ -112,15 +106,12 @@ class ParityInitHeralded(ParityInit):
         with arbok.else_block():
             arbok.assign(self.successful_init, False)
 
-    def qua_sequence(self):
-        """QUA sequence to perform heralded spin parity initialization"""
+    def fpga_sequence__qua(self):
+        """QUA-backend-specific heralded parity initialization sequence."""
         self.feedback_var = self.measurement.find_parameter_from_sub_sequence(
             self.feedback_result
         )
         with qua.if_(self.successful_init):
-            ### Desired state was heralded by the previous readout: skip the
-            ### re-initialization, allow the downstream stages to run and let
-            ### the state settle before quantum control.
             qua.assign(self.step_requirement, True)
             if self.debug:
                 qua.save(self.nr_attempts, self.attempt_stream)
@@ -128,22 +119,13 @@ class ParityInitHeralded(ParityInit):
             qua.align(*self.elements)
             qua.wait(self.arbok_params.t_wait_post_init.qua, *self.elements)
         with qua.else_():
-            ### Desired state not yet heralded: block the downstream stages and
-            ### run another bare initialization attempt.
             qua.assign(self.step_requirement, False)
             if self.debug:
                 qua.assign(self.nr_attempts, self.nr_attempts + 1)
-            super().qua_sequence()
+            super().fpga_sequence__qua()
 
-    def qua_after_sequence(self):
-        """
-        Updates the heralding flag for the next iteration.
-
-        If this iteration performed an initialization attempt, the flag is set
-        from the latest readout result. If control was executed this iteration
-        (state already heralded), the flag is reset so a fresh initialization is
-        performed on the next shot.
-        """
+    def fpga_after_sequence__qua(self):
+        """QUA-backend-specific post-sequence heralding flag update."""
         with qua.if_(~self.successful_init):
             if self.target_state:
                 qua.assign(self.successful_init, self.feedback_var)
@@ -152,7 +134,7 @@ class ParityInitHeralded(ParityInit):
         with qua.else_():
             qua.assign(self.successful_init, False)
 
-    def qua_stream(self):
-        """Streams the per-shot attempt counter when debugging is enabled"""
+    def fpga_stream__qua(self):
+        """QUA-backend-specific stream processing."""
         if self.debug:
             self.attempt_stream.save_all('heralded_attempts')

@@ -40,8 +40,8 @@ class SquarePulseScalable(SubSequence):
             operation='unit_ramp',
         )
 
-    def qua_sequence(self):
-        """Legacy QUA-specific implementation."""
+    def fpga_sequence__qua(self):
+        """QUA-backend-specific scalable square pulse sequence."""
         qua.align(*self.arbok_params.sticky_elements.hw_var)
         arbok.ramp(
             elements= self.arbok_params.sticky_elements.hw_var,

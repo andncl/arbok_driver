@@ -59,24 +59,17 @@ class StateProjection(SubSequence):
         self.single_qubit_gates = self.sub_sequences
         self._sub_sequences = []
 
-    def qua_declare(self):
-        """
-        Declares all sequence variables, a sweep index and the half wait time
-        for before and after the Y pulse. Further the pi/2 and pi times for
-        each qubit are saved in variables
-        """
-        super().qua_declare()
+    def fpga_declare__qua(self):
+        """QUA-backend-specific variable declarations."""
+        super().fpga_declare()
         if not self.arbok_params.projection.qua_sweeped:
             self.arbok_params.projection.qua_var = qua.declare(
                 int, int(self.arbok_params.projection.qua))
         for sub_sequence in self.single_qubit_gates:
-            sub_sequence.qua_declare()
+            sub_sequence._dispatch('declare')
 
-    def qua_before_sequence(self):
-        """
-        Qua code being executed before the sequence. Calculating pulse times for
-        respective single qubit gates
-        """
+    def fpga_before_sequence__qua(self):
+        """QUA-backend-specific pre-sequence for state projection."""
         for sub_sequence in self.single_qubit_gates:
             sub_sequence.qua_before_sequence()
 
@@ -101,8 +94,9 @@ class StateProjection(SubSequence):
             with arbok.case_block(5):
                 self.x_pi.fpga_gate()
 
-    def qua_sequence(self):
-            self._qua_state_projection()
+    def fpga_sequence__qua(self):
+        """QUA-backend-specific state projection sequence."""
+        self._qua_state_projection()
 
     def _qua_state_projection(self):
         """QUA sequence for state projection"""

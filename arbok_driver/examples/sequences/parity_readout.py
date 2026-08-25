@@ -55,14 +55,6 @@ class ParityRead(ReadSequence):
         self.elements = list(self.arbok_params.gate_elements.get())
         self.elements += list(self.arbok_params.readout_elements.get())
 
-    def qua_declare(self):
-        """
-        Declares variables before execution of the main program. All mandatory
-        qua variables for auto generated readouts from the config are introduced
-        by the parent class (super)
-        """
-        return super().qua_declare()
-
     def fpga_sequence(self):
         """Hardware-agnostic parity readout sequence."""
         arbok.align()
@@ -112,16 +104,8 @@ class ParityRead(ReadSequence):
                 readout.qua_measure()
         arbok.align()
 
-    def qua_sequence(self):
-        """
-        QUA sequence to perform spin parity readout
-
-        The sequence is as follows:
-            1. Move to REFERENCE measurement point
-            2. Take physical REFERENCE measurement
-            3. Move to READ measurement point
-            4. Take physical READ measurement
-        """
+    def fpga_sequence__qua(self):
+        """QUA-backend-specific parity readout sequence."""
         qua.align()
         qua.align(*self.elements)
         qua.wait(self.arbok_params.t_wait_home_before.qua, *self.elements)
@@ -176,8 +160,8 @@ class ParityRead(ReadSequence):
                 readout.qua_measure()
         qua.align()
 
-    def qua_after_sequence(self):
-        """Saves variables to the respective streams after the sequence"""
+    def fpga_after_sequence__qua(self):
+        """QUA-backend-specific post-sequence variable saving."""
         self.measurement.qua_check_step_requirements(self.save_variables)
 
     def save_variables(self):

@@ -81,8 +81,8 @@ class ParityInit(SubSequence):
 
         arbok.reset_sticky_elements(self.elements)
 
-    def qua_sequence(self):
-        """QUA sequence to perform odd spin parity initialization (down-up)"""
+    def fpga_sequence__qua(self):
+        """QUA-backend-specific parity initialization sequence."""
         ### Ramping to point in the even charge state region to init GS
         arbok.ramp(
 			elements= self.elements,

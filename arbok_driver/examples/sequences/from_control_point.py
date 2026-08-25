@@ -52,8 +52,8 @@ class FromControlPoint(SubSequence):
         arbok.wait(self.arbok_params.t_wait_post_control.hw_var, *self.elements)
         arbok.align(*self.elements)
 
-    def qua_sequence(self):
-        """QUA sequence to perform voltage ramp from control to home point"""
+    def fpga_sequence__qua(self):
+        """QUA-backend-specific sequence to move from control point."""
         qua.align(*self.elements)
         arbok.reset_sticky_elements(
             self.arbok_params.gate_elements.get()

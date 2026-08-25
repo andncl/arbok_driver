@@ -53,9 +53,9 @@ class CoulombPeaks(ReadSequence):
         self.elements = self.g_elements + list(self.arbok_params.set_elements.get())
         self.gates_only = reset_gates_only
 
-    def qua_declare(self):
-        super().qua_declare()
-        self.qua_rep_index = qua.declare(int)
+    def fpga_declare(self):
+        super().fpga_declare()
+        self.qua_rep_index = arbok.declare(int)
 
     def fpga_sequence(self):
         """Hardware-agnostic Coulomb peaks measurement sequence."""
@@ -97,10 +97,10 @@ class CoulombPeaks(ReadSequence):
         else:
             arbok.reset_sticky_elements(self.elements)
 
-    def qua_sequence(self):
+    def fpga_sequence__qua(self):
+        """QUA-backend-specific Coulomb peaks sequence."""
         qua.align(*self.elements)
 
-        ### Go from the set 'home' voltage point to the 'level' voltage point
         arbok.ramp(
             elements = self.elements,
             reference = self.arbok_params.v_home,
@@ -116,19 +116,16 @@ class CoulombPeaks(ReadSequence):
             qua.wait(self.arbok_params.t_wait_after_ramp.qua, *self.elements)
         qua.align(*self.elements)
 
-        ### Measure the SET current
         for _, readout in self.readout_groups["read"].items():
             readout.qua_measure_and_save()
 
         qua.align(*self.elements)
         qua.wait(self.arbok_params.t_wait_before_chop.qua, *self.elements)
 
-        ### Chopped readout with one iteration to get the peak derivative
         for _, readout in self.readout_groups["chop"].items():
             readout.qua_measure_and_save()
         qua.align(*self.elements)
 
-        ### Go back to the set 'level' voltage point to the 'home' voltage point
         arbok.ramp(
             elements = self.elements,
             reference = self.arbok_params.v_set_level,

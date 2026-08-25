@@ -51,8 +51,8 @@ class Xstrict(SubSequence):
     def fpga_gate(self):
         arbok.play_pulse(self.control_pulse, self.target_qubit)
 
-    def qua_sequence(self):
-        """QUA sequence to perform qubit X gate with rotation"""
+    def fpga_sequence__qua(self):
+        """QUA-backend-specific X gate sequence."""
         self.qua_gate()
 
     def qua_gate(self):

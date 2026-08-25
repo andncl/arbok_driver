@@ -65,14 +65,10 @@ class Cpmg(SubSequence):
             self, 'x', self.target_qubit, control_pulse = 'control_pi'))
         self._sub_sequences = []
 
-    def qua_declare(self):
-        """
-        Declares all sequence variables, a sweep index and the half wait time
-        for before and after the Y pulse. Further the pi/2 and pi times for
-        each qubit are saved in variables
-        """
-        super().qua_declare()
-        self.x.qua_declare()
+    def fpga_declare__qua(self):
+        """QUA-backend-specific variable declarations for CPMG."""
+        super().fpga_declare()
+        self.x._dispatch('declare')
         self.n_index = qua.declare(int)
         self.wait_time_factor = qua.declare(qua.fixed)
         self.t_sub_equator_wait = qua.declare(int)
@@ -148,8 +144,8 @@ class Cpmg(SubSequence):
             self._fpga_cpmg_hahn_order()
         arbok.frame_rotation(-0.25, self.target_qubit)
 
-    def qua_before_sequence(self):
-        """Runs qua commands inside the loop before main sequence"""
+    def fpga_before_sequence__qua(self):
+        """QUA-backend-specific pre-sequence for CPMG."""
         self.x.qua_before_sequence()
         ### Calculating the wait time factor to divide the wait time
         ### by (repetitions * 2) to keep total wait time constant
@@ -174,8 +170,8 @@ class Cpmg(SubSequence):
                 self.arbok_params.t_equator_wait.qua, self.wait_time_factor)
             )
 
-    def qua_sequence(self):
-        """Qua sequence for the CPMG sequence"""
+    def fpga_sequence__qua(self):
+        """QUA-backend-specific CPMG sequence."""
         self.qua_cpmg()
 
     def qua_cpmg(self) -> None:

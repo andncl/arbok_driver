@@ -40,12 +40,6 @@ class StabilityMap(ReadSequence):
         self.elements = list(self.arbok_params.gate_elements.get())
         self.arbok_params.v_home
 
-    def qua_declare(self):
-        """
-        Setup the python callback
-        """
-        super().qua_declare()
-
     def fpga_sequence(self):
         """Hardware-agnostic stability map sequence."""
         arbok.align(*self.elements)
@@ -64,8 +58,8 @@ class StabilityMap(ReadSequence):
 
         arbok.reset_sticky_elements(self.arbok_params.gate_elements.get())
 
-    def qua_sequence(self):
-        """Legacy QUA-specific implementation."""
+    def fpga_sequence__qua(self):
+        """QUA-backend-specific stability map sequence."""
         qua.align(*self.elements)
         arbok.ramp(
             elements= self.arbok_params.gate_elements.get(),
