@@ -1,4 +1,5 @@
-from .play import play, ramp, PulseGenerator
+from .play import (
+    load_waveform_table, play, play_waveform_table, ramp, PulseGenerator)
 from .reset_sticky_elements import reset_sticky_elements
 from .context import get_active_backend, set_active_backend
 from .operations import (
