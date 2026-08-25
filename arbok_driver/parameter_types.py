@@ -65,6 +65,8 @@ class Voltage(SequenceParameter[float | QuaVariable]):
     scale = 1
     sweep_validator = MultiTypeOr(Numbers(), Arrays(valid_types = [float]))
     """ Default: Numbers """
+    use_waveform_caching: bool = True
+    """Whether this parameter may use waveform caching when swept."""
 
 class Frequency(SequenceParameter[int | QuaVariable]):
     unit = 'Hz'

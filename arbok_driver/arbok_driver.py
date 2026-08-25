@@ -54,6 +54,7 @@ class ArbokDriver(Instrument):
         if not isinstance(device, Device):
             raise TypeError(f"device must be type Device, is {type(Device)}")
         self.device: Device = device
+        self.host_ip: str
         self.is_mock: bool = False
         self._measurements: list[Measurement] = []
         self.add_parameter('iteration', get_cmd = None, set_cmd =None)
@@ -100,6 +101,7 @@ class ArbokDriver(Instrument):
         if not reconnect:
             self.qmm = QuantumMachinesManager(
                 host = host_ip, **kwargs)
+            self.host_ip = host_ip
         if qm_config is not None:
             if not isinstance(qm_config, dict):
                 raise ValueError(
@@ -109,7 +111,7 @@ class ArbokDriver(Instrument):
             self.device.config, close_other_machines = True)
 
     def reconnect_opx(
-            self, host_ip: str, qm_config: dict = None) -> None:
+            self, host_ip: str | None = None, qm_config: dict = None) -> None:
         """
         Reconnects to the OPX with the given IP address and closes the previous
         connection
@@ -120,6 +122,11 @@ class ArbokDriver(Instrument):
                 None, in which case the config from the device is used. If given
                 overwrites the device config. 
         """
+        if host_ip is None:
+            if self.qmm is None:
+                raise AttributeError(
+                    "No Quantum-Machines-Manager connected. Run 'connect_opx first'")
+            host_ip = self.host_ip
         if self.opx is not None:
             print('Closing previous connection')
             self.opx.close()
@@ -169,35 +176,6 @@ class ArbokDriver(Instrument):
                     ))
             else:
                 file.write(generate_qua_script(qua_program))
-
-    def run_local_simulation(
-            self,
-            qua_program,
-            duration: int,
-            **kwargs
-            ):
-        """
-        Simulates the given program of the sequence for `duration` cycles
-        TODO: Move to SequenceBase and add checks if OPX is connected
-        Args:
-            qua_program (program): QUA program to be simulated
-            duration (int): Simulation duration in cycles
-            **kwargs: Arbitrary keyword arguments for QMM simulation
-
-        Returns:
-            simulated_job (SimulatedJob): QM job with waveform simulation result
-            nr_controllers (int): Nr of controllers to fetch simulation results
-        """
-        if not self.qmm:
-            raise ConnectionError(
-                "No QMM found! Connect an OPX via `connect_OPX`")
-        simulated_job = self.qmm.simulate(
-            self.opx.get_config(),
-            qua_program,
-            SimulationConfig(duration=duration),
-            **kwargs
-        )
-        return simulated_job
 
     def get_idn(self):
         """

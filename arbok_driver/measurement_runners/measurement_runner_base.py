@@ -8,7 +8,10 @@ import time
 import warnings
 
 import numpy as np
-from rich.progress import Progress
+from rich.progress import (
+    Progress, BarColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn,
+    TaskProgressColumn, MofNCompleteColumn,
+)
 import xarray as xr
 
 from arbok_driver.sweep import Sweep
@@ -104,7 +107,13 @@ class MeasurementRunnerBase(ABC):
         try:
             logging.debug("Running measurement with %s", self.measurement.name)
             self.batch_count = 0
-            with Progress() as self.progress_tracker:
+            with Progress(
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                MofNCompleteColumn(),
+                TimeElapsedColumn(),
+                TimeRemainingColumn(),
+            ) as self.progress_tracker:
                 self._create_progress_bars()
                 self._run_measurement()
         except KeyboardInterrupt:
@@ -210,11 +219,11 @@ class MeasurementRunnerBase(ABC):
         Creates progress bars for the measurement.
         """
         total_progress = self.progress_tracker.add_task(
-            description = f"[green]Total progress...\n0/{self.nr_total_batches}",
-            total = self.nr_total_batches)
+            description="[green]Total",
+            total=self.nr_total_batches)
         batch_progress = self.progress_tracker.add_task(
-            description = "[cyan]Batch progress...",
-            total = self.measurement.sweep_size)
+            description="[purple]Batch",
+            total=self.measurement.sweep_size)
         self.progress_bars['total_progress'] = total_progress
         self.progress_bars['batch_progress'] = batch_progress
 
@@ -222,12 +231,8 @@ class MeasurementRunnerBase(ABC):
         """
         Updates the total progress bar after each batch.
         """
-        title = "[green]Total progress\n "
         self.progress_tracker.update(
-            self.progress_bars['total_progress'],
-            advance=1,
-            description=f"{title}{self.batch_count}/{self.nr_total_batches}"
-            )
+            self.progress_bars['total_progress'], advance=1)
         self.progress_tracker.refresh()
 
     def _get_external_params(

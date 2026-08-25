@@ -221,9 +221,10 @@ class SequenceBase(InstrumentModule, ABC):
             program: Program compiled into QUA language
         """
         self._opx_config = copy.deepcopy(self.measurement.device.config)
+        self.measurement._opx_config = self._opx_config
         with qua.program() as prog:
             self.get_qua_code(simulate)
-        self._qua_program_as_str = generate_qua_script(prog, config)
+        self._qua_program_as_str = generate_qua_script(prog, self._opx_config)
         return prog
 
     def get_qua_code(self, simulate = False) -> None:
@@ -266,6 +267,41 @@ class SequenceBase(InstrumentModule, ABC):
         ### Stream processing is added after the sequences
         with qua.stream_processing():
             self.qua_stream()
+
+    def simulate(
+            self,
+            duration_ns: int = 10000,
+            program_save_path: str | None = None,
+            **kwargs
+            ):
+        """
+        Compiles and simulates the QUA program for this sequence.
+
+        Args:
+            duration (int): Simulation duration in cycles
+            **kwargs: Arbitrary keyword arguments for QMM simulation
+
+        Returns:
+            sim_job: QM job with waveform simulation result
+        """
+        qmm = self.measurement.driver.qmm
+        if not qmm:
+            raise ConnectionError(
+                "No QMM found! Connect an OPX via `connect_opx`")
+        qua_program = self.get_qua_program(simulate=True)
+        if program_save_path is not None:
+            self.print_qua_program_to_file(file_name = program_save_path)
+        sim_job = qmm.simulate(
+            self.measurement.opx_config,
+            qua_program,
+            SimulationConfig(duration=int(duration_ns//4)),
+            **kwargs
+        )
+        sim_job.wait_until("Done")
+        sim_results = sim_job.get_simulated_samples()
+        fig = utils.plot_simulation(sim_results, self._opx_config)
+        fig.show()
+        return sim_job
 
     def print_qua_program_to_file(self, file_name: str):
         """Creates file with 'filename' and prints the QUA code to this file"""
