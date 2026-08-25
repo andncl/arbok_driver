@@ -348,9 +348,9 @@ def _build_pulse_name(
         dur_ns: int,
     ) -> str:
     """Builds a unique operation name: <target_path>_FROM_<ref_path>_<dur>ns"""
-    name = _strip_measurement_prefix(target_param.sequence_path)
+    name = _strip_measurement_prefix(target_param.register_name)
     if reference is not None:
-        name += f"_FROM_{_strip_measurement_prefix(reference[element].sequence_path)}"
+        name += f"_FROM_{_strip_measurement_prefix(reference[element].register_name)}"
     name += f"_{dur_ns}ns"
     return name
 

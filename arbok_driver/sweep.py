@@ -27,7 +27,6 @@ def _strip_measurement_prefix(path: str) -> str:
     parts = path.split("__", 1)
     return parts[1] if len(parts) > 1 else parts[0]
 
-
 def build_wfc_op_name(
         target_param: Voltage,
         reference: ParameterMap[str, Voltage] | None,
@@ -45,9 +44,9 @@ def build_wfc_op_name(
     Returns:
         Unique operation name string.
     """
-    name = _strip_measurement_prefix(target_param.sequence_path)
+    name = _strip_measurement_prefix(target_param.register_name)
     if reference is not None:
-        name += f"_FROM_{_strip_measurement_prefix(reference[element].sequence_path)}"
+        name += f"_FROM_{_strip_measurement_prefix(reference[element].register_name)}"
     name += "_wfc"
     return name
 
