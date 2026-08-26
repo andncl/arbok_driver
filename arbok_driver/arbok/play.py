@@ -24,6 +24,22 @@ MAX_WFC_DURATION_NS = 128_000
 """Maximum pulse duration (ns) for waveform caching eligibility."""
 
 
+def _as_float_list(samples) -> list[float]:
+    """Converts waveform samples into a list of plain python floats.
+
+    Numpy scalars serialize with their type (``np.float64(0.1)``) instead of
+    their value, which blows up the size of the generated program. Anything
+    injected into the hardware config therefore goes through here.
+
+    Args:
+        samples: Iterable of samples (numpy array, list, ...)
+
+    Returns:
+        list: The same samples as builtin floats
+    """
+    return np.asarray(samples, dtype = float).tolist()
+
+
 def play(
         elements: list[str],
         target: ParameterMap[str, Voltage],
@@ -227,7 +243,7 @@ def _inject_waveform_table_config(
 
     hardware_config.setdefault('waveforms', {})[wf_name] = {
         'type': 'array',
-        'samples_array': [list(samples) for samples in samples_array],
+        'samples_array': [_as_float_list(samples) for samples in samples_array],
     }
     hardware_config.setdefault('pulses', {})[pulse_name] = {
         'operation': 'control',
@@ -532,7 +548,7 @@ def _inject_config(
 
     opx_config.setdefault('waveforms', {})[wf_name] = {
         'type': 'arbitrary',
-        'samples': list(samples),
+        'samples': _as_float_list(samples),
     }
     opx_config.setdefault('pulses', {})[pulse_name] = {
         'operation': 'control',
@@ -563,7 +579,7 @@ def _inject_wfc_config(
 
     opx_config.setdefault('waveforms', {})[wf_name] = {
         'type': 'array',
-        'samples_array': [list(s) for s in samples_array],
+        'samples_array': [_as_float_list(s) for s in samples_array],
     }
     opx_config.setdefault('pulses', {})[pulse_name] = {
         'operation': 'control',
