@@ -76,6 +76,20 @@ class TestInjectConfig:
         assert 'pulses' in config
         assert config['elements']['J1']['operations']['op'] == 'op_pulse'
 
+    def test_samples_are_plain_floats(self):
+        """
+        A numpy array is stored as builtin floats.
+
+        Numpy scalars serialize as `np.float64(0.1)` instead of `0.1`, which
+        multiplies the size of the generated program by the sample count.
+        """
+        config = {'elements': {'P1': {}}}
+        _inject_config(config, 'P1', 'op', np.linspace(0, 0.05, 100), 100)
+
+        samples = config['waveforms']['op_wf']['samples']
+        assert type(samples) is list
+        assert {type(sample) for sample in samples} == {float}
+
 
 # --- Integration tests using QUA compilation ---
 

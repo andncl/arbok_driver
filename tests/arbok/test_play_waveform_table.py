@@ -144,6 +144,36 @@ def test_samples_are_injected_per_element(mock_measurement, table_sequence):
             == f'{OPERATION}_{element}_pulse'
 
 
+def test_injected_samples_are_plain_floats(mock_measurement, table_sequence):
+    """
+    The waveforms are converted back to lists of builtin floats.
+
+    The samples come in as numpy arrays, whose scalars serialize with their
+    type (`np.float64(0.1)`) instead of their value. With one waveform per
+    sequence and thousands of samples each that inflates the program the
+    hardware has to be given.
+    """
+    mock_measurement.get_program_as_str(recompile = True)
+    config = mock_measurement.hardware_config
+
+    for element in ELEMENTS:
+        samples_array = config['waveforms'][f'{OPERATION}_{element}_wf'][
+            'samples_array']
+        for samples in samples_array:
+            assert type(samples) is list, \
+                f"{element} holds a {type(samples)} instead of a list"
+            assert {type(sample) for sample in samples} == {float}, \
+                f"{element} does not hold builtin floats"
+
+
+def test_program_holds_no_numpy_scalars(mock_measurement, table_sequence):
+    """The serialized program carries the sample values, not their numpy repr"""
+    program = mock_measurement.get_program_as_str(recompile = True)
+
+    assert 'np.float64' not in program and 'numpy' not in program, \
+        "the serialized program still holds numpy scalars"
+
+
 # ──────────────────────────────────────────────────────────────────────────
 # Simulation backend
 # ──────────────────────────────────────────────────────────────────────────

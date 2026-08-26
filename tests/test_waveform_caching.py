@@ -178,6 +178,21 @@ class TestInjectWfcConfig:
         assert opx_config['pulses']['my_op_pulse']['length'] == 50
         assert opx_config['elements']['q1']['operations']['my_op'] == 'my_op_pulse'
 
+    def test_samples_are_plain_floats(self):
+        """
+        Numpy waveforms are stored as builtin floats.
+
+        Numpy scalars serialize as `np.float64(0.1)` instead of `0.1`, which
+        multiplies the size of the generated program by the sample count.
+        """
+        opx_config = {'elements': {'q1': {}}}
+        samples_array = [np.full(50, 0.1), np.full(50, 0.2)]
+        _inject_wfc_config(opx_config, 'q1', 'my_op', samples_array, 50)
+
+        for samples in opx_config['waveforms']['my_op_wf']['samples_array']:
+            assert type(samples) is list
+            assert {type(sample) for sample in samples} == {float}
+
 
 class TestValidateWfcEligibility:
     """Tests for _validate_wfc_eligibility."""
