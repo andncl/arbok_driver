@@ -277,18 +277,27 @@ def plot_simulation(sim_results, opx_config: dict) -> go.Figure:
         con_mapping = port_mapping.get(con_name, {"analog": {}, "digital": {}})
 
         for channel_key, data in con_attr.analog.items():
+            data = np.asarray(data)
             if not np.any(data):
                 continue
             fs = con_attr.analog_sampling_rate.get(channel_key, 1e9)
             dt_ns = 1e9 / fs
             taxis = np.arange(len(data)) * dt_ns
             label = con_mapping["analog"].get(channel_key, f"{con_name}:{channel_key}")
-            fig.add_trace(go.Scatter(
-                x=taxis,
-                y=data,
-                mode="lines",
-                name=label,
-            ))
+            # MW-FEM channels are returned as complex samples (I + 1j*Q).
+            # Plotly cannot plot complex numbers, so split them into two traces
+            if np.iscomplexobj(data):
+                quadratures = {"I": data.real, "Q": data.imag}
+            else:
+                quadratures = {None: data}
+            for quadrature, samples in quadratures.items():
+                trace_name = label if quadrature is None else f"{label} ({quadrature})"
+                fig.add_trace(go.Scatter(
+                    x=taxis,
+                    y=samples,
+                    mode="lines",
+                    name=trace_name,
+                ))
 
         for channel_key, data in con_attr.digital.items():
             if not np.any(data):
