@@ -5,11 +5,90 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
     from numpy.typing import NDArray
     from .measurement import Measurement
     from .parameters.gettable_parameter_base import GettableParameterBase
+
+
+type WaveformSamples = list[float] | list[complex] | dict[str, list[float]]
+"""Samples at 1 GS/s, either a single trace or one trace per quadrature."""
+
+SINGLE_CHANNEL = 'single'
+"""Waveform key of a single input (DC) element."""
+
+IQ_CHANNELS = ('I', 'Q')
+"""Waveform keys of an up-converted (mixInputs / MWInput) element."""
+
+
+def as_float_list(samples) -> list[float]:
+    """Converts waveform samples into a list of plain python floats.
+
+    Numpy scalars serialize with their type (``np.float64(0.1)``) instead of
+    their value, which blows up the size of the generated program. Anything
+    injected into the hardware config therefore goes through here.
+
+    Args:
+        samples: Iterable of samples (numpy array, list, ...)
+
+    Returns:
+        list: The same samples as builtin floats
+    """
+    return np.asarray(samples, dtype = float).tolist()
+
+
+def as_channel_map(samples: WaveformSamples) -> dict[str, list[float]]:
+    """Normalizes waveform samples into a channel to samples mapping.
+
+    A waveform given as a bare real sequence drives a single input element.
+    An up-converted one is given either as ``{'I': [...], 'Q': [...]}`` or as
+    a complex sequence ``I + 1j*Q`` - the latter is what a rotating frame
+    envelope and what :meth:`SequenceBase.simulate_pulse_waveforms` produce.
+    Everything downstream works on the normalized mapping, so neither the
+    caller nor the backends have to branch on the pulse kind.
+
+    Args:
+        samples: A sequence of real or complex samples, or a dict holding one
+            sequence per quadrature.
+
+    Returns:
+        dict: Channel name to samples as builtin floats.
+
+    Raises:
+        ValueError: If the dict does not hold exactly ``I`` and ``Q`` (or just
+            ``single``), or if the quadratures differ in length.
+    """
+    if not isinstance(samples, dict):
+        array = np.asarray(samples)
+        if np.iscomplexobj(array):
+            return {
+                'I': as_float_list(array.real),
+                'Q': as_float_list(array.imag),
+            }
+        return {SINGLE_CHANNEL: as_float_list(array)}
+
+    keys = set(samples)
+    if keys == {SINGLE_CHANNEL}:
+        channels = {SINGLE_CHANNEL: as_float_list(samples[SINGLE_CHANNEL])}
+    elif keys == set(IQ_CHANNELS):
+        channels = {
+            channel: as_float_list(samples[channel])
+            for channel in IQ_CHANNELS
+        }
+    else:
+        raise ValueError(
+            f"A waveform dict must hold either {set(IQ_CHANNELS)} or "
+            f"{{'{SINGLE_CHANNEL}'}}, got {sorted(keys)}")
+
+    lengths = {len(trace) for trace in channels.values()}
+    if len(lengths) != 1:
+        raise ValueError(
+            "All quadratures of a waveform must have the same length, got "
+            + str({ch: len(trace) for ch, trace in channels.items()}))
+    return channels
 
 
 class HardwareVariable:
