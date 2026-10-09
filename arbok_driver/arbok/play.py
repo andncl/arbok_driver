@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING
 import logging
 import math
@@ -8,6 +8,8 @@ import warnings
 
 import numpy as np
 
+from arbok_driver.backend import (
+    IQ_CHANNELS, SINGLE_CHANNEL, WaveformSamples, as_channel_map)
 from arbok_driver.parameter_types import ParameterMap, Voltage, Time
 from arbok_driver.sweep import (
     MAX_WFC_WAVEFORMS, build_wfc_op_name, _strip_measurement_prefix)
@@ -18,26 +20,10 @@ if TYPE_CHECKING:
     from arbok_driver.sweep import Sweep
 
 # Type alias for pulse generator: (amplitude_V, duration_ns) -> samples at 1GHz
-PulseGenerator = Callable[[float, int], list[float]]
+PulseGenerator = Callable[[float, int], WaveformSamples]
 
 MAX_WFC_DURATION_NS = 128_000
 """Maximum pulse duration (ns) for waveform caching eligibility."""
-
-
-def _as_float_list(samples) -> list[float]:
-    """Converts waveform samples into a list of plain python floats.
-
-    Numpy scalars serialize with their type (``np.float64(0.1)``) instead of
-    their value, which blows up the size of the generated program. Anything
-    injected into the hardware config therefore goes through here.
-
-    Args:
-        samples: Iterable of samples (numpy array, list, ...)
-
-    Returns:
-        list: The same samples as builtin floats
-    """
-    return np.asarray(samples, dtype = float).tolist()
 
 
 def play(
@@ -65,8 +51,12 @@ def play(
         elements (list): elements on which pulse is applied
         target (ParameterMap): voltage point to move to
         operation (str | PulseGenerator): either an operation name from OPX
-            config (legacy), or a callable(amplitude_V, duration_ns) -> list of
-            samples at 1 GHz (1 sample per ns)
+            config (legacy), or a callable(amplitude_V, duration_ns) -> samples
+            at 1 GHz (1 sample per ns). Return a list of samples for a DC
+            element, or ``{'I': [...], 'Q': [...]}`` (equivalently a complex
+            ``I + 1j*Q``) for an up-converted (mixInputs / MWInput) one. Which
+            kind of pulse is generated (and cached) follows from that return
+            value, nothing has to be declared.
         duration (Time | None): duration parameter (clock cycles, 1cc = 4ns)
         reference (Optional[ParameterMap | None]): voltage point to come from.
             Amplitude is always target - reference.
@@ -117,7 +107,12 @@ def load_waveform_table(
         operation (str): Operation name to register on every element. It is
             also the name ``load_waveform`` selects the waveform with.
         waveforms (dict): Per element list of waveforms (samples at 1 GS/s).
-            Every waveform of every element must have the same length.
+            A waveform is a list of samples for a DC element, or
+            ``{'I': [...], 'Q': [...]}`` for an up-converted one -
+            equivalently a complex ``I + 1j*Q``, which is what
+            ``simulate_pulse_waveforms`` returns. Every waveform of every
+            element must have the same length, and all waveforms of one
+            element must drive the same channels.
         index: Waveform to play, as an int or a hardware variable. Sweeping the
             parameter behind it measures one cached waveform per iteration.
         hardware_config (dict): Hardware config to inject the waveforms into.
@@ -129,7 +124,7 @@ def load_waveform_table(
             do not all have the same length, or if there are more waveforms
             than the hardware can cache.
     """
-    dur_ns = _check_waveform_table(elements, waveforms)
+    dur_ns, channel_arrays = _check_waveform_table(elements, waveforms)
     backend = get_active_backend()
 
     from arbok_driver.backends.sim_backend import SimBackend
@@ -144,7 +139,7 @@ def load_waveform_table(
                 'operations', {}):
             _inject_waveform_table_config(
                 hardware_config, element, operation,
-                waveforms[element], dur_ns)
+                channel_arrays[element], dur_ns)
         backend.load_waveform(operation, index, element)
 
 
@@ -175,15 +170,20 @@ def play_waveform_table(
 def _check_waveform_table(
         elements: list[str],
         waveforms: dict[str, list],
-    ) -> int:
-    """Validates a waveform table and returns the common waveform length.
+    ) -> tuple[int, dict[str, dict[str, list[list[float]]]]]:
+    """Validates a waveform table and normalizes it per element and channel.
+
+    The normalized table is returned rather than re-derived at injection
+    time: a pre-computed gate sequence can hold a thousand waveforms of
+    thousands of samples, and converting those twice is wasted work.
 
     Args:
         elements: Elements the table has to cover.
         waveforms: Per element list of waveforms.
 
     Returns:
-        Length of every waveform in the table, in ns.
+        tuple: Length of every waveform in the table in ns, and the table as
+        element to channel to that channel's trace per index.
 
     Raises:
         ValueError: If an element is missing, if the table is empty, if the
@@ -196,11 +196,17 @@ def _check_waveform_table(
 
     lengths = set()
     counts = set()
+    channel_arrays = {}
     for element in elements:
         element_waveforms = waveforms[element]
         counts.add(len(element_waveforms))
-        for waveform in element_waveforms:
-            lengths.add(len(waveform))
+        if not element_waveforms:
+            continue
+        ### Normalizing also validates the channel keys and rejects
+        ### quadratures of unequal length within one waveform
+        channel_arrays[element] = _as_channel_arrays(element_waveforms)
+        for traces in channel_arrays[element].values():
+            lengths.update(len(trace) for trace in traces)
     if not counts or counts == {0}:
         raise ValueError("The waveform table does not hold any waveform")
     if len(counts) != 1:
@@ -216,14 +222,14 @@ def _check_waveform_table(
         raise ValueError(
             f"A waveform table holds at most {MAX_WFC_WAVEFORMS} waveforms, "
             f"got {nr_waveforms}.")
-    return lengths.pop()
+    return lengths.pop(), channel_arrays
 
 
 def _inject_waveform_table_config(
         hardware_config: dict,
         element: str,
         op_name: str,
-        samples_array: list,
+        channel_arrays: dict[str, list[list[float]]],
         dur_ns: int,
     ) -> None:
     """Injects a ``type: array`` waveform table for a single element.
@@ -235,20 +241,24 @@ def _inject_waveform_table_config(
         hardware_config: The full hardware (OPX) configuration dict.
         element: Element name to attach the operation to.
         op_name: Operation name (shared with the ``load_waveform`` call).
-        samples_array: List of waveforms (one per index) for this element.
+        channel_arrays: Normalized waveforms of this element, as channel to
+            that channel's trace per index.
         dur_ns: Waveform length in nanoseconds (all waveforms are equal).
     """
-    wf_name = f"{op_name}_{element}_wf"
+    _check_element_channels(hardware_config, element, channel_arrays)
     pulse_name = f"{op_name}_{element}_pulse"
 
-    hardware_config.setdefault('waveforms', {})[wf_name] = {
-        'type': 'array',
-        'samples_array': [_as_float_list(samples) for samples in samples_array],
-    }
+    waveforms = hardware_config.setdefault('waveforms', {})
+    pulse_waveforms = {}
+    for channel, traces in channel_arrays.items():
+        wf_name = _waveform_name(f"{op_name}_{element}", channel)
+        waveforms[wf_name] = {'type': 'array', 'samples_array': traces}
+        pulse_waveforms[channel] = wf_name
+
     hardware_config.setdefault('pulses', {})[pulse_name] = {
         'operation': 'control',
         'length': dur_ns,
-        'waveforms': {'single': wf_name},
+        'waveforms': pulse_waveforms,
     }
     hardware_config['elements'][element].setdefault(
         'operations', {})[op_name] = pulse_name
@@ -535,25 +545,92 @@ def _build_pulse_name(
     return name
 
 
+def _waveform_name(base: str, channel: str) -> str:
+    """Builds the config key of one channel's waveform.
+
+    Single input waveforms keep their historic unsuffixed name, so configs
+    generated before I/Q support are unchanged.
+
+    Args:
+        base: Name shared by all channels of the pulse.
+        channel: Channel the waveform drives (``single``, ``I`` or ``Q``).
+
+    Returns:
+        str: Key of the waveform in the ``waveforms`` section.
+    """
+    if channel == SINGLE_CHANNEL:
+        return f"{base}_wf"
+    return f"{base}_{channel}_wf"
+
+
+def _check_element_channels(
+        hardware_config: dict,
+        element: str,
+        channels: Iterable[str],
+    ) -> None:
+    """Checks the generated channels against the element's input declaration.
+
+    Playing I/Q samples on a single input element (or the other way round)
+    is rejected by the hardware with a hard to read compilation error, so it
+    is caught here while the offending generator is still in sight. Elements
+    that declare no input at all are left alone.
+
+    Args:
+        hardware_config: The full hardware (OPX) configuration dict.
+        element: Element the pulse is played on.
+        channels: Channels the pulse drives, or any mapping keyed by them.
+
+    Raises:
+        ValueError: If the element's input kind cannot play these channels.
+    """
+    element_config = hardware_config.get('elements', {}).get(element, {})
+    is_iq = set(channels) == set(IQ_CHANNELS)
+    has_single = 'singleInput' in element_config
+    has_iq = 'mixInputs' in element_config or 'MWInput' in element_config
+
+    if is_iq and has_single and not has_iq:
+        raise ValueError(
+            f"The waveform generator returned {set(IQ_CHANNELS)} samples, but "
+            f"element '{element}' is a singleInput element. Return a plain "
+            f"list of samples for DC elements.")
+    if not is_iq and has_iq and not has_single:
+        raise ValueError(
+            f"The waveform generator returned a single trace, but element "
+            f"'{element}' is driven by mixInputs/MWInput. Return "
+            f"{{'I': [...], 'Q': [...]}} for up-converted elements.")
+
+
 def _inject_config(
         opx_config: dict,
         element: str,
         op_name: str,
-        samples: list[float],
+        samples: WaveformSamples,
         dur_ns: int,
     ) -> None:
-    """Injects waveform, pulse, and operation entries into the OPX config."""
-    wf_name = f"{op_name}_wf"
+    """Injects waveform, pulse, and operation entries into the OPX config.
+
+    Args:
+        opx_config: The full OPX configuration dict.
+        element: Element name to attach the operation to.
+        op_name: Operation name to register on the element.
+        samples: Generator output - one trace, or one trace per quadrature.
+        dur_ns: Pulse duration in nanoseconds.
+    """
+    channels = as_channel_map(samples)
+    _check_element_channels(opx_config, element, channels)
     pulse_name = f"{op_name}_pulse"
 
-    opx_config.setdefault('waveforms', {})[wf_name] = {
-        'type': 'arbitrary',
-        'samples': _as_float_list(samples),
-    }
+    waveforms = opx_config.setdefault('waveforms', {})
+    pulse_waveforms = {}
+    for channel, trace in channels.items():
+        wf_name = _waveform_name(op_name, channel)
+        waveforms[wf_name] = {'type': 'arbitrary', 'samples': trace}
+        pulse_waveforms[channel] = wf_name
+
     opx_config.setdefault('pulses', {})[pulse_name] = {
         'operation': 'control',
         'length': dur_ns,
-        'waveforms': {'single': wf_name},
+        'waveforms': pulse_waveforms,
     }
     opx_config['elements'][element].setdefault('operations', {})[op_name] = pulse_name
 
@@ -562,32 +639,72 @@ def _inject_wfc_config(
         opx_config: dict,
         element: str,
         op_name: str,
-        samples_array: list[list[float]],
+        samples_array: list[WaveformSamples],
         dur_ns: int,
     ) -> None:
     """Injects a waveform-cached (type: array) entry into the OPX config.
+
+    For an up-converted element both quadratures become their own ``array``
+    waveform. ``load_waveform`` selects by pulse, so one index still picks a
+    consistent I/Q pair.
 
     Args:
         opx_config: The full OPX configuration dict.
         element: Element name to attach the operation to.
         op_name: Operation name (shared with sweep's load_waveform call).
-        samples_array: List of waveform sample lists (one per sweep index).
+        samples_array: Generator output per sweep index - each entry one trace,
+            or one trace per quadrature.
         dur_ns: Pulse duration in nanoseconds (all waveforms same length).
     """
-    wf_name = f"{op_name}_wf"
+    channel_arrays = _as_channel_arrays(samples_array)
+    _check_element_channels(opx_config, element, channel_arrays)
     pulse_name = f"{op_name}_pulse"
 
-    opx_config.setdefault('waveforms', {})[wf_name] = {
-        'type': 'array',
-        'samples_array': [_as_float_list(s) for s in samples_array],
-    }
+    waveforms = opx_config.setdefault('waveforms', {})
+    pulse_waveforms = {}
+    for channel, traces in channel_arrays.items():
+        wf_name = _waveform_name(op_name, channel)
+        waveforms[wf_name] = {'type': 'array', 'samples_array': traces}
+        pulse_waveforms[channel] = wf_name
+
     opx_config.setdefault('pulses', {})[pulse_name] = {
         'operation': 'control',
         'length': dur_ns,
-        'waveforms': {'single': wf_name},
+        'waveforms': pulse_waveforms,
     }
     opx_config['elements'][element].setdefault(
         'operations', {})[op_name] = pulse_name
+
+
+def _as_channel_arrays(
+        samples_array: list[WaveformSamples],
+    ) -> dict[str, list[list[float]]]:
+    """Transposes a list of waveforms into one list of traces per channel.
+
+    Args:
+        samples_array: Waveforms of a table, in play order.
+
+    Returns:
+        dict: Channel name to its trace per table index, order preserved.
+
+    Raises:
+        ValueError: If the table is empty or mixes single and I/Q waveforms.
+    """
+    if not samples_array:
+        raise ValueError("The waveform table does not hold any waveform")
+
+    channel_arrays: dict[str, list[list[float]]] = {}
+    for samples in samples_array:
+        channels = as_channel_map(samples)
+        if not channel_arrays:
+            channel_arrays = {channel: [] for channel in channels}
+        elif set(channels) != set(channel_arrays):
+            raise ValueError(
+                f"All waveforms of a table must drive the same channels, got "
+                f"{sorted(channel_arrays)} and {sorted(channels)}")
+        for channel, trace in channels.items():
+            channel_arrays[channel].append(trace)
+    return channel_arrays
 
 
 def _compute_amplitude_array(
