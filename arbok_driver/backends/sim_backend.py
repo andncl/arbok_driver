@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from arbok_driver.backend import Backend, HardwareVariable, HardwareStream
+from arbok_driver.backend import (
+    IQ_CHANNELS, SINGLE_CHANNEL, Backend, HardwareVariable, HardwareStream,
+    as_channel_map)
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -63,14 +65,20 @@ class ElementTimeline:
     """Tracks the waveform output of a single element.
 
     Uses chunked numpy arrays internally — samples are stored as a list of
-    NDArray chunks and only concatenated on final read via get_samples().
+    NDArray chunks per channel and only concatenated on final read via
+    get_samples().
+
+    A DC element has the single channel ``single``, an up-converted one the
+    channels ``I`` and ``Q``. Which of the two a timeline holds follows from
+    the first waveform played on it; all channels always share a length, so
+    waits and padding stay in step.
     """
 
     def __init__(self, name: str):
         self.name = name
-        self._chunks: list[NDArray] = []
+        self._chunks: dict[str, list[NDArray]] = {}
         self._total_ns: int = 0
-        self.current_voltage: float = 0.0
+        self._current: dict[str, float] = {}
         self.frame_phase: float = 0.0
 
     @property
@@ -78,34 +86,79 @@ class ElementTimeline:
         return self._total_ns
 
     @property
+    def channels(self) -> tuple[str, ...]:
+        """Channels played on this element, ``('single',)`` until known."""
+        if not self._chunks:
+            return (SINGLE_CHANNEL,)
+        return tuple(self._chunks)
+
+    @property
+    def is_iq(self) -> bool:
+        """Whether this element is driven by two quadratures."""
+        return set(self._chunks) == set(IQ_CHANNELS)
+
+    @property
+    def current_voltage(self) -> float:
+        """Last sample of the single channel (0.0 for an I/Q element)."""
+        return self._current.get(SINGLE_CHANNEL, 0.0)
+
+    @property
     def samples(self) -> list[float]:
         """Legacy accessor — returns samples as a list (for backwards compat)."""
         return self.get_samples().tolist()
 
     def get_samples(self) -> NDArray:
-        """Return all samples as a single numpy array."""
-        if not self._chunks:
-            return np.empty(0, dtype=np.float64)
-        if len(self._chunks) == 1:
-            return self._chunks[0]
-        result = np.concatenate(self._chunks)
-        self._chunks = [result]
-        return result
+        """Return all samples as a single numpy array.
+
+        For an I/Q element the quadratures are combined into one complex
+        array ``I + 1j*Q``, matching what the QM simulator returns for
+        MW-FEM channels (see :func:`arbok_driver.utils.plot_simulation`).
+        """
+        if self.is_iq:
+            channels = self.get_channel_samples()
+            return channels['I'] + 1j * channels['Q']
+        return self.get_channel_samples().get(
+            SINGLE_CHANNEL, np.empty(0, dtype=np.float64))
+
+    def get_channel_samples(self) -> dict[str, NDArray]:
+        """Return the samples of every channel as its own numpy array."""
+        samples = {}
+        for channel, chunks in self._chunks.items():
+            if len(chunks) > 1:
+                self._chunks[channel] = [np.concatenate(chunks)]
+            samples[channel] = self._chunks[channel][0]
+        return samples
 
     def append_samples(self, waveform: Any) -> None:
-        """Append waveform samples and update current_voltage to last sample."""
-        arr = np.asarray(waveform, dtype=np.float64)
-        if arr.size > 0:
-            self._chunks.append(arr)
-            self._total_ns += arr.size
-            self.current_voltage = float(arr[-1])
+        """Append waveform samples and track the last sample per channel.
+
+        Args:
+            waveform: Samples of a single channel element, or a dict holding
+                one trace per quadrature.
+
+        Raises:
+            ValueError: If the waveform drives other channels than the ones
+                already played on this element.
+        """
+        channels = as_channel_map(waveform)
+        self._check_channels(channels)
+        length = len(next(iter(channels.values())))
+        if length == 0:
+            return
+        for channel, trace in channels.items():
+            arr = np.asarray(trace, dtype=np.float64)
+            self._chunks.setdefault(channel, []).append(arr)
+            self._current[channel] = float(arr[-1])
+        self._total_ns += length
 
     def append_wait(self, duration_ns: int) -> None:
-        """Append a wait period holding at the current voltage."""
+        """Append a wait period holding every channel at its last sample."""
         if duration_ns <= 0:
             return
-        chunk = np.full(duration_ns, self.current_voltage, dtype=np.float64)
-        self._chunks.append(chunk)
+        for channel in self.channels:
+            chunk = np.full(
+                duration_ns, self._current.get(channel, 0.0), dtype=np.float64)
+            self._chunks.setdefault(channel, []).append(chunk)
         self._total_ns += duration_ns
 
     def pad_to(self, target_ns: int) -> None:
@@ -114,14 +167,26 @@ class ElementTimeline:
             self.append_wait(target_ns - self._total_ns)
 
     def ramp_to_zero(self, ramp_ns: int = 4) -> None:
-        """Linearly ramp from current voltage to zero."""
+        """Linearly ramp every channel from its last sample to zero."""
         if ramp_ns <= 0:
-            self.current_voltage = 0.0
+            self._current = {channel: 0.0 for channel in self._current}
             return
-        ramp = np.linspace(self.current_voltage, 0.0, ramp_ns, dtype=np.float64)
-        self._chunks.append(ramp)
+        for channel in self.channels:
+            ramp = np.linspace(
+                self._current.get(channel, 0.0), 0.0, ramp_ns,
+                dtype=np.float64)
+            self._chunks.setdefault(channel, []).append(ramp)
+            self._current[channel] = 0.0
         self._total_ns += ramp_ns
-        self.current_voltage = 0.0
+
+    def _check_channels(self, channels: dict[str, Any]) -> None:
+        """Rejects a waveform that does not match the element's channels."""
+        if not self._chunks or set(channels) == set(self._chunks):
+            return
+        raise ValueError(
+            f"Element '{self.name}' is played on channels "
+            f"{sorted(self._chunks)}, but the waveform drives "
+            f"{sorted(channels)}")
 
 
 class SimBackend(Backend):
@@ -165,10 +230,24 @@ class SimBackend(Backend):
         """Return simulation results as numpy arrays per element.
 
         Returns:
-            Dict mapping element names to their voltage waveform arrays.
+            Dict mapping element names to their voltage waveform arrays. An
+            up-converted element yields one complex array ``I + 1j*Q``; use
+            :meth:`get_channel_waveforms` to keep the quadratures apart.
         """
         return {
             name: tl.get_samples()
+            for name, tl in self._timelines.items()
+        }
+
+    def get_channel_waveforms(self) -> dict[str, dict[str, NDArray]]:
+        """Return simulation results as numpy arrays per element and channel.
+
+        Returns:
+            Dict mapping element names to their channel (``single``, or ``I``
+            and ``Q``) to that channel's waveform array.
+        """
+        return {
+            name: tl.get_channel_samples()
             for name, tl in self._timelines.items()
         }
 
@@ -265,7 +344,10 @@ class SimBackend(Backend):
         tl = self._get_or_create_timeline(element)
         dur_ns = 100 * CLOCK_CYCLE_NS
         measurement_signal = np.random.normal(0, 0.01, dur_ns)
-        tl.append_samples(measurement_signal)
+        ### Readout noise is modelled per channel, so an I/Q element gets the
+        ### same trace on both quadratures rather than a channel mismatch
+        tl.append_samples(
+            {channel: measurement_signal for channel in tl.channels})
 
         if outputs:
             for output in outputs:
