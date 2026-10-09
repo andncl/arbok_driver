@@ -452,7 +452,9 @@ class SequenceBase(InstrumentModule, ABC):
 
         Returns:
             Dict mapping element names to numpy arrays of voltage samples at
-            1 GS/s (1 sample per nanosecond).
+            1 GS/s (1 sample per nanosecond). An up-converted element yields
+            one complex array ``I + 1j*Q``, which ``load_waveform_table``
+            takes as is.
         """
         import numpy as np
         from .backends.sim_backend import SimBackend
