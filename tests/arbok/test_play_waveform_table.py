@@ -298,3 +298,130 @@ def test_empty_table_is_rejected():
         arbok.load_waveform_table(
             elements = [ELEMENTS[0]], operation = OPERATION,
             waveforms = {ELEMENTS[0]: []}, index = 0, hardware_config = {})
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# I/Q waveforms
+# ──────────────────────────────────────────────────────────────────────────
+
+IQ_ELEMENTS = ['qe1', 'Q1']
+"""An up-converted element of each kind: mixInputs and MWInput"""
+
+IQ_OPERATION = 'cached_iq_pulse'
+IQ_WAVEFORMS = {
+    element: [
+        {
+            'I': np.full(WAVEFORM_NS, 0.1*(index + 1)),
+            'Q': np.full(WAVEFORM_NS, -0.1*(index + 1)),
+        }
+        for index in range(NR_WAVEFORMS)
+    ]
+    for element in IQ_ELEMENTS
+}
+
+
+class IQTableSequence(SubSequence):
+    """Plays one I/Q waveform of the table, selected by a hardware variable"""
+    PARAMETER_CLASS = TableParams
+    arbok_params: TableParams
+
+    def fpga_before_sequence(self):
+        arbok.load_waveform_table(
+            elements = IQ_ELEMENTS,
+            operation = IQ_OPERATION,
+            waveforms = IQ_WAVEFORMS,
+            index = self.arbok_params.waveform_index.hw_var,
+            hardware_config = self.measurement.hardware_config,
+        )
+
+    def fpga_sequence(self):
+        arbok.play_waveform_table(
+            elements = IQ_ELEMENTS, operation = IQ_OPERATION)
+
+
+@pytest.fixture(name='iq_table_sequence')
+def fixture_iq_table_sequence(mock_measurement) -> IQTableSequence:
+    """Returns a sequence playing an I/Q waveform table, registered for compilation"""
+    return IQTableSequence(mock_measurement, 'iq_table_seq', table_conf)
+
+
+def test_iq_samples_are_injected_per_quadrature(
+        mock_measurement, iq_table_sequence):
+    """
+    An up-converted element gets one array waveform per quadrature.
+
+    Which kind of pulse is built follows from the waveforms the caller hands
+    over - nothing about the element has to be declared at the call site.
+    """
+    mock_measurement.get_program_as_str(recompile = True)
+    config = mock_measurement.hardware_config
+
+    for element in IQ_ELEMENTS:
+        for channel, sign in (('I', 1), ('Q', -1)):
+            waveform = config['waveforms'][
+                f'{IQ_OPERATION}_{element}_{channel}_wf']
+            assert waveform['type'] == 'array'
+            assert len(waveform['samples_array']) == NR_WAVEFORMS
+            np.testing.assert_allclose(
+                waveform['samples_array'][1], np.full(WAVEFORM_NS, sign*0.2))
+
+        pulse = config['pulses'][f'{IQ_OPERATION}_{element}_pulse']
+        assert pulse['waveforms'] == {
+            'I': f'{IQ_OPERATION}_{element}_I_wf',
+            'Q': f'{IQ_OPERATION}_{element}_Q_wf'}
+        assert pulse['length'] == WAVEFORM_NS
+        assert config['elements'][element]['operations'][IQ_OPERATION] \
+            == f'{IQ_OPERATION}_{element}_pulse'
+
+
+def test_iq_table_loads_once_per_element(mock_measurement, iq_table_sequence):
+    """
+    One `load_waveform` covers both quadratures.
+
+    It selects by pulse, and the pulse holds both arrays, so an index cannot
+    pick the I of one waveform and the Q of another.
+    """
+    program = mock_measurement.get_program_as_str(recompile = True)
+
+    assert program.count(f"load_waveform(pulse='{IQ_OPERATION}'") \
+        == len(IQ_ELEMENTS)
+    for element in IQ_ELEMENTS:
+        assert f"play('{IQ_OPERATION}', '{element}')" in program
+
+
+def test_iq_table_is_swept_by_the_index(mock_measurement, iq_table_sequence):
+    """A swept index plays one cached I/Q waveform per iteration"""
+    mock_measurement.set_sweeps({
+        iq_table_sequence.arbok_params.waveform_index:
+            np.arange(NR_WAVEFORMS)})
+
+    program = mock_measurement.get_program_as_str(recompile = True)
+
+    assert program.count('waveform_index=v') == len(IQ_ELEMENTS)
+
+
+def test_iq_simulation_keeps_the_quadratures_apart(sim_backend):
+    """The simulation resolves the selection per quadrature"""
+    with sim_backend.program_context():
+        arbok.load_waveform_table(
+            elements = IQ_ELEMENTS, operation = IQ_OPERATION,
+            waveforms = IQ_WAVEFORMS, index = 1, hardware_config = {})
+        arbok.play_waveform_table(
+            elements = IQ_ELEMENTS, operation = IQ_OPERATION)
+    channels = sim_backend.get_channel_waveforms()
+
+    for element in IQ_ELEMENTS:
+        np.testing.assert_allclose(
+            channels[element]['I'], np.full(WAVEFORM_NS, 0.2))
+        np.testing.assert_allclose(
+            channels[element]['Q'], np.full(WAVEFORM_NS, -0.2))
+
+
+def test_iq_quadratures_of_different_length_are_rejected():
+    """The two quadratures of a waveform are played by one pulse"""
+    with pytest.raises(ValueError, match='same length'):
+        arbok.load_waveform_table(
+            elements = ['qe1'], operation = IQ_OPERATION,
+            waveforms = {'qe1': [
+                {'I': np.zeros(WAVEFORM_NS), 'Q': np.zeros(WAVEFORM_NS + 4)}]},
+            index = 0, hardware_config = {'elements': {'qe1': {}}})

@@ -215,3 +215,80 @@ def test_program_still_compiles_after_simulating(mock_measurement):
 
     assert len(waveforms[LONG_ELEMENT]) == LONG_NS
     assert f"wait({LONG_CYCLES}, '{LONG_ELEMENT}')" in program
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# I/Q elements
+# ──────────────────────────────────────────────────────────────────────────
+
+IQ_ELEMENT = 'qe1'
+"""An element of the test config driven by mixInputs"""
+
+IQ_AMPLITUDE = 0.2
+
+
+def iq_constant_generator(amplitude: float, duration_ns: int) -> dict:
+    """Returns a flat envelope split into two quadratures"""
+    return {'I': [amplitude]*duration_ns, 'Q': [-amplitude]*duration_ns}
+
+
+class IQPulseSequence(SubSequence):
+    """Plays an I/Q pulse next to a DC one"""
+    PARAMETER_CLASS = PulseParams
+    arbok_params: PulseParams
+
+    def fpga_sequence(self):
+        arbok.play_pulse(
+            iq_constant_generator, IQ_ELEMENT, IQ_AMPLITUDE, SHORT_CYCLES)
+        arbok.play_pulse(
+            constant_generator, LONG_ELEMENT, LONG_AMPLITUDE, LONG_CYCLES)
+
+
+def test_iq_element_is_returned_as_one_complex_waveform(mock_measurement):
+    """
+    An up-converted element yields `I + 1j*Q`, padded like a DC element.
+
+    That is the shape the QM simulator returns for MW-FEM channels, and the
+    shape `load_waveform_table` takes back in.
+    """
+    sequence = IQPulseSequence(mock_measurement, 'iq_pulse', pulse_conf)
+
+    waveforms = sequence.simulate_pulse_waveforms(
+        elements = [IQ_ELEMENT, LONG_ELEMENT])
+
+    samples = waveforms[IQ_ELEMENT]
+    assert np.iscomplexobj(samples)
+    assert len(samples) == LONG_NS
+    np.testing.assert_allclose(
+        samples[:SHORT_NS],
+        np.full(SHORT_NS, IQ_AMPLITUDE - 1j*IQ_AMPLITUDE))
+    np.testing.assert_allclose(samples[SHORT_NS:], 0)
+
+
+def test_simulated_iq_pulse_can_be_cached(mock_measurement):
+    """
+    The simulated pulse goes straight back into a waveform table.
+
+    Pre-computing a gate sequence and caching it is the whole point of
+    `simulate_pulse_waveforms`, and it has to work for driven qubits too.
+    """
+    sequence = IQPulseSequence(mock_measurement, 'iq_pulse', pulse_conf)
+    simulated = sequence.simulate_pulse_waveforms(elements = [IQ_ELEMENT])
+    hardware_config = {'elements': {IQ_ELEMENT: {}}}
+
+    ### load_waveform is a hardware instruction, so it needs a program scope
+    with mock_measurement.backend.program_context():
+        arbok.load_waveform_table(
+            elements = [IQ_ELEMENT], operation = 'cached_gate',
+            waveforms = {IQ_ELEMENT: [simulated[IQ_ELEMENT]]},
+            index = 0, hardware_config = hardware_config)
+
+    for channel, sign in (('I', 1), ('Q', -1)):
+        waveform = hardware_config['waveforms'][
+            f'cached_gate_{IQ_ELEMENT}_{channel}_wf']
+        assert waveform['type'] == 'array'
+        np.testing.assert_allclose(
+            waveform['samples_array'][0][:SHORT_NS],
+            np.full(SHORT_NS, sign*IQ_AMPLITUDE))
+    assert hardware_config['pulses'][f'cached_gate_{IQ_ELEMENT}_pulse'][
+        'length'] == LONG_NS

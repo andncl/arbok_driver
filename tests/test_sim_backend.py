@@ -128,3 +128,87 @@ class TestSimBackendSequence:
         assert wf['P2'][50] == pytest.approx(0.3)
         assert wf['P2'][150] == pytest.approx(0.3)
         assert wf['P2'][-1] == pytest.approx(0.1)
+
+
+def iq_generator(amplitude, dur_ns):
+    """Constant envelope split into two quadratures."""
+    return {
+        'I': [amplitude] * dur_ns,
+        'Q': [-amplitude] * dur_ns,
+    }
+
+
+class TestSimBackendIQ:
+    """A generator returning I/Q samples drives two channels per element."""
+
+    def test_play_keeps_the_quadratures_apart(self):
+        sim = SimBackend()
+        with sim.program_context():
+            sim.play('q1', iq_generator, 0.2, 25)
+
+        channels = sim.get_channel_waveforms()['q1']
+        assert set(channels) == {'I', 'Q'}
+        assert all(s == pytest.approx(0.2) for s in channels['I'])
+        assert all(s == pytest.approx(-0.2) for s in channels['Q'])
+
+    def test_waveforms_are_complex(self):
+        """
+        An I/Q element yields one complex array, like the QM simulator does.
+
+        `utils.plot_simulation` already splits complex channels into an I and
+        a Q trace, so simulated and hardware results plot the same way.
+        """
+        sim = SimBackend()
+        with sim.program_context():
+            sim.play('q1', iq_generator, 0.2, 25)
+
+        samples = sim.get_waveforms()['q1']
+        assert np.iscomplexobj(samples)
+        np.testing.assert_allclose(samples, np.full(100, 0.2 - 0.2j))
+
+    def test_wait_holds_both_quadratures(self):
+        sim = SimBackend()
+        with sim.program_context():
+            sim.play('q1', iq_generator, 0.2, 25)
+            sim.wait(10, ['q1'])
+
+        channels = sim.get_channel_waveforms()['q1']
+        assert len(channels['I']) == len(channels['Q']) == 140
+        assert channels['I'][-1] == pytest.approx(0.2)
+        assert channels['Q'][-1] == pytest.approx(-0.2)
+
+    def test_align_pads_an_iq_element(self):
+        """Both quadratures stay in step with a single channel element"""
+        sim = SimBackend()
+        with sim.program_context():
+            sim.play('P1', constant_generator, 0.3, 25)
+            sim.play('q1', iq_generator, 0.2, 10)
+            sim.align(['P1', 'q1'])
+
+        channels = sim.get_channel_waveforms()['q1']
+        assert len(channels['I']) == len(channels['Q']) == 100
+        assert channels['Q'][-1] == pytest.approx(-0.2)
+
+    def test_ramp_to_zero_ramps_both_quadratures(self):
+        sim = SimBackend()
+        with sim.program_context():
+            sim.play('q1', iq_generator, 0.2, 25)
+            sim.ramp_to_zero('q1')
+
+        channels = sim.get_channel_waveforms()['q1']
+        assert channels['I'][-1] == pytest.approx(0.0)
+        assert channels['Q'][-1] == pytest.approx(0.0)
+        assert channels['Q'][100] == pytest.approx(-0.2)
+
+    def test_mixing_single_and_iq_on_one_element_is_rejected(self):
+        """
+        An element is either DC or up-converted, not both.
+
+        Appending a single trace to an I/Q timeline would silently desync the
+        quadratures, so it is caught instead.
+        """
+        sim = SimBackend()
+        with sim.program_context():
+            sim.play('q1', iq_generator, 0.2, 25)
+            with pytest.raises(ValueError, match='drives'):
+                sim.play('q1', constant_generator, 0.2, 25)
