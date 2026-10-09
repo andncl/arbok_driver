@@ -1,5 +1,6 @@
 from .coulomb_peaks import CoulombPeaks
 from .from_control_point import FromControlPoint
+from .iq_drive import IQDrive
 from .parity_initialization import ParityInit
 from .parity_initialization_heralded import ParityInitHeralded
 from .parity_readout import ParityRead
@@ -18,6 +19,7 @@ __all__ = [
     "CoulombPeaks",
     "Cpmg",
     "FromControlPoint",
+    "IQDrive",
     "ParityInit",
     "ParityInitHeralded",
     "ParityRead",
